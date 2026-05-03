@@ -84,7 +84,7 @@
 - [x] **UX-06**: Reduce Motion preference disables non-essential animations; all gestures remain functional
 - [x] **UX-07**: App supports both Light and Dark appearance with deliberate per-mode color choices (not just system defaults)
 - [x] **UX-08**: First-run flow explains the photo-library permission and gracefully handles `.limited` access
-- [ ] **UX-09**: iPhone layout is the primary target; iPad runs the same layout without crashing or clipping
+- [x] **UX-09**: iPhone layout is the primary target; iPad runs the same layout without crashing or clipping
 
 ## v2 Requirements
 
@@ -171,7 +171,7 @@
 | UX-06 | Phase 7 | Complete |
 | UX-07 | Phase 7 | Complete |
 | UX-08 | Phase 7 | Complete |
-| UX-09 | Phase 7 | Pending |
+| UX-09 | Phase 7 | Complete |
 
 **Coverage:**
 - v1 requirements: 49 total
