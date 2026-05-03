@@ -104,15 +104,8 @@ struct ContentView: View {
     }
 
     private var filterStrip: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Filters").font(.headline)
-            // Filter list is empty until Phase 2 (LUT pipeline).
-            Text("Coming in Phase 2")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-                .frame(maxWidth: .infinity, alignment: .leading)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
+        FilterStripView(viewModel: viewModel)
+            .disabled(viewModel.importedImage == nil)
     }
 
     private var adjustments: some View {
