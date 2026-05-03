@@ -21,7 +21,7 @@
 - [ ] **FILTER-03**: Each filter has a strength slider (0–100%) that smoothly blends between unfiltered and full-strength filtered output
 - [ ] **FILTER-04**: Filters can be marked as Favorites and Favorites appear first in the strip
 - [ ] **FILTER-05**: Each filter has a stable UUID so saved Recipes survive filter library updates
-- [ ] **FILTER-06**: Filters use 64-point `CIColorCubeWithColorSpace` LUTs in linear sRGB working space (no banding, no color drift)
+- [x] **FILTER-06**: Filters use 64-point `CIColorCubeWithColorSpace` LUTs in linear sRGB working space (no banding, no color drift)
 
 ### Adjustments
 
@@ -129,7 +129,7 @@
 | FILTER-03 | Phase 2 | Pending |
 | FILTER-04 | Phase 2 | Pending |
 | FILTER-05 | Phase 2 | Pending |
-| FILTER-06 | Phase 2 | Pending |
+| FILTER-06 | Phase 2 | Complete |
 | ADJUST-01 | Phase 3 | Pending |
 | ADJUST-02 | Phase 3 | Pending |
 | ADJUST-03 | Phase 3 | Pending |
