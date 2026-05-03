@@ -14,6 +14,7 @@ struct ContentView: View {
     @State private var originalContext: CIContext = CIContext(options: [.useSoftwareRenderer: false])
     @State private var libraryStore: LibraryStore?
     @State private var isLibraryPresented: Bool = false
+    @State private var isExportSheetPresented: Bool = false
 
     var body: some View {
         NavigationStack {
@@ -52,15 +53,16 @@ struct ContentView: View {
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
-                        Task { await viewModel.saveImage() }
+                        isExportSheetPresented = true
                     } label: {
-                        if viewModel.isSaving {
+                        if viewModel.isExporting {
                             ProgressView()
                         } else {
-                            Image(systemName: "square.and.arrow.down")
+                            Image(systemName: "square.and.arrow.up.on.square")
                         }
                     }
-                    .disabled(viewModel.importedImage == nil || viewModel.isSaving)
+                    .disabled(viewModel.importedImage == nil || viewModel.isExporting)
+                    .accessibilityLabel("Export")
                 }
             }
             .background(Color(.systemGroupedBackground))
@@ -68,6 +70,21 @@ struct ContentView: View {
                 if let store = libraryStore {
                     LibraryGridView(store: store) { item in
                         Task { await viewModel.openLibraryItem(item) }
+                    }
+                }
+            }
+            .sheet(isPresented: $isExportSheetPresented) {
+                ExportSheetView(viewModel: viewModel)
+                    .presentationDetents([.medium, .large])
+            }
+            .sheet(isPresented: Binding(
+                get: { viewModel.shareData != nil },
+                set: { if !$0 { viewModel.shareData = nil; viewModel.shareFormat = nil } }
+            )) {
+                if let data = viewModel.shareData, let format = viewModel.shareFormat {
+                    ShareSheetView(data: data, format: format) {
+                        viewModel.shareData = nil
+                        viewModel.shareFormat = nil
                     }
                 }
             }
