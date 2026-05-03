@@ -14,10 +14,12 @@ These XCTest files will not compile or run until a test target is added to
 5. In the Project navigator, right-click the `PhotoEditorTests` group →
    "Add Files to PhotoEditor…". Select the existing files in
    `PhotoEditorTests/` on disk (`AdjustmentStackTests.swift`,
-   `PipelineBuilderTests.swift`). Add them to the `PhotoEditorTests` target only.
+   `PipelineBuilderTests.swift`, `CubeParserTests.swift`). Add them to the
+   `PhotoEditorTests` target only.
 6. Run with ⌘U or `xcodebuild test -project PhotoEditor.xcodeproj -scheme PhotoEditor -destination 'platform=iOS Simulator,name=iPhone 15'`.
 
 ## Expected Result
 
 - `AdjustmentStackTests` passes after Plan 01-01 lands.
 - `PipelineBuilderTests` passes after Plan 01-03 lands `PipelineBuilder.build`.
+- `CubeParserTests` passes after Plan 02-02 lands.
