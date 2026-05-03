@@ -18,7 +18,7 @@ struct CropPanelView: View {
 
     private var aspectPicker: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("Aspect").font(.subheadline.weight(.medium))
+            Text("Aspect").font(Theme.Typography.subtitle)
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 10) {
                     ForEach(CropAspectPreset.allCases) { preset in
@@ -26,12 +26,13 @@ struct CropPanelView: View {
                             applyPreset(preset)
                         } label: {
                             Text(preset.displayName)
-                                .font(.caption.weight(.semibold))
+                                .font(Theme.Typography.caption)
                                 .padding(.horizontal, 12).padding(.vertical, 8)
                                 .background(selectedPreset == preset ? Color.accentColor.opacity(0.2) : Color(.tertiarySystemBackground))
                                 .clipShape(Capsule())
                         }
                         .accessibilityLabel("\(preset.displayName) aspect ratio")
+                        .accessibilityAddTraits(selectedPreset == preset ? [.isButton, .isSelected] : .isButton)
                     }
                 }
             }
@@ -62,11 +63,13 @@ struct CropPanelView: View {
                 viewModel.stackDidChange()
                 viewModel.commitDiscreteChange()
             } label: { Label("90° Left", systemImage: "rotate.left") }
+            .accessibilityLabel("Rotate 90 degrees left")
             Button {
                 viewModel.stack.crop.clockwiseRotations = (viewModel.stack.crop.clockwiseRotations + 1) % 4
                 viewModel.stackDidChange()
                 viewModel.commitDiscreteChange()
             } label: { Label("90° Right", systemImage: "rotate.right") }
+            .accessibilityLabel("Rotate 90 degrees right")
         }
         .buttonStyle(.bordered)
     }
@@ -80,6 +83,7 @@ struct CropPanelView: View {
             } label: {
                 Label("Flip H", systemImage: "arrow.left.and.right.righttriangle.left.righttriangle.right")
             }
+            .accessibilityLabel("Flip horizontal")
             Button {
                 viewModel.stack.crop.flippedVertically.toggle()
                 viewModel.stackDidChange()
@@ -87,6 +91,7 @@ struct CropPanelView: View {
             } label: {
                 Label("Flip V", systemImage: "arrow.up.and.down.righttriangle.up.righttriangle.down")
             }
+            .accessibilityLabel("Flip vertical")
         }
         .buttonStyle(.bordered)
     }
@@ -104,7 +109,7 @@ struct CropPanelView: View {
             .disabled(!mantisAvailable)
             if !mantisAvailable {
                 Text("Add the Mantis SPM dependency on Mac to enable the interactive crop tool. Aspect presets, rotation, and flip remain available without it.")
-                    .font(.caption2)
+                    .font(Theme.Typography.caption)
                     .foregroundStyle(.secondary)
             }
         }

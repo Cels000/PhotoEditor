@@ -57,6 +57,8 @@ struct HSLPanelView: View {
                             )
                     }
                     .accessibilityLabel("\(key.displayName) channel")
+                    .accessibilityAddTraits(selected == key ? [.isButton, .isSelected] : .isButton)
+                    .accessibilityHint("Selects this color channel for hue, saturation, and luminance adjustments")
                 }
             }
         }
