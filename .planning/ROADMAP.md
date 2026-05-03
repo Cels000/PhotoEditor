@@ -9,7 +9,7 @@ Build a premium-feeling iOS photo editor from a brownfield SwiftUI seed. The arc
 - [ ] **Phase 1: Rendering Foundation** - Replace the existing CIPhotoEffect pipeline with a Metal-backed RenderEngine, AdjustmentStack data model, and dual preview/export render paths
 - [x] **Phase 2: LUT Filter Pipeline** - Ship 20–30 hand-curated 64-point LUT filters with stable IDs, per-filter defaults, strength blending, and a live-preview filter strip (completed 2026-05-03)
 - [x] **Phase 3: Editor UI + Full Adjustments** - Build the complete editor surface (light, color, HSL, curves, grain, vignette, sharpen, crop, undo/redo, before/after) against the live render pipeline (completed 2026-05-03)
-- [ ] **Phase 4: Library + Persistence** - SwiftData-backed in-app library with thumbnails, re-edit capability, and graceful PHAsset handling
+- [x] **Phase 4: Library + Persistence** - SwiftData-backed in-app library with thumbnails, re-edit capability, and graceful PHAsset handling (completed 2026-05-03)
 - [ ] **Phase 5: Export** - Full-resolution export with format/size/quality options, share sheet, ICC profile embedding, and EXIF passthrough
 - [ ] **Phase 6: Recipes** - Save, apply, rename, delete, and share named adjustment stacks via a custom `.photorecipe` file format
 - [ ] **Phase 7: Polish + Accessibility** - Elevate the interface to genuinely premium: haptics, spring animations, VoiceOver audit, Dynamic Type XL verification, Reduce Motion compliance
@@ -101,7 +101,14 @@ Plans:
   2. Tapping "Share" opens the iOS share sheet with the edited image available for any system destination
   3. Format chooser (JPEG / HEIC / PNG), size presets (full / web / story / custom long-edge), and quality slider all produce correct output files
   4. Export completes with a visible progress indicator and a success/failure confirmation
-**Plans**: TBD
+**Plans**: 6 plans
+Plans:
+- [ ] 05-01-PLAN.md — ExportOptions / ExportFormat / ExportSize value types
+- [ ] 05-02-PLAN.md — ExportService encoder (CGImageDestination + EXIF preserve + GPS strip + P3)
+- [ ] 05-03-PLAN.md — PhotoSaver (PHAssetCreationRequest.addResource with raw Data)
+- [ ] 05-04-PLAN.md — ShareSheetView (UIActivityViewController representable)
+- [ ] 05-05-PLAN.md — EditorViewModel.export/saveExport/shareExport; remove legacy saveImage
+- [ ] 05-06-PLAN.md — ExportSheetView UI + ContentView toolbar wiring
 
 ### Phase 6: Recipes
 **Goal**: Users can capture a look as a named Recipe, reuse it across photos, and share it with others
@@ -133,7 +140,7 @@ Plans:
 | 1. Rendering Foundation | 0/5 | Not started | - |
 | 2. LUT Filter Pipeline | 0/6 | Complete    | 2026-05-03 |
 | 3. Editor UI + Full Adjustments | 0/10 | Complete    | 2026-05-03 |
-| 4. Library + Persistence | 0/TBD | Not started | - |
-| 5. Export | 0/TBD | Not started | - |
+| 4. Library + Persistence | 0/TBD | Complete    | 2026-05-03 |
+| 5. Export | 0/6 | Not started | - |
 | 6. Recipes | 0/TBD | Not started | - |
 | 7. Polish + Accessibility | 0/TBD | Not started | - |

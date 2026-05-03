@@ -69,9 +69,9 @@
 
 - [ ] **EXPORT-01**: User can save the full-resolution edited image to Photos (full-res, original aspect)
 - [ ] **EXPORT-02**: User can share via the system share sheet (any iOS share target)
-- [ ] **EXPORT-03**: User can choose export format: JPEG / HEIC / PNG
-- [ ] **EXPORT-04**: User can choose export size: full / web / story presets, plus custom long-edge value
-- [ ] **EXPORT-05**: Lossy formats (JPEG/HEIC) expose a quality slider
+- [x] **EXPORT-03**: User can choose export format: JPEG / HEIC / PNG
+- [x] **EXPORT-04**: User can choose export size: full / web / story presets, plus custom long-edge value
+- [x] **EXPORT-05**: Lossy formats (JPEG/HEIC) expose a quality slider
 - [ ] **EXPORT-06**: Exports preserve color profile (Display P3 where supported) and basic EXIF (date/orientation); GPS/identifying metadata stripped by default
 
 ### UX & Accessibility
@@ -154,9 +154,9 @@
 | LIB-05 | Phase 4 | Complete |
 | EXPORT-01 | Phase 5 | Pending |
 | EXPORT-02 | Phase 5 | Pending |
-| EXPORT-03 | Phase 5 | Pending |
-| EXPORT-04 | Phase 5 | Pending |
-| EXPORT-05 | Phase 5 | Pending |
+| EXPORT-03 | Phase 5 | Complete |
+| EXPORT-04 | Phase 5 | Complete |
+| EXPORT-05 | Phase 5 | Complete |
 | EXPORT-06 | Phase 5 | Pending |
 | RECIPE-01 | Phase 6 | Pending |
 | RECIPE-02 | Phase 6 | Pending |

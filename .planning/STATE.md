@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: planning
-stopped_at: Completed 04-06-PLAN.md
-last_updated: "2026-05-03T21:44:31.835Z"
+stopped_at: Completed 05-01-PLAN.md
+last_updated: "2026-05-03T21:54:52.086Z"
 last_activity: 2026-05-03 — Roadmap created; requirements mapped to 7 phases
 progress:
   total_phases: 7
   completed_phases: 4
-  total_plans: 27
-  completed_plans: 27
+  total_plans: 33
+  completed_plans: 28
   percent: 20
 ---
 
@@ -72,6 +72,7 @@ Progress: [██░░░░░░░░] 20%
 | Phase 04-library-persistence P04-03 | 5min | 2 tasks | 2 files |
 | Phase 04-library-persistence P04-05 | 1min | 2 tasks | 2 files |
 | Phase 04-library-persistence P04-06 | 10 | 2 tasks | 3 files |
+| Phase 05-export P05-01 | 5min | 1 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -120,6 +121,7 @@ Recent decisions affecting current work:
 - [Phase 04-library-persistence]: Task.detached(.background) for ThumbnailGenerator in EditorViewModel — keeps @MainActor non-blocking during JPEG render
 - [Phase 04-library-persistence]: currentLibraryItem tracks insert-vs-update in EditorViewModel: set after first save, set on open, cleared on picker import
 - [Phase 04-library-persistence]: Used Schema(versionedSchema:) + migrationPlan: for ModelContainer — preserves VersionedSchema contract per PITFALLS #12
+- [Phase 05-export]: ExportFormat.uti uses UTType identifiers (OS canonical); resolve() is single clamp site 256...8192; PNG supportsQuality=false API boundary for EXPORT-05
 
 ### Pending Todos
 
@@ -134,6 +136,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-05-03T21:44:31.833Z
-Stopped at: Completed 04-06-PLAN.md
+Last session: 2026-05-03T21:54:52.083Z
+Stopped at: Completed 05-01-PLAN.md
 Resume file: None
