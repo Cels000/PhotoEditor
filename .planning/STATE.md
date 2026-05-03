@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: planning
-stopped_at: Completed 03-03-PLAN.md — grain/vignette/sharpness effects wired in PipelineBuilder
-last_updated: "2026-05-03T21:14:19.687Z"
+stopped_at: Completed 03-05-PLAN.md — HSL per-channel applyHSL implemented in PipelineBuilder
+last_updated: "2026-05-03T21:15:47.163Z"
 last_activity: 2026-05-03 — Roadmap created; requirements mapped to 7 phases
 progress:
   total_phases: 7
   completed_phases: 2
   total_plans: 21
-  completed_plans: 15
+  completed_plans: 16
   percent: 20
 ---
 
@@ -61,6 +61,7 @@ Progress: [██░░░░░░░░] 20%
 | Phase 03-editor-ui-full-adjustments P03-04 | 5min | 2 tasks | 2 files |
 | Phase 03-editor-ui-full-adjustments P03-02 | 3min | 1 tasks | 1 files |
 | Phase 03-editor-ui-full-adjustments P03-03 | 5min | 2 tasks | 1 files |
+| Phase 03-editor-ui-full-adjustments P03-05 | 5min | 1 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -94,6 +95,7 @@ Recent decisions affecting current work:
 - [Phase 03-editor-ui-full-adjustments]: AdjustmentSlider value bubble implemented as opacity animation on header label; no floating overlay needed
 - [Phase 03-editor-ui-full-adjustments]: Temperature ±1 maps to ±2500K around 6500K neutral; tint ±1 maps to ±100 on CITemperatureAndTint y axis
 - [Phase 03-editor-ui-full-adjustments]: grain.intensity * 0.4 alpha cap keeps film grain subtle; size maps to 1-4x pattern scale for coarse vs fine grain
+- [Phase 03-editor-ui-full-adjustments]: HSL route: CIColorMatrix band masking + CIHueAdjust per channel; Metal CIColorKernel deferred to v2
 
 ### Pending Todos
 
@@ -108,6 +110,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-05-03T21:14:19.684Z
-Stopped at: Completed 03-03-PLAN.md — grain/vignette/sharpness effects wired in PipelineBuilder
+Last session: 2026-05-03T21:15:47.161Z
+Stopped at: Completed 03-05-PLAN.md — HSL per-channel applyHSL implemented in PipelineBuilder
 Resume file: None
