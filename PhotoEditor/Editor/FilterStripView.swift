@@ -16,7 +16,7 @@ struct FilterStripView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Filters").font(.headline)
+            Text("Filters").font(Theme.Typography.subtitle)
 
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 12) {
@@ -54,14 +54,15 @@ struct FilterStripView: View {
                             .aspectRatio(contentMode: .fill)
                     } else {
                         RoundedRectangle(cornerRadius: 12)
-                            .fill(Color(.tertiarySystemBackground))
+                            .fill(Theme.Colors.panel)
                     }
                 }
                 .frame(width: 72, height: 72)
                 .clipShape(RoundedRectangle(cornerRadius: 12))
                 .overlay(
                     RoundedRectangle(cornerRadius: 12)
-                        .stroke(isSelected ? Color.accentColor : Color.clear, lineWidth: 3)
+                        .stroke(isSelected ? Theme.Colors.accent : Color.clear, lineWidth: 3)
+                        .animation(Motion.adaptive(Motion.snappy), value: isSelected)
                 )
 
                 if isFavorite {
@@ -72,17 +73,19 @@ struct FilterStripView: View {
                 }
             }
             Text(filter.displayName)
-                .font(.caption)
+                .font(Theme.Typography.caption)
                 .lineLimit(1)
-                .foregroundStyle(isSelected ? .primary : .secondary)
+                .foregroundStyle(isSelected ? Theme.Colors.text : Theme.Colors.secondary)
         }
         .frame(width: 80)
         .contentShape(Rectangle())
         .onTapGesture {
+            if selectedFilterID != filter.id { Haptic.play(.filterSelect) }
             viewModel.selectFilter(id: filter.id)
         }
         .onLongPressGesture(minimumDuration: 0.4) {
             viewModel.filterLibrary.toggleFavorite(filter.id)
+            Haptic.play(.recipeApply)
         }
         .accessibilityLabel("\(filter.displayName) filter")
         .accessibilityAddTraits(isSelected ? [.isSelected] : [])
@@ -94,11 +97,11 @@ struct FilterStripView: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
                 Text("Strength")
-                    .font(.subheadline.weight(.medium))
+                    .font(Theme.Typography.subtitle)
                 Spacer()
                 Text("\(Int((viewModel.stack.filter?.strength ?? 1.0) * 100))%")
-                    .font(.caption.monospacedDigit())
-                    .foregroundStyle(.secondary)
+                    .font(Theme.Typography.valueBubble)
+                    .foregroundStyle(Theme.Colors.secondary)
             }
             Slider(
                 value: Binding(
@@ -107,7 +110,7 @@ struct FilterStripView: View {
                 ),
                 in: 0...1
             )
-            .tint(.blue)
+            .tint(Theme.Colors.accent)
         }
         .padding(.top, 4)
     }
