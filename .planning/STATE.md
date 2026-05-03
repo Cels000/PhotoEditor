@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: planning
-stopped_at: Completed 03-02-PLAN.md — CITemperatureAndTint wired for temperature + tint controls
-last_updated: "2026-05-03T21:13:04.154Z"
+stopped_at: Completed 03-03-PLAN.md — grain/vignette/sharpness effects wired in PipelineBuilder
+last_updated: "2026-05-03T21:14:19.687Z"
 last_activity: 2026-05-03 — Roadmap created; requirements mapped to 7 phases
 progress:
   total_phases: 7
   completed_phases: 2
   total_plans: 21
-  completed_plans: 14
+  completed_plans: 15
   percent: 20
 ---
 
@@ -60,6 +60,7 @@ Progress: [██░░░░░░░░] 20%
 | Phase 03-editor-ui-full-adjustments P03-01 | 5min | 1 tasks | 1 files |
 | Phase 03-editor-ui-full-adjustments P03-04 | 5min | 2 tasks | 2 files |
 | Phase 03-editor-ui-full-adjustments P03-02 | 3min | 1 tasks | 1 files |
+| Phase 03-editor-ui-full-adjustments P03-03 | 5min | 2 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -92,6 +93,7 @@ Recent decisions affecting current work:
 - [Phase 03-editor-ui-full-adjustments]: Whites/Blacks: 5-point CIToneCurve endpoint shaping; input ±1 → ±0.3 curve shift; gated on non-zero to preserve identity
 - [Phase 03-editor-ui-full-adjustments]: AdjustmentSlider value bubble implemented as opacity animation on header label; no floating overlay needed
 - [Phase 03-editor-ui-full-adjustments]: Temperature ±1 maps to ±2500K around 6500K neutral; tint ±1 maps to ±100 on CITemperatureAndTint y axis
+- [Phase 03-editor-ui-full-adjustments]: grain.intensity * 0.4 alpha cap keeps film grain subtle; size maps to 1-4x pattern scale for coarse vs fine grain
 
 ### Pending Todos
 
@@ -106,6 +108,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-05-03T21:13:04.152Z
-Stopped at: Completed 03-02-PLAN.md — CITemperatureAndTint wired for temperature + tint controls
+Last session: 2026-05-03T21:14:19.684Z
+Stopped at: Completed 03-03-PLAN.md — grain/vignette/sharpness effects wired in PipelineBuilder
 Resume file: None

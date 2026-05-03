@@ -30,9 +30,9 @@
 - [ ] **ADJUST-03**: User can adjust Hue, Saturation, Luminance per color channel (HSL panel, 8 channels × 3 controls)
 - [ ] **ADJUST-04**: User can shape RGB and per-channel tone curves (curves panel)
 - [ ] **ADJUST-05**: User can apply Split Toning to highlights and shadows (hue + amount per zone)
-- [ ] **ADJUST-06**: User can apply Grain (size + intensity controls)
-- [ ] **ADJUST-07**: User can apply Vignette (amount + feather)
-- [ ] **ADJUST-08**: User can apply Sharpen
+- [x] **ADJUST-06**: User can apply Grain (size + intensity controls)
+- [x] **ADJUST-07**: User can apply Vignette (amount + feather)
+- [x] **ADJUST-08**: User can apply Sharpen
 - [x] **ADJUST-09**: Every slider supports double-tap to reset to default
 - [ ] **ADJUST-10**: Adjustments apply in a deterministic order (LUT → light → color → HSL → curves → split-toning → effects → crop) consistent across preview and export
 
@@ -135,9 +135,9 @@
 | ADJUST-03 | Phase 3 | Pending |
 | ADJUST-04 | Phase 3 | Pending |
 | ADJUST-05 | Phase 3 | Pending |
-| ADJUST-06 | Phase 3 | Pending |
-| ADJUST-07 | Phase 3 | Pending |
-| ADJUST-08 | Phase 3 | Pending |
+| ADJUST-06 | Phase 3 | Complete |
+| ADJUST-07 | Phase 3 | Complete |
+| ADJUST-08 | Phase 3 | Complete |
 | ADJUST-09 | Phase 3 | Complete |
 | ADJUST-10 | Phase 3 | Pending |
 | CROP-01 | Phase 3 | Pending |
