@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: planning
-stopped_at: Completed 05-05-PLAN.md
-last_updated: "2026-05-03T21:59:42.723Z"
+stopped_at: Completed 05-06-PLAN.md
+last_updated: "2026-05-03T22:01:49.274Z"
 last_activity: 2026-05-03 — Roadmap created; requirements mapped to 7 phases
 progress:
   total_phases: 7
-  completed_phases: 4
+  completed_phases: 5
   total_plans: 33
-  completed_plans: 32
+  completed_plans: 33
   percent: 20
 ---
 
@@ -76,6 +76,7 @@ Progress: [██░░░░░░░░] 20%
 | Phase 05-export P05-02 | 8min | 1 tasks | 1 files |
 | Phase 05-export P05-04 | 3min | 1 tasks | 1 files |
 | Phase 05-export P05-05 | 5min | 1 tasks | 1 files |
+| Phase 05-export P05-06 | 1min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -129,6 +130,7 @@ Recent decisions affecting current work:
 - [Phase 05-export]: PhotoSaver: addResource(with:.photo,data:) not creationRequestForAsset(from:UIImage) — no UIImage round-trip, ICC profile preserved (PITFALL #16)
 - [Phase 05-export]: PhotoSaver: both .authorized and .limited accepted as success for Photos writes (PITFALL #17)
 - [Phase 05-export]: EditorViewModel export pipeline: Task.detached encode + CGImageSource EXIF preserves color profile end-to-end; legacy saveImage UIImage round-trip removed
+- [Phase 05-export]: ExportSheetView uses local SizeChoice enum mirroring ExportSize presets; ShareSheetView bound via inline Binding clearing both shareData and shareFormat on dismiss
 
 ### Pending Todos
 
@@ -143,6 +145,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-05-03T21:59:42.721Z
-Stopped at: Completed 05-05-PLAN.md
+Last session: 2026-05-03T22:01:46.620Z
+Stopped at: Completed 05-06-PLAN.md
 Resume file: None
