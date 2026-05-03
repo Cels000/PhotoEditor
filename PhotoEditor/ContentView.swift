@@ -3,7 +3,7 @@ import SwiftUI
 import UIKit
 
 struct ContentView: View {
-    @StateObject private var viewModel = PhotoEditorViewModel()
+    @State private var viewModel = EditorViewModel()
     @State private var selectedItem: PhotosPickerItem?
 
     var body: some View {
@@ -39,7 +39,7 @@ struct ContentView: View {
                 .frame(maxWidth: .infinity)
                 .aspectRatio(3 / 4, contentMode: .fit)
 
-            if let image = viewModel.editedImage ?? viewModel.sourceImage {
+            if let image = viewModel.previewImage {
                 Image(uiImage: image)
                     .resizable()
                     .scaledToFit()
@@ -67,65 +67,50 @@ struct ContentView: View {
     private var actionBar: some View {
         VStack(spacing: 12) {
             PhotosPicker(selection: $selectedItem, matching: .images, preferredItemEncoding: .automatic) {
-                Label(viewModel.sourceImage == nil ? "Choose Photo" : "Replace Photo", systemImage: "photo.on.rectangle")
+                Label(viewModel.importedImage == nil ? "Choose Photo" : "Replace Photo", systemImage: "photo.on.rectangle")
                     .frame(maxWidth: .infinity)
             }
             .buttonStyle(PrimaryButtonStyle())
 
             HStack(spacing: 12) {
+                // TODO: Phase 3 — wire to AdjustmentStack.crop.clockwiseRotations
                 Button {
-                    viewModel.rotateLeft()
                 } label: {
                     Label("Left", systemImage: "rotate.left")
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(SecondaryButtonStyle())
-                .disabled(viewModel.sourceImage == nil)
+                .disabled(true)
 
+                // TODO: Phase 3 — wire to AdjustmentStack.crop.clockwiseRotations
                 Button {
-                    viewModel.rotateRight()
                 } label: {
                     Label("Right", systemImage: "rotate.right")
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(SecondaryButtonStyle())
-                .disabled(viewModel.sourceImage == nil)
+                .disabled(true)
             }
 
             Button {
-                viewModel.resetAdjustments(clearImage: false)
+                viewModel.resetAdjustments()
             } label: {
                 Label("Reset Edits", systemImage: "arrow.counterclockwise")
                     .frame(maxWidth: .infinity)
             }
             .buttonStyle(SecondaryButtonStyle())
-            .disabled(viewModel.sourceImage == nil)
+            .disabled(viewModel.importedImage == nil)
         }
     }
 
     private var filterStrip: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Filters")
-                .font(.headline)
-
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 10) {
-                    ForEach(PhotoEditorViewModel.FilterPreset.allCases) { preset in
-                        Button {
-                            viewModel.selectedFilter = preset
-                        } label: {
-                            Text(preset.rawValue)
-                                .font(.subheadline.weight(.semibold))
-                                .padding(.horizontal, 14)
-                                .padding(.vertical, 10)
-                                .background(viewModel.selectedFilter == preset ? Color.blue : Color(.secondarySystemBackground))
-                                .foregroundStyle(viewModel.selectedFilter == preset ? .white : .primary)
-                                .clipShape(Capsule())
-                        }
-                        .disabled(viewModel.sourceImage == nil)
-                    }
-                }
-            }
+            Text("Filters").font(.headline)
+            // Filter list is empty until Phase 2 (LUT pipeline).
+            Text("Coming in Phase 2")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .frame(maxWidth: .infinity, alignment: .leading)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
@@ -135,14 +120,35 @@ struct ContentView: View {
             Text("Adjustments")
                 .font(.headline)
 
-            AdjustmentSlider(title: "Brightness", value: $viewModel.brightness, range: -1...1)
-            AdjustmentSlider(title: "Contrast", value: $viewModel.contrast, range: 0.5...2)
-            AdjustmentSlider(title: "Saturation", value: $viewModel.saturation, range: 0...2)
+            AdjustmentSlider(
+                title: "Exposure",
+                value: Binding(
+                    get: { viewModel.stack.light.exposure },
+                    set: { viewModel.stack.light.exposure = $0; viewModel.stackDidChange() }
+                ),
+                range: -1...1
+            )
+            AdjustmentSlider(
+                title: "Contrast",
+                value: Binding(
+                    get: { viewModel.stack.light.contrast },
+                    set: { viewModel.stack.light.contrast = $0; viewModel.stackDidChange() }
+                ),
+                range: -1...1
+            )
+            AdjustmentSlider(
+                title: "Saturation",
+                value: Binding(
+                    get: { viewModel.stack.color.saturation },
+                    set: { viewModel.stack.color.saturation = $0; viewModel.stackDidChange() }
+                ),
+                range: -1...1
+            )
         }
         .padding(18)
         .background(Color(.secondarySystemBackground))
         .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
-        .disabled(viewModel.sourceImage == nil)
+        .disabled(viewModel.importedImage == nil)
     }
 
     private var saveSection: some View {
@@ -162,16 +168,15 @@ struct ContentView: View {
             .frame(maxWidth: .infinity)
         }
         .buttonStyle(PrimaryButtonStyle())
-        .disabled(viewModel.sourceImage == nil || viewModel.isSaving)
+        .disabled(viewModel.importedImage == nil || viewModel.isSaving)
     }
 
     private func loadSelectedPhoto() async {
         guard let selectedItem else { return }
 
         do {
-            if let data = try await selectedItem.loadTransferable(type: Data.self),
-               let image = UIImage(data: data) {
-                viewModel.loadImage(image)
+            if let data = try await selectedItem.loadTransferable(type: Data.self) {
+                await viewModel.importPhoto(data: data)
             } else {
                 viewModel.errorMessage = "The selected photo could not be loaded."
             }
