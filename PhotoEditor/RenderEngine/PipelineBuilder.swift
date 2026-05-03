@@ -189,8 +189,50 @@ enum PipelineBuilder {
     static func applyHSL(_ hsl: HSLAdjustments, to image: CIImage) -> CIImage { image }            // Phase 3
     static func applyCurves(_ curves: ToneCurves, to image: CIImage) -> CIImage { image }          // Phase 3
     static func applySplitToning(_ split: SplitToning, to image: CIImage) -> CIImage { image }     // Phase 3
-    static func applyGrain(_ grain: GrainSettings, to image: CIImage) -> CIImage { image }         // Phase 3
-    static func applyVignette(_ vignette: VignetteSettings, to image: CIImage) -> CIImage { image }// Phase 3
-    static func applySharpness(_ sharpness: Double, to image: CIImage) -> CIImage { image }        // Phase 3
+    static func applyGrain(_ grain: GrainSettings, to image: CIImage) -> CIImage {
+        guard grain.intensity > 0 else { return image }
+
+        // Generate infinite random noise; crop to source extent.
+        let random = CIFilter.randomGenerator()
+        guard let randomImage = random.outputImage else { return image }
+
+        // Scale pattern by (1 + size*3) so size=1 → 4× larger blobs (coarser grain).
+        let scale = 1.0 + grain.size * 3.0
+        let scaled = randomImage.transformed(by: CGAffineTransform(scaleX: scale, y: scale))
+
+        // Convert to grayscale luminance via CIColorMatrix (Rec.709 weights, alpha = intensity*0.4).
+        let gray = CIFilter.colorMatrix()
+        gray.inputImage = scaled
+        gray.rVector = CIVector(x: 0.2126, y: 0.7152, z: 0.0722, w: 0)
+        gray.gVector = CIVector(x: 0.2126, y: 0.7152, z: 0.0722, w: 0)
+        gray.bVector = CIVector(x: 0.2126, y: 0.7152, z: 0.0722, w: 0)
+        let alpha = max(0, min(1, grain.intensity * 0.4))
+        gray.aVector = CIVector(x: 0, y: 0, z: 0, w: CGFloat(alpha))
+        guard let grainLayer = gray.outputImage else { return image }
+
+        let cropped = grainLayer.cropped(to: image.extent)
+
+        let comp = CIFilter.sourceOverCompositing()
+        comp.inputImage = cropped
+        comp.backgroundImage = image
+        return comp.outputImage ?? image
+    }
+
+    static func applyVignette(_ vignette: VignetteSettings, to image: CIImage) -> CIImage {
+        guard vignette.amount != 0 else { return image }
+        let v = CIFilter.vignette()
+        v.inputImage = image
+        v.intensity = Float(max(-1, min(1, vignette.amount)) * 2.0) // CIVignette useful intensity ±2
+        v.radius = Float(1.0 + max(0, min(1, vignette.feather)) * 1.5) // 1.0...2.5
+        return v.outputImage ?? image
+    }
+
+    static func applySharpness(_ sharpness: Double, to image: CIImage) -> CIImage {
+        guard sharpness > 0 else { return image }
+        let s = CIFilter.sharpenLuminance()
+        s.inputImage = image
+        s.sharpness = Float(max(0, min(1, sharpness)) * 2.0) // 0...2 useful
+        return s.outputImage ?? image
+    }
     static func applyCrop(_ crop: CropSettings, to image: CIImage) -> CIImage { image }            // Phase 3
 }
