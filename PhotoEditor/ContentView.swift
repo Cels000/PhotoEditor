@@ -1,3 +1,4 @@
+import CoreImage
 import PhotosUI
 import SwiftUI
 import UIKit
@@ -5,25 +6,45 @@ import UIKit
 struct ContentView: View {
     @State private var viewModel = EditorViewModel()
     @State private var selectedItem: PhotosPickerItem?
+    @State private var selectedTab: EditorPanelTab = .filters
+    @State private var showOriginal: Bool = false
+    @State private var originalPreviewImage: UIImage?
+    @State private var originalContext: CIContext = CIContext(options: [.useSoftwareRenderer: false])
 
     var body: some View {
         NavigationStack {
-            ScrollView {
-                VStack(spacing: 20) {
-                    editorPreview
-                    actionBar
-                    filterStrip
-                    adjustments
-                    saveSection
-                }
-                .padding(20)
+            VStack(spacing: 0) {
+                UndoToolbar(viewModel: viewModel)
+                editorPreview
+                    .padding(.horizontal, 16)
+                    .padding(.bottom, 8)
+                PanelContainerView(viewModel: viewModel, selectedTab: $selectedTab)
             }
             .navigationTitle("Photo Editor")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    PhotosPicker(selection: $selectedItem, matching: .images, preferredItemEncoding: .automatic) {
+                        Image(systemName: "photo.on.rectangle")
+                    }
+                }
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        Task { await viewModel.saveImage() }
+                    } label: {
+                        if viewModel.isSaving {
+                            ProgressView()
+                        } else {
+                            Image(systemName: "square.and.arrow.down")
+                        }
+                    }
+                    .disabled(viewModel.importedImage == nil || viewModel.isSaving)
+                }
+            }
             .background(Color(.systemGroupedBackground))
         }
-        .task(id: selectedItem) {
-            await loadSelectedPhoto()
-        }
+        .task(id: selectedItem) { await loadSelectedPhoto() }
+        .task(id: importedIdentity) { await rebuildOriginalPreview() }
         .alert("Error", isPresented: Binding(present: $viewModel.errorMessage), presenting: viewModel.errorMessage) { _ in
             Button("OK", role: .cancel) { viewModel.errorMessage = nil }
         } message: { Text($0) }
@@ -34,139 +55,64 @@ struct ContentView: View {
 
     private var editorPreview: some View {
         ZStack {
-            RoundedRectangle(cornerRadius: 28, style: .continuous)
-                .fill(LinearGradient(colors: [Color.blue.opacity(0.2), Color.purple.opacity(0.2)], startPoint: .topLeading, endPoint: .bottomTrailing))
-                .frame(maxWidth: .infinity)
+            RoundedRectangle(cornerRadius: 24, style: .continuous)
+                .fill(Color(.tertiarySystemBackground))
                 .aspectRatio(3 / 4, contentMode: .fit)
 
-            if let image = viewModel.previewImage {
+            if let image = displayedImage {
                 Image(uiImage: image)
                     .resizable()
                     .scaledToFit()
-                    .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
-                    .padding(12)
+                    .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+                    .padding(8)
+                    .overlay(alignment: .topLeading) {
+                        if showOriginal {
+                            Text("Original")
+                                .font(.caption.weight(.semibold))
+                                .padding(.horizontal, 8).padding(.vertical, 4)
+                                .background(.thinMaterial, in: Capsule())
+                                .padding(12)
+                        }
+                    }
             } else {
                 VStack(spacing: 12) {
                     Image(systemName: "photo.badge.plus")
-                        .font(.system(size: 48, weight: .semibold))
+                        .font(.system(size: 44, weight: .semibold))
                         .foregroundStyle(.blue)
                     Text("Pick a photo to start editing")
                         .font(.headline)
-                    Text("Apply filters, tune light and color, rotate, then save.")
-                        .font(.subheadline)
-                        .multilineTextAlignment(.center)
-                        .foregroundStyle(.secondary)
-                        .padding(.horizontal)
                 }
-                .padding(32)
             }
         }
-        .shadow(color: Color.black.opacity(0.08), radius: 20, y: 12)
+        .compareOnLongPress(showOriginal: $showOriginal)
+        .accessibilityLabel("Photo canvas")
+        .accessibilityHint("Press and hold to compare with the original.")
     }
 
-    private var actionBar: some View {
-        VStack(spacing: 12) {
-            PhotosPicker(selection: $selectedItem, matching: .images, preferredItemEncoding: .automatic) {
-                Label(viewModel.importedImage == nil ? "Choose Photo" : "Replace Photo", systemImage: "photo.on.rectangle")
-                    .frame(maxWidth: .infinity)
-            }
-            .buttonStyle(PrimaryButtonStyle())
+    private var displayedImage: UIImage? {
+        if showOriginal, let original = originalPreviewImage { return original }
+        return viewModel.previewImage
+    }
 
-            HStack(spacing: 12) {
-                // TODO: Phase 3 — wire to AdjustmentStack.crop.clockwiseRotations
-                Button {
-                } label: {
-                    Label("Left", systemImage: "rotate.left")
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(SecondaryButtonStyle())
-                .disabled(true)
+    private var importedIdentity: String {
+        guard let img = viewModel.importedImage else { return "" }
+        return img.previewCIImage.extent.debugDescription
+    }
 
-                // TODO: Phase 3 — wire to AdjustmentStack.crop.clockwiseRotations
-                Button {
-                } label: {
-                    Label("Right", systemImage: "rotate.right")
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(SecondaryButtonStyle())
-                .disabled(true)
-            }
-
-            Button {
-                viewModel.resetAdjustments()
-            } label: {
-                Label("Reset Edits", systemImage: "arrow.counterclockwise")
-                    .frame(maxWidth: .infinity)
-            }
-            .buttonStyle(SecondaryButtonStyle())
-            .disabled(viewModel.importedImage == nil)
+    @MainActor
+    private func rebuildOriginalPreview() async {
+        guard let imported = viewModel.importedImage else {
+            originalPreviewImage = nil
+            return
         }
-    }
-
-    private var filterStrip: some View {
-        FilterStripView(viewModel: viewModel)
-            .disabled(viewModel.importedImage == nil)
-    }
-
-    private var adjustments: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Text("Adjustments")
-                .font(.headline)
-
-            AdjustmentSlider(
-                title: "Exposure",
-                value: Binding(
-                    get: { viewModel.stack.light.exposure },
-                    set: { viewModel.stack.light.exposure = $0; viewModel.stackDidChange() }
-                ),
-                range: -1...1
-            )
-            AdjustmentSlider(
-                title: "Contrast",
-                value: Binding(
-                    get: { viewModel.stack.light.contrast },
-                    set: { viewModel.stack.light.contrast = $0; viewModel.stackDidChange() }
-                ),
-                range: -1...1
-            )
-            AdjustmentSlider(
-                title: "Saturation",
-                value: Binding(
-                    get: { viewModel.stack.color.saturation },
-                    set: { viewModel.stack.color.saturation = $0; viewModel.stackDidChange() }
-                ),
-                range: -1...1
-            )
+        let src = imported.previewCIImage
+        if let cg = originalContext.createCGImage(src, from: src.extent) {
+            originalPreviewImage = UIImage(cgImage: cg)
         }
-        .padding(18)
-        .background(Color(.secondarySystemBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
-        .disabled(viewModel.importedImage == nil)
-    }
-
-    private var saveSection: some View {
-        Button {
-            Task {
-                await viewModel.saveImage()
-            }
-        } label: {
-            HStack {
-                if viewModel.isSaving {
-                    ProgressView()
-                        .tint(.white)
-                }
-                Text(viewModel.isSaving ? "Saving..." : "Save to Photos")
-                    .fontWeight(.semibold)
-            }
-            .frame(maxWidth: .infinity)
-        }
-        .buttonStyle(PrimaryButtonStyle())
-        .disabled(viewModel.importedImage == nil || viewModel.isSaving)
     }
 
     private func loadSelectedPhoto() async {
         guard let selectedItem else { return }
-
         do {
             if let data = try await selectedItem.loadTransferable(type: Data.self) {
                 await viewModel.importPhoto(data: data)
@@ -185,53 +131,5 @@ private extension Binding where Value == Bool {
             get: { source.wrappedValue != nil },
             set: { if !$0 { source.wrappedValue = nil } }
         )
-    }
-}
-
-private struct AdjustmentSlider: View {
-    let title: String
-    @Binding var value: Double
-    let range: ClosedRange<Double>
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                Text(title)
-                    .font(.subheadline.weight(.medium))
-                Spacer()
-                Text(value.formatted(.number.precision(.fractionLength(2))))
-                    .font(.caption.monospacedDigit())
-                    .foregroundStyle(.secondary)
-            }
-
-            Slider(value: $value, in: range)
-                .tint(.blue)
-        }
-    }
-}
-
-private struct PrimaryButtonStyle: ButtonStyle {
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .font(.headline)
-            .foregroundStyle(.white)
-            .padding(.horizontal, 18)
-            .padding(.vertical, 16)
-            .background(Color.blue.opacity(configuration.isPressed ? 0.8 : 1))
-            .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
-            .scaleEffect(configuration.isPressed ? 0.98 : 1)
-    }
-}
-
-private struct SecondaryButtonStyle: ButtonStyle {
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .font(.subheadline.weight(.semibold))
-            .foregroundStyle(.primary)
-            .padding(.horizontal, 16)
-            .padding(.vertical, 14)
-            .background(Color(.secondarySystemBackground))
-            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-            .scaleEffect(configuration.isPressed ? 0.98 : 1)
     }
 }
