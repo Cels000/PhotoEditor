@@ -1,15 +1,19 @@
 import CoreImage
 import PhotosUI
+import SwiftData
 import SwiftUI
 import UIKit
 
 struct ContentView: View {
+    @Environment(\.modelContext) private var modelContext
     @State private var viewModel = EditorViewModel()
     @State private var selectedItem: PhotosPickerItem?
     @State private var selectedTab: EditorPanelTab = .filters
     @State private var showOriginal: Bool = false
     @State private var originalPreviewImage: UIImage?
     @State private var originalContext: CIContext = CIContext(options: [.useSoftwareRenderer: false])
+    @State private var libraryStore: LibraryStore?
+    @State private var isLibraryPresented: Bool = false
 
     var body: some View {
         NavigationStack {
@@ -24,9 +28,27 @@ struct ContentView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
+                    Button {
+                        isLibraryPresented = true
+                    } label: {
+                        Image(systemName: "photo.on.rectangle.angled")
+                    }
+                    .disabled(libraryStore == nil)
+                    .accessibilityLabel("Library")
+                }
+                ToolbarItem(placement: .topBarLeading) {
                     PhotosPicker(selection: $selectedItem, matching: .images, preferredItemEncoding: .automatic) {
                         Image(systemName: "photo.on.rectangle")
                     }
+                }
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        Task { await viewModel.saveToLibrary() }
+                    } label: {
+                        Image(systemName: "tray.and.arrow.down")
+                    }
+                    .disabled(viewModel.importedImage == nil || viewModel.isSaving || libraryStore == nil)
+                    .accessibilityLabel("Save to Library")
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
@@ -42,9 +64,23 @@ struct ContentView: View {
                 }
             }
             .background(Color(.systemGroupedBackground))
+            .sheet(isPresented: $isLibraryPresented) {
+                if let store = libraryStore {
+                    LibraryGridView(store: store) { item in
+                        Task { await viewModel.openLibraryItem(item) }
+                    }
+                }
+            }
         }
         .task(id: selectedItem) { await loadSelectedPhoto() }
         .task(id: importedIdentity) { await rebuildOriginalPreview() }
+        .task {
+            if libraryStore == nil {
+                let store = LibraryStore(context: modelContext)
+                libraryStore = store
+                viewModel.libraryStore = store
+            }
+        }
         .alert("Error", isPresented: Binding(present: $viewModel.errorMessage), presenting: viewModel.errorMessage) { _ in
             Button("OK", role: .cancel) { viewModel.errorMessage = nil }
         } message: { Text($0) }
@@ -113,9 +149,10 @@ struct ContentView: View {
 
     private func loadSelectedPhoto() async {
         guard let selectedItem else { return }
+        let assetID = selectedItem.itemIdentifier   // PHAsset.localIdentifier when picking from library
         do {
             if let data = try await selectedItem.loadTransferable(type: Data.self) {
-                await viewModel.importPhoto(data: data)
+                await viewModel.importPhoto(data: data, sourceAssetID: assetID)
             } else {
                 viewModel.errorMessage = "The selected photo could not be loaded."
             }

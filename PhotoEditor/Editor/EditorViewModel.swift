@@ -89,10 +89,17 @@ final class EditorViewModel {
 
     // MARK: - Public API used by ContentView
 
-    func importPhoto(data: Data) async {
+    func importPhoto(data: Data, sourceAssetID: String? = nil) async {
         do {
-            let imported = try ImageImporter.importImage(from: data)
-            self.importedImage = imported
+            let baseImported = try ImageImporter.importImage(from: data)
+            // Splice the assetID from the picker into the imported value.
+            self.importedImage = ImportedImage(
+                sourceData: baseImported.sourceData,
+                previewCIImage: baseImported.previewCIImage,
+                exportCIImage: baseImported.exportCIImage,
+                pixelSize: baseImported.pixelSize,
+                sourceAssetID: sourceAssetID
+            )
             // Reset to identity so the new photo starts unedited.
             self.stack = .identity
             self.currentLibraryItem = nil
