@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: planning
-stopped_at: Completed 01-03-PLAN.md — PipelineBuilder + ImageImporter
-last_updated: "2026-05-03T20:23:04.080Z"
+stopped_at: Completed 01-04-PLAN.md — RenderEngine actor
+last_updated: "2026-05-03T20:24:40.009Z"
 last_activity: 2026-05-03 — Roadmap created; requirements mapped to 7 phases
 progress:
   total_phases: 7
   completed_phases: 0
   total_plans: 5
-  completed_plans: 3
+  completed_plans: 4
   percent: 20
 ---
 
@@ -49,6 +49,7 @@ Progress: [██░░░░░░░░] 20%
 | Phase 01-rendering-foundation P01-01 | 5 | 1 tasks | 1 files |
 | Phase 01-rendering-foundation P01-02 | 2min | 1 tasks | 3 files |
 | Phase 01-rendering-foundation P03 | 8 | 2 tasks | 2 files |
+| Phase 01-rendering-foundation P01-04 | 5 | 1 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -65,6 +66,8 @@ Recent decisions affecting current work:
 - [Phase 01-rendering-foundation]: Test stubs committed on Linux without live compilation; user runs on Mac after Plan 01-03 lands PipelineBuilder
 - [Phase 01-rendering-foundation]: PipelineBuilder: no CIFilter instance caching at file scope — fresh instances per call keep function pure and thread-safe
 - [Phase 01-rendering-foundation]: ImageImporter: no .colorSpace in CIImage(data:options:) — source ICC profile propagates; RenderEngine CIContext handles conversion (Plan 01-04)
+- [Phase 01-rendering-foundation]: RenderEngine: two separate CIContext instances to prevent preview/export race conditions
+- [Phase 01-rendering-foundation]: RenderEngine: cancellation deferred to EditorViewModel (Plan 01-05); actor renders are atomic
 
 ### Pending Todos
 
@@ -79,6 +82,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-05-03T20:23:04.078Z
-Stopped at: Completed 01-03-PLAN.md — PipelineBuilder + ImageImporter
+Last session: 2026-05-03T20:24:40.007Z
+Stopped at: Completed 01-04-PLAN.md — RenderEngine actor
 Resume file: None
