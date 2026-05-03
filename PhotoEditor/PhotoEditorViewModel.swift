@@ -64,14 +64,10 @@ final class PhotoEditorViewModel: ObservableObject {
     private var renderTask: Task<Void, Never>?
     private static let maxPixelDimension: CGFloat = 2048
 
-    private struct UncheckedSendable<T>: @unchecked Sendable {
-        let value: T
-    }
-
     func loadImage(_ image: UIImage) {
         let downsampled = downsample(image: image, maxDimension: Self.maxPixelDimension)
         sourceImage = downsampled
-        sourceCIImage = downsampled.flatMap { CIImage(image: $0) }
+        sourceCIImage = CIImage(image: downsampled)
         resetAdjustments(clearImage: false)
     }
 
@@ -137,28 +133,16 @@ final class PhotoEditorViewModel: ObservableObject {
     private func renderCurrent() async -> UIImage? {
         guard let inputCIImage = sourceCIImage, let sourceImage else { return nil }
         renderTask?.cancel()
-        let input = UncheckedSendable(value: inputCIImage)
-        let ctx = UncheckedSendable(value: context)
-        let filter = selectedFilter
-        let brightness = self.brightness
-        let contrast = self.contrast
-        let saturation = self.saturation
-        let rotationAngle = self.rotationAngle
-        let scale = sourceImage.scale
-
-        let result = await Task.detached(priority: .userInitiated) {
-            Self.render(
-                input: input.value,
-                filter: filter,
-                brightness: brightness,
-                contrast: contrast,
-                saturation: saturation,
-                rotationAngle: rotationAngle,
-                context: ctx.value,
-                scale: scale
-            )
-        }.value
-
+        let result = Self.render(
+            input: inputCIImage,
+            filter: selectedFilter,
+            brightness: brightness,
+            contrast: contrast,
+            saturation: saturation,
+            rotationAngle: rotationAngle,
+            context: context,
+            scale: sourceImage.scale
+        )
         if let result { editedImage = result }
         return result
     }
@@ -179,39 +163,29 @@ final class PhotoEditorViewModel: ObservableObject {
             return
         }
 
-        let input = UncheckedSendable(value: inputCIImage)
-        let ctx = UncheckedSendable(value: context)
-        let filter = selectedFilter
-        let brightness = self.brightness
-        let contrast = self.contrast
-        let saturation = self.saturation
-        let rotationAngle = self.rotationAngle
         let scale = sourceImage.scale
 
-        renderTask = Task.detached(priority: .userInitiated) { [weak self] in
+        renderTask = Task { [weak self] in
             try? await Task.sleep(nanoseconds: 30_000_000)
-            if Task.isCancelled { return }
+            guard !Task.isCancelled, let self else { return }
 
             let rendered = Self.render(
-                input: input.value,
-                filter: filter,
-                brightness: brightness,
-                contrast: contrast,
-                saturation: saturation,
-                rotationAngle: rotationAngle,
-                context: ctx.value,
+                input: inputCIImage,
+                filter: self.selectedFilter,
+                brightness: self.brightness,
+                contrast: self.contrast,
+                saturation: self.saturation,
+                rotationAngle: self.rotationAngle,
+                context: self.context,
                 scale: scale
             )
 
-            if Task.isCancelled { return }
-            await MainActor.run {
-                guard let self else { return }
-                if let rendered { self.editedImage = rendered }
-            }
+            guard !Task.isCancelled else { return }
+            if let rendered { self.editedImage = rendered }
         }
     }
 
-    private static func render(
+    nonisolated private static func render(
         input: CIImage,
         filter: FilterPreset,
         brightness: Double,
