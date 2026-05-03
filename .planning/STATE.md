@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: planning
-stopped_at: Completed 05-04-PLAN.md
-last_updated: "2026-05-03T21:57:12.038Z"
+stopped_at: Completed 05-03-PLAN.md
+last_updated: "2026-05-03T21:57:58.138Z"
 last_activity: 2026-05-03 — Roadmap created; requirements mapped to 7 phases
 progress:
   total_phases: 7
   completed_phases: 4
   total_plans: 33
-  completed_plans: 30
+  completed_plans: 31
   percent: 20
 ---
 
@@ -125,6 +125,8 @@ Recent decisions affecting current work:
 - [Phase 04-library-persistence]: Used Schema(versionedSchema:) + migrationPlan: for ModelContainer — preserves VersionedSchema contract per PITFALLS #12
 - [Phase 05-export]: ExportFormat.uti uses UTType identifiers (OS canonical); resolve() is single clamp site 256...8192; PNG supportsQuality=false API boundary for EXPORT-05
 - [Phase 05-export]: ExportService: non-isolated enum (not actor); CGImageDestination not UIImage; GPS strip by omission; HEIC fallback probe per-encode
+- [Phase 05-export]: PhotoSaver: addResource(with:.photo,data:) not creationRequestForAsset(from:UIImage) — no UIImage round-trip, ICC profile preserved (PITFALL #16)
+- [Phase 05-export]: PhotoSaver: both .authorized and .limited accepted as success for Photos writes (PITFALL #17)
 
 ### Pending Todos
 
@@ -139,6 +141,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-05-03T21:57:12.036Z
-Stopped at: Completed 05-04-PLAN.md
+Last session: 2026-05-03T21:57:58.081Z
+Stopped at: Completed 05-03-PLAN.md
 Resume file: None

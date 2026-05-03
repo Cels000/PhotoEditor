@@ -67,7 +67,7 @@
 
 ### Export
 
-- [ ] **EXPORT-01**: User can save the full-resolution edited image to Photos (full-res, original aspect)
+- [x] **EXPORT-01**: User can save the full-resolution edited image to Photos (full-res, original aspect)
 - [x] **EXPORT-02**: User can share via the system share sheet (any iOS share target)
 - [x] **EXPORT-03**: User can choose export format: JPEG / HEIC / PNG
 - [x] **EXPORT-04**: User can choose export size: full / web / story presets, plus custom long-edge value
@@ -152,7 +152,7 @@
 | LIB-03 | Phase 4 | Complete |
 | LIB-04 | Phase 4 | Complete |
 | LIB-05 | Phase 4 | Complete |
-| EXPORT-01 | Phase 5 | Pending |
+| EXPORT-01 | Phase 5 | Complete |
 | EXPORT-02 | Phase 5 | Complete |
 | EXPORT-03 | Phase 5 | Complete |
 | EXPORT-04 | Phase 5 | Complete |
