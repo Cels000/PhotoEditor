@@ -43,7 +43,13 @@ Build a premium-feeling iOS photo editor from a brownfield SwiftUI seed. The arc
   3. Marking a filter as a Favorite moves it to the front of the strip and survives an app restart
   4. A unit test passes: an identity LUT produces pixel-identical output to no-filter, confirming correct CIColorCubeWithColorSpace usage and 64-point dimensions
   5. Every filter has a stable UUID; renaming a filter's display name does not change its ID
-**Plans**: TBD
+**Plans**: 6 plans
+  - [ ] 02-01-PLAN.md — ColorCubeData value type (validated 64-point cube)
+  - [ ] 02-02-PLAN.md — In-house CubeParser (.cube text → ColorCubeData) + tests
+  - [ ] 02-03-PLAN.md — BuiltInLUTs (5 procedural starter LUTs)
+  - [ ] 02-04-PLAN.md — Filter model + FilterLibrary @Observable service (favorites)
+  - [ ] 02-05-PLAN.md — Wire PipelineBuilder.applyLUT with strength blend + identity test
+  - [ ] 02-06-PLAN.md — FilterStripView + thumbnail cache + EditorViewModel/ContentView wiring
 
 ### Phase 3: Editor UI + Full Adjustments
 **Goal**: The app is fully usable as a photo editor — all adjustment panels are functional against live output, crop and geometry work, undo/redo work, and the before/after compare is available
@@ -108,7 +114,7 @@ Build a premium-feeling iOS photo editor from a brownfield SwiftUI seed. The arc
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Rendering Foundation | 0/5 | Not started | - |
-| 2. LUT Filter Pipeline | 0/TBD | Not started | - |
+| 2. LUT Filter Pipeline | 0/6 | Not started | - |
 | 3. Editor UI + Full Adjustments | 0/TBD | Not started | - |
 | 4. Library + Persistence | 0/TBD | Not started | - |
 | 5. Export | 0/TBD | Not started | - |
