@@ -77,7 +77,7 @@
 ### UX & Accessibility
 
 - [ ] **UX-01**: The interface visibly distinguishes itself from a stock SwiftUI template — distinctive typography, layout, and motion design
-- [ ] **UX-02**: All slider interactions have appropriate haptics (zero-crossing tick, end-stop bump, value-snap)
+- [x] **UX-02**: All slider interactions have appropriate haptics (zero-crossing tick, end-stop bump, value-snap)
 - [x] **UX-03**: Panel transitions use spring animation with no layout shift in the canvas during open/close
 - [ ] **UX-04**: All controls support Dynamic Type up to XL without truncation or overflow
 - [ ] **UX-05**: All adjustment controls have correct VoiceOver labels and use `.accessibilityAdjustableAction` so values are announced and adjustable
@@ -164,7 +164,7 @@
 | RECIPE-04 | Phase 6 | Complete |
 | RECIPE-05 | Phase 6 | Complete |
 | UX-01 | Phase 7 | Pending |
-| UX-02 | Phase 7 | Pending |
+| UX-02 | Phase 7 | Complete |
 | UX-03 | Phase 7 | Complete |
 | UX-04 | Phase 7 | Pending |
 | UX-05 | Phase 7 | Pending |

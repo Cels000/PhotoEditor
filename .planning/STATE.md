@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: planning
-stopped_at: Completed 07-03-PLAN.md
-last_updated: "2026-05-03T22:51:00.253Z"
+stopped_at: Completed 07-02-PLAN.md
+last_updated: "2026-05-03T22:51:09.942Z"
 last_activity: 2026-05-03 — Roadmap created; requirements mapped to 7 phases
 progress:
   total_phases: 7
   completed_phases: 6
   total_plans: 49
-  completed_plans: 41
+  completed_plans: 42
   percent: 20
 ---
 
@@ -84,6 +84,8 @@ Progress: [██░░░░░░░░] 20%
 | Phase 06-recipes P06-05 | 5min | 2 tasks | 2 files |
 | Phase 06-recipes P06-06 | 8min | 4 tasks | 4 files |
 | Phase 07-polish-accessibility P07-03 | 3min | 1 tasks | 1 files |
+| Phase 07-polish-accessibility P07-02 | 3min | 1 tasks | 1 files |
+| Phase 07-polish-accessibility P07-01 | 3min | 1 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -149,6 +151,8 @@ Recent decisions affecting current work:
 - [Phase 06-recipes]: Cross-scene refresh via NotificationCenter: App onOpenURL posts .recipeImported, ContentView .task refreshes store
 - [Phase 07-polish-accessibility]: @MainActor on Motion.adaptive(_:) ensures UIAccessibility read occurs on main thread; runtime Reduce Motion toggle honored immediately
 - [Phase 07-polish-accessibility]: Motion module has zero dependencies on Theme or Haptics — deliberately isolated per CONTEXT.md
+- [Phase 07-polish-accessibility]: Haptic.play is @MainActor — UIKit feedback generators require main thread; callers must dispatch accordingly
+- [Phase 07-polish-accessibility]: No reduceMotion guard — haptics are not motion per Apple HIG; they remain on with Reduce Motion enabled
 
 ### Pending Todos
 
@@ -163,6 +167,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-05-03T22:51:00.251Z
-Stopped at: Completed 07-03-PLAN.md
+Last session: 2026-05-03T22:51:07.535Z
+Stopped at: Completed 07-02-PLAN.md
 Resume file: None
