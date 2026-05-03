@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: planning
-stopped_at: Completed 04-05-PLAN.md — LibraryGridView + LibraryItemThumbnail
-last_updated: "2026-05-03T21:42:20.358Z"
+stopped_at: Completed 04-04-PLAN.md — EditorViewModel library bridge (saveToLibrary, openLibraryItem)
+last_updated: "2026-05-03T21:42:27.581Z"
 last_activity: 2026-05-03 — Roadmap created; requirements mapped to 7 phases
 progress:
   total_phases: 7
@@ -116,6 +116,8 @@ Recent decisions affecting current work:
 - [Phase 04-library-persistence]: VersionedSchema scaffold from v1 — per PITFALLS #12 retrofitting after data ships is destructive
 - [Phase 04-library-persistence]: importImage(fromAssetID:) reuses existing decode path; PHAsset isolated to ImageImporter.swift; ThumbnailGenerator stateless enum using engine.renderPreview
 - [Phase 04-library-persistence]: LibraryGridView: store passed as let param (not @Environment) for explicit dependency — plan 04-06 wires it at call site
+- [Phase 04-library-persistence]: Task.detached(.background) for ThumbnailGenerator in EditorViewModel — keeps @MainActor non-blocking during JPEG render
+- [Phase 04-library-persistence]: currentLibraryItem tracks insert-vs-update in EditorViewModel: set after first save, set on open, cleared on picker import
 
 ### Pending Todos
 
@@ -130,6 +132,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-05-03T21:42:20.356Z
-Stopped at: Completed 04-05-PLAN.md — LibraryGridView + LibraryItemThumbnail
+Last session: 2026-05-03T21:42:27.525Z
+Stopped at: Completed 04-04-PLAN.md — EditorViewModel library bridge (saveToLibrary, openLibraryItem)
 Resume file: None
