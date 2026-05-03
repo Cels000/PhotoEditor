@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: planning
-stopped_at: Completed 02-01-PLAN.md — ColorCubeData validated LUT container
-last_updated: "2026-05-03T20:45:32.471Z"
+stopped_at: Completed 02-03-PLAN.md — BuiltInLUTs.swift with five procedural starter LUTs
+last_updated: "2026-05-03T20:45:52.644Z"
 last_activity: 2026-05-03 — Roadmap created; requirements mapped to 7 phases
 progress:
   total_phases: 7
   completed_phases: 1
   total_plans: 11
-  completed_plans: 6
+  completed_plans: 7
   percent: 20
 ---
 
@@ -52,6 +52,7 @@ Progress: [██░░░░░░░░] 20%
 | Phase 01-rendering-foundation P01-04 | 5 | 1 tasks | 1 files |
 | Phase 01-rendering-foundation P01-05 | 10min | 3 tasks | 3 files |
 | Phase 02-lut-filter-pipeline P02-01 | 5min | 1 tasks | 1 files |
+| Phase 02-lut-filter-pipeline P02-03 | 5min | 1 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -73,6 +74,7 @@ Recent decisions affecting current work:
 - [Phase 01-rendering-foundation]: @Observable + @State replaces ObservableObject + @StateObject in EditorViewModel
 - [Phase 01-rendering-foundation]: Explicit Binding closures in ContentView sliders ensure stackDidChange() fires for debounce
 - [Phase 02-lut-filter-pipeline]: ColorCubeData: pure Foundation type — no CoreImage; alpha validated at init?(floats:) to prevent CIColorCube Pitfall #2; dimension fixed at 64
+- [Phase 02-lut-filter-pipeline]: BuiltInLUTs: procedural starters are explicit PLACEHOLDERS — stable IDs frozen for Phase 6 Recipes
 
 ### Pending Todos
 
@@ -87,6 +89,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-05-03T20:45:32.470Z
-Stopped at: Completed 02-01-PLAN.md — ColorCubeData validated LUT container
+Last session: 2026-05-03T20:45:52.642Z
+Stopped at: Completed 02-03-PLAN.md — BuiltInLUTs.swift with five procedural starter LUTs
 Resume file: None

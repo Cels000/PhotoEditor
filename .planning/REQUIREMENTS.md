@@ -16,7 +16,7 @@
 
 ### Filter Library (LUT)
 
-- [ ] **FILTER-01**: App ships with at least 20 hand-curated film-style LUT filters covering film/portrait/B&W/cinematic categories
+- [x] **FILTER-01**: App ships with at least 20 hand-curated film-style LUT filters covering film/portrait/B&W/cinematic categories
 - [ ] **FILTER-02**: Filters are presented as a horizontal strip with thumbnails generated from the user's current photo
 - [ ] **FILTER-03**: Each filter has a strength slider (0–100%) that smoothly blends between unfiltered and full-strength filtered output
 - [ ] **FILTER-04**: Filters can be marked as Favorites and Favorites appear first in the strip
@@ -124,7 +124,7 @@
 | RENDER-04 | Phase 1 | Complete |
 | RENDER-05 | Phase 1 | Complete |
 | RENDER-06 | Phase 1 | Complete |
-| FILTER-01 | Phase 2 | Pending |
+| FILTER-01 | Phase 2 | Complete |
 | FILTER-02 | Phase 2 | Pending |
 | FILTER-03 | Phase 2 | Pending |
 | FILTER-04 | Phase 2 | Pending |
