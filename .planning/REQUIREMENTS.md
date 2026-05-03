@@ -83,7 +83,7 @@
 - [x] **UX-05**: All adjustment controls have correct VoiceOver labels and use `.accessibilityAdjustableAction` so values are announced and adjustable
 - [x] **UX-06**: Reduce Motion preference disables non-essential animations; all gestures remain functional
 - [x] **UX-07**: App supports both Light and Dark appearance with deliberate per-mode color choices (not just system defaults)
-- [ ] **UX-08**: First-run flow explains the photo-library permission and gracefully handles `.limited` access
+- [x] **UX-08**: First-run flow explains the photo-library permission and gracefully handles `.limited` access
 - [ ] **UX-09**: iPhone layout is the primary target; iPad runs the same layout without crashing or clipping
 
 ## v2 Requirements
@@ -170,7 +170,7 @@
 | UX-05 | Phase 7 | Complete |
 | UX-06 | Phase 7 | Complete |
 | UX-07 | Phase 7 | Complete |
-| UX-08 | Phase 7 | Pending |
+| UX-08 | Phase 7 | Complete |
 | UX-09 | Phase 7 | Pending |
 
 **Coverage:**
