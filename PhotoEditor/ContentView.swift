@@ -15,6 +15,9 @@ struct ContentView: View {
     @State private var libraryStore: LibraryStore?
     @State private var isLibraryPresented: Bool = false
     @State private var isExportSheetPresented: Bool = false
+    @State private var recipeStore: RecipeStore?
+    @State private var isRecipesSheetPresented: Bool = false
+    @State private var isNamePromptPresented: Bool = false
 
     var body: some View {
         NavigationStack {
@@ -36,6 +39,15 @@ struct ContentView: View {
                     }
                     .disabled(libraryStore == nil)
                     .accessibilityLabel("Library")
+                }
+                ToolbarItem(placement: .topBarLeading) {
+                    Button {
+                        isRecipesSheetPresented = true
+                    } label: {
+                        Image(systemName: "wand.and.stars")
+                    }
+                    .disabled(recipeStore == nil)
+                    .accessibilityLabel("Recipes")
                 }
                 ToolbarItem(placement: .topBarLeading) {
                     PhotosPicker(selection: $selectedItem, matching: .images, preferredItemEncoding: .automatic) {
@@ -64,6 +76,15 @@ struct ContentView: View {
                     .disabled(viewModel.importedImage == nil || viewModel.isExporting)
                     .accessibilityLabel("Export")
                 }
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        isNamePromptPresented = true
+                    } label: {
+                        Image(systemName: "doc.badge.plus")
+                    }
+                    .disabled(viewModel.importedImage == nil || viewModel.stack == .identity || recipeStore == nil)
+                    .accessibilityLabel("Save as Recipe")
+                }
             }
             .background(Color(.systemGroupedBackground))
             .sheet(isPresented: $isLibraryPresented) {
@@ -88,6 +109,33 @@ struct ContentView: View {
                     }
                 }
             }
+            .sheet(isPresented: $isRecipesSheetPresented) {
+                if let store = recipeStore {
+                    RecipesSheetView(
+                        store: store,
+                        onApply: { recipe in viewModel.applyRecipe(recipe) },
+                        onDismiss: { isRecipesSheetPresented = false }
+                    )
+                }
+            }
+            .sheet(isPresented: $isNamePromptPresented) {
+                let defaultName: String = {
+                    if let filterID = viewModel.stack.filter?.filterID,
+                       let f = viewModel.filterLibrary.filter(withID: filterID) {
+                        return "\(f.displayName) Look"
+                    }
+                    return "Untitled Look"
+                }()
+                RecipeNamePromptView(
+                    title: "Save Recipe",
+                    initialName: defaultName,
+                    onSubmit: { name in
+                        isNamePromptPresented = false
+                        Task { await viewModel.saveCurrentAsRecipe(name: name) }
+                    },
+                    onCancel: { isNamePromptPresented = false }
+                )
+            }
         }
         .task(id: selectedItem) { await loadSelectedPhoto() }
         .task(id: importedIdentity) { await rebuildOriginalPreview() }
@@ -96,6 +144,17 @@ struct ContentView: View {
                 let store = LibraryStore(context: modelContext)
                 libraryStore = store
                 viewModel.libraryStore = store
+            }
+            if recipeStore == nil {
+                let rstore = RecipeStore(context: modelContext)
+                recipeStore = rstore
+                viewModel.recipeStore = rstore
+            }
+        }
+        .task {
+            // Listen for recipe imports from .onOpenURL and refresh the store.
+            for await _ in NotificationCenter.default.notifications(named: .recipeImported).map({ _ in () }) {
+                recipeStore?.refresh()
             }
         }
         .alert("Error", isPresented: Binding(present: $viewModel.errorMessage), presenting: viewModel.errorMessage) { _ in
