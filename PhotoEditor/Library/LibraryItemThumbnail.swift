@@ -33,7 +33,7 @@ struct LibraryItemThumbnail: View {
                         .font(.title3)
                         .foregroundStyle(.white)
                     Text("Source unavailable")
-                        .font(.caption2.weight(.semibold))
+                        .font(Theme.Typography.caption)
                         .foregroundStyle(.white)
                         .multilineTextAlignment(.center)
                 }

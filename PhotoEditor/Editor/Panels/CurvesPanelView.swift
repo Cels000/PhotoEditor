@@ -34,6 +34,7 @@ struct CurvesPanelView: View {
             Picker("Curve channel", selection: $tab) {
                 ForEach(ChannelTab.allCases) { c in
                     Text(c.label)
+                        .font(Theme.Typography.caption)
                         .tag(c)
                         .accessibilityLabel("\(c.label) channel")
                         .accessibilityHint("Switches the curve to this channel")

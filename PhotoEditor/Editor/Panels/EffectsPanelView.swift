@@ -34,7 +34,7 @@ struct EffectsPanelView: View {
     @ViewBuilder
     private func sectionHeader(_ title: String) -> some View {
         Text(title)
-            .font(.caption.weight(.semibold))
+            .font(Theme.Typography.caption)
             .foregroundStyle(.secondary)
             .textCase(.uppercase)
     }
