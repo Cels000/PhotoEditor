@@ -18,8 +18,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Select Xcode
-        run: sudo xcode-select -s /Applications/Xcode_15.4.app
+      - name: Show Xcode version
+        run: xcodebuild -version
 
       - name: Import signing assets
         env:
@@ -44,7 +44,9 @@ jobs:
           security list-keychains -d user -s "$KEYCHAIN_PATH" $(security list-keychains -d user | tr -d '"')
 
           mkdir -p "$HOME/Library/MobileDevice/Provisioning Profiles"
-          UUID=$(security cms -D -i "$PROFILE_PATH" | /usr/libexec/PlistBuddy -c "Print UUID" /dev/stdin)
+          PLIST_PATH="$RUNNER_TEMP/profile.plist"
+          security cms -D -i "$PROFILE_PATH" -o "$PLIST_PATH"
+          UUID=$(/usr/libexec/PlistBuddy -c "Print UUID" "$PLIST_PATH")
           cp "$PROFILE_PATH" "$HOME/Library/MobileDevice/Provisioning Profiles/$UUID.mobileprovision"
 
       - name: Archive
