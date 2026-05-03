@@ -7,6 +7,9 @@ struct PhotoEditorApp: App {
 
     init() {
         do {
+            // RECIPE-01: LibrarySchemaV1 now carries both LibraryItem and RecipeItem.
+            // No rename needed — adding a model to an existing VersionedSchema is the
+            // lightweight, non-destructive path that preserves existing user library data.
             let schema = Schema(versionedSchema: LibrarySchemaV1.self)
             let config = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
             self.modelContainer = try ModelContainer(
