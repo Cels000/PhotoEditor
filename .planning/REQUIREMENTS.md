@@ -26,7 +26,7 @@
 ### Adjustments
 
 - [x] **ADJUST-01**: User can adjust Exposure, Contrast, Highlights, Shadows, Whites, Blacks (light panel, 6 controls, default 0)
-- [ ] **ADJUST-02**: User can adjust Saturation, Vibrance, Temperature, Tint (color panel, 4 controls, default 0)
+- [x] **ADJUST-02**: User can adjust Saturation, Vibrance, Temperature, Tint (color panel, 4 controls, default 0)
 - [ ] **ADJUST-03**: User can adjust Hue, Saturation, Luminance per color channel (HSL panel, 8 channels × 3 controls)
 - [ ] **ADJUST-04**: User can shape RGB and per-channel tone curves (curves panel)
 - [ ] **ADJUST-05**: User can apply Split Toning to highlights and shadows (hue + amount per zone)
@@ -131,7 +131,7 @@
 | FILTER-05 | Phase 2 | Complete |
 | FILTER-06 | Phase 2 | Complete |
 | ADJUST-01 | Phase 3 | Complete |
-| ADJUST-02 | Phase 3 | Pending |
+| ADJUST-02 | Phase 3 | Complete |
 | ADJUST-03 | Phase 3 | Pending |
 | ADJUST-04 | Phase 3 | Pending |
 | ADJUST-05 | Phase 3 | Pending |

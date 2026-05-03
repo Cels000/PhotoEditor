@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: planning
-stopped_at: Completed 03-04-PLAN.md — AdjustmentSlider + SliderValueFormatter components created
-last_updated: "2026-05-03T21:11:59.471Z"
+stopped_at: Completed 03-02-PLAN.md — CITemperatureAndTint wired for temperature + tint controls
+last_updated: "2026-05-03T21:13:04.154Z"
 last_activity: 2026-05-03 — Roadmap created; requirements mapped to 7 phases
 progress:
   total_phases: 7
   completed_phases: 2
   total_plans: 21
-  completed_plans: 13
+  completed_plans: 14
   percent: 20
 ---
 
@@ -59,6 +59,7 @@ Progress: [██░░░░░░░░] 20%
 | Phase 02-lut-filter-pipeline P02-06 | 12min | 4 tasks | 5 files |
 | Phase 03-editor-ui-full-adjustments P03-01 | 5min | 1 tasks | 1 files |
 | Phase 03-editor-ui-full-adjustments P03-04 | 5min | 2 tasks | 2 files |
+| Phase 03-editor-ui-full-adjustments P03-02 | 3min | 1 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -90,6 +91,7 @@ Recent decisions affecting current work:
 - [Phase 02-lut-filter-pipeline]: FilterStripView thumbnails bypass PipelineBuilder — LUT-only render so strip remains stable visual reference while user edits other adjustments
 - [Phase 03-editor-ui-full-adjustments]: Whites/Blacks: 5-point CIToneCurve endpoint shaping; input ±1 → ±0.3 curve shift; gated on non-zero to preserve identity
 - [Phase 03-editor-ui-full-adjustments]: AdjustmentSlider value bubble implemented as opacity animation on header label; no floating overlay needed
+- [Phase 03-editor-ui-full-adjustments]: Temperature ±1 maps to ±2500K around 6500K neutral; tint ±1 maps to ±100 on CITemperatureAndTint y axis
 
 ### Pending Todos
 
@@ -104,6 +106,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-05-03T21:11:56.542Z
-Stopped at: Completed 03-04-PLAN.md — AdjustmentSlider + SliderValueFormatter components created
+Last session: 2026-05-03T21:13:04.152Z
+Stopped at: Completed 03-02-PLAN.md — CITemperatureAndTint wired for temperature + tint controls
 Resume file: None
