@@ -186,7 +186,130 @@ enum PipelineBuilder {
         composite.backgroundImage = image
         return composite.outputImage ?? filtered
     }
-    static func applyHSL(_ hsl: HSLAdjustments, to image: CIImage) -> CIImage { image }            // Phase 3
+    /// HSL: per-channel hue/sat/luminance adjustments.
+    ///
+    /// Implementation route: CIColorMatrix masking. Free-form Metal kernel HSL deferred to v2.
+    ///
+    /// Per Phase 3 plan 03-05: CIColorMatrix-based hue band masking + global CIHueAdjust per
+    /// channel. This is a documented approximation; a precise per-pixel HSL requires a Metal
+    /// CIColorKernel and is deferred to v2.
+    ///
+    /// For each non-default channel:
+    ///   1. Build a hue-band mask by isolating pixels whose dominant channel matches the band
+    ///      via a CIColorMatrix that boosts the band's primary RGB component and clamps others.
+    ///   2. Apply CIHueAdjust (hue rotation), CIColorControls (saturation), and CIExposureAdjust
+    ///      (luminance) to the source globally.
+    ///   3. Composite the adjusted result over the running output via CIBlendWithMask using
+    ///      the band mask — only band pixels receive the adjustment.
+    static func applyHSL(_ hsl: HSLAdjustments, to image: CIImage) -> CIImage {
+        let channels: [(name: String, ch: HSLChannel, mask: (CIImage) -> CIImage)] = [
+            ("red",     hsl.red,     { hslMask(channel: .red,     in: $0) }),
+            ("orange",  hsl.orange,  { hslMask(channel: .orange,  in: $0) }),
+            ("yellow",  hsl.yellow,  { hslMask(channel: .yellow,  in: $0) }),
+            ("green",   hsl.green,   { hslMask(channel: .green,   in: $0) }),
+            ("aqua",    hsl.aqua,    { hslMask(channel: .aqua,    in: $0) }),
+            ("blue",    hsl.blue,    { hslMask(channel: .blue,    in: $0) }),
+            ("purple",  hsl.purple,  { hslMask(channel: .purple,  in: $0) }),
+            ("magenta", hsl.magenta, { hslMask(channel: .magenta, in: $0) }),
+        ]
+
+        // Early-out: every channel default → identity (zero render cost).
+        let nonDefault = channels.filter { $0.ch.hue != 0 || $0.ch.saturation != 0 || $0.ch.luminance != 0 }
+        guard !nonDefault.isEmpty else { return image }
+
+        var output = image
+        for (_, ch, makeMask) in nonDefault {
+            // Apply hue rotation globally on the *current* output.
+            var adjusted = output
+            if ch.hue != 0 {
+                let hue = CIFilter.hueAdjust()
+                hue.inputImage = adjusted
+                hue.angle = Float(ch.hue * .pi / 6.0) // ±30° rotation at ±1
+                if let r = hue.outputImage { adjusted = r }
+            }
+            if ch.saturation != 0 {
+                let sat = CIFilter.colorControls()
+                sat.inputImage = adjusted
+                sat.saturation = Float(1.0 + ch.saturation)
+                sat.contrast = 1.0
+                sat.brightness = 0
+                if let r = sat.outputImage { adjusted = r }
+            }
+            if ch.luminance != 0 {
+                let lum = CIFilter.exposureAdjust()
+                lum.inputImage = adjusted
+                lum.ev = Float(ch.luminance * 0.5)
+                if let r = lum.outputImage { adjusted = r }
+            }
+
+            // Composite the channel-band region from `adjusted` over `output`.
+            let mask = makeMask(image)
+            let blend = CIFilter.blendWithMask()
+            blend.inputImage = adjusted
+            blend.backgroundImage = output
+            blend.maskImage = mask
+            if let r = blend.outputImage { output = r }
+        }
+        return output
+    }
+
+    /// 8 hue bands. Each mask isolates pixels whose dominant color matches the channel.
+    /// Implemented as CIColorMatrix-based RGB-component-emphasis filters; the resulting
+    /// luminance image is the mask (bright where channel dominates).
+    private enum HSLBand { case red, orange, yellow, green, aqua, blue, purple, magenta }
+
+    private static func hslMask(channel: HSLBand, in source: CIImage) -> CIImage {
+        // Build a luminance-style image where the target band has high values.
+        // Approximation: each band emphasizes specific (R,G,B) combinations.
+        let m = CIFilter.colorMatrix()
+        m.inputImage = source
+        let zero = CIVector(x: 0, y: 0, z: 0, w: 0)
+        switch channel {
+        case .red:
+            m.rVector = CIVector(x:  1, y: -0.5, z: -0.5, w: 0)
+            m.gVector = CIVector(x:  1, y: -0.5, z: -0.5, w: 0)
+            m.bVector = CIVector(x:  1, y: -0.5, z: -0.5, w: 0)
+        case .orange:
+            m.rVector = CIVector(x:  1, y:  0.5, z: -1, w: 0)
+            m.gVector = CIVector(x:  1, y:  0.5, z: -1, w: 0)
+            m.bVector = CIVector(x:  1, y:  0.5, z: -1, w: 0)
+        case .yellow:
+            m.rVector = CIVector(x:  0.5, y:  1, z: -1, w: 0)
+            m.gVector = CIVector(x:  0.5, y:  1, z: -1, w: 0)
+            m.bVector = CIVector(x:  0.5, y:  1, z: -1, w: 0)
+        case .green:
+            m.rVector = CIVector(x: -0.5, y:  1, z: -0.5, w: 0)
+            m.gVector = CIVector(x: -0.5, y:  1, z: -0.5, w: 0)
+            m.bVector = CIVector(x: -0.5, y:  1, z: -0.5, w: 0)
+        case .aqua:
+            m.rVector = CIVector(x: -1, y:  0.5, z:  1, w: 0)
+            m.gVector = CIVector(x: -1, y:  0.5, z:  1, w: 0)
+            m.bVector = CIVector(x: -1, y:  0.5, z:  1, w: 0)
+        case .blue:
+            m.rVector = CIVector(x: -0.5, y: -0.5, z: 1, w: 0)
+            m.gVector = CIVector(x: -0.5, y: -0.5, z: 1, w: 0)
+            m.bVector = CIVector(x: -0.5, y: -0.5, z: 1, w: 0)
+        case .purple:
+            m.rVector = CIVector(x:  0.5, y: -1, z: 1, w: 0)
+            m.gVector = CIVector(x:  0.5, y: -1, z: 1, w: 0)
+            m.bVector = CIVector(x:  0.5, y: -1, z: 1, w: 0)
+        case .magenta:
+            m.rVector = CIVector(x:  1, y: -1, z: 0.5, w: 0)
+            m.gVector = CIVector(x:  1, y: -1, z: 0.5, w: 0)
+            m.bVector = CIVector(x:  1, y: -1, z: 0.5, w: 0)
+        }
+        m.aVector = CIVector(x: 0, y: 0, z: 0, w: 1)
+        m.biasVector = zero
+        let raw = m.outputImage ?? source
+
+        // Clamp to 0...1 so blendWithMask reads it as alpha.
+        let clamp = CIFilter.colorClamp()
+        clamp.inputImage = raw
+        clamp.minComponents = CIVector(x: 0, y: 0, z: 0, w: 0)
+        clamp.maxComponents = CIVector(x: 1, y: 1, z: 1, w: 1)
+        return clamp.outputImage ?? raw
+    }
+
     static func applyCurves(_ curves: ToneCurves, to image: CIImage) -> CIImage { image }          // Phase 3
     static func applySplitToning(_ split: SplitToning, to image: CIImage) -> CIImage { image }     // Phase 3
     static func applyGrain(_ grain: GrainSettings, to image: CIImage) -> CIImage {
