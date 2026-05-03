@@ -1,6 +1,10 @@
 import SwiftUI
 import SwiftData
 
+extension Notification.Name {
+    static let recipeImported = Notification.Name("PhotoEditor.recipeImported")
+}
+
 @main
 struct PhotoEditorApp: App {
     let modelContainer: ModelContainer
@@ -28,7 +32,38 @@ struct PhotoEditorApp: App {
     var body: some Scene {
         WindowGroup {
             ContentView()
+                .onOpenURL { url in
+                    handleIncomingURL(url)
+                }
         }
         .modelContainer(modelContainer)
+    }
+
+    @MainActor
+    private func handleIncomingURL(_ url: URL) {
+        guard url.pathExtension.lowercased() == ExportedRecipe.fileExtension else { return }
+
+        // Some sources hand us a security-scoped URL (Files app).
+        let didStartScope = url.startAccessingSecurityScopedResource()
+        defer { if didStartScope { url.stopAccessingSecurityScopedResource() } }
+
+        do {
+            let doc = try RecipeFileIO.read(from: url)
+
+            // Persist via a transient RecipeStore on the shared ModelContainer's main context.
+            let context = modelContainer.mainContext
+            let store = RecipeStore(context: context)
+
+            // Decode optional thumbnail
+            let thumb: Data? = doc.thumbnailJPEGBase64.flatMap { Data(base64Encoded: $0) }
+            store.save(name: doc.name, stack: doc.stack, thumbnail: thumb)
+
+            // Notify any open ContentView/RecipesSheetView so its observed RecipeStore refreshes.
+            NotificationCenter.default.post(name: .recipeImported, object: nil)
+        } catch {
+            // Silent failure — Phase 7 polish can add a user-facing toast.
+            // For now, NSLog so QA on real device can diagnose.
+            NSLog("PhotoEditor: failed to import recipe at \(url.lastPathComponent): \(error)")
+        }
     }
 }
