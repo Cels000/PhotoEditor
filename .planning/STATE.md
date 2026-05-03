@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: planning
-stopped_at: Completed 04-01-PLAN.md — LibraryItem @Model + VersionedSchema scaffold
-last_updated: "2026-05-03T21:38:54.046Z"
+stopped_at: Completed 04-03-PLAN.md — ImageImporter PHAsset loader + ThumbnailGenerator
+last_updated: "2026-05-03T21:40:43.768Z"
 last_activity: 2026-05-03 — Roadmap created; requirements mapped to 7 phases
 progress:
   total_phases: 7
   completed_phases: 3
   total_plans: 27
-  completed_plans: 23
+  completed_plans: 24
   percent: 20
 ---
 
@@ -69,6 +69,7 @@ Progress: [██░░░░░░░░] 20%
 | Phase 03-editor-ui-full-adjustments P03-10 | 5min | 1 tasks | 1 files |
 | Phase 04-library-persistence P04-02 | 5min | 1 tasks | 1 files |
 | Phase 04-library-persistence P04-01 | 1min | 2 tasks | 2 files |
+| Phase 04-library-persistence P04-03 | 5min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -112,6 +113,7 @@ Recent decisions affecting current work:
 - [Phase 04-library-persistence]: LibraryStore uses explicit refresh() after mutation rather than @Query — service is UI-agnostic
 - [Phase 04-library-persistence]: JSON blob (stackData: Data) over normalized columns for AdjustmentStack — field-additive changes decode forward-compat via Codable defaults
 - [Phase 04-library-persistence]: VersionedSchema scaffold from v1 — per PITFALLS #12 retrofitting after data ships is destructive
+- [Phase 04-library-persistence]: importImage(fromAssetID:) reuses existing decode path; PHAsset isolated to ImageImporter.swift; ThumbnailGenerator stateless enum using engine.renderPreview
 
 ### Pending Todos
 
@@ -126,6 +128,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-05-03T21:38:54.043Z
-Stopped at: Completed 04-01-PLAN.md — LibraryItem @Model + VersionedSchema scaffold
+Last session: 2026-05-03T21:40:43.766Z
+Stopped at: Completed 04-03-PLAN.md — ImageImporter PHAsset loader + ThumbnailGenerator
 Resume file: None
