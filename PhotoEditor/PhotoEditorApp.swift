@@ -8,6 +8,7 @@ extension Notification.Name {
 @main
 struct PhotoEditorApp: App {
     let modelContainer: ModelContainer
+    @AppStorage("hasSeenFirstRun") private var hasSeenFirstRun: Bool = false
 
     init() {
         do {
@@ -34,6 +35,9 @@ struct PhotoEditorApp: App {
             ContentView()
                 .onOpenURL { url in
                     handleIncomingURL(url)
+                }
+                .sheet(isPresented: Binding(get: { !hasSeenFirstRun }, set: { _ in })) {
+                    FirstRunView(onGetStarted: { hasSeenFirstRun = true })
                 }
         }
         .modelContainer(modelContainer)

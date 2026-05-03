@@ -18,10 +18,39 @@ struct ContentView: View {
     @State private var recipeStore: RecipeStore?
     @State private var isRecipesSheetPresented: Bool = false
     @State private var isNamePromptPresented: Bool = false
+    @State private var showLimitedBanner: Bool = false
+    @State private var didDismissLimitedBanner: Bool = false
 
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
+                if showLimitedBanner && !didDismissLimitedBanner {
+                    HStack(spacing: Theme.Spacing.sm) {
+                        Image(systemName: "exclamationmark.circle.fill")
+                            .foregroundStyle(Theme.Colors.accent)
+                        Text("Limited photo access — tap to manage")
+                            .font(Theme.Typography.caption)
+                            .foregroundStyle(Theme.Colors.text)
+                        Spacer()
+                        Button {
+                            didDismissLimitedBanner = true
+                        } label: {
+                            Image(systemName: "xmark")
+                                .font(.system(size: 12, weight: .semibold))
+                                .foregroundStyle(Theme.Colors.secondary)
+                        }
+                        .accessibilityLabel("Dismiss limited access banner")
+                    }
+                    .padding(.horizontal, Theme.Spacing.lg)
+                    .padding(.vertical, Theme.Spacing.sm)
+                    .background(Theme.Colors.panel)
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        PhotoLibraryAccess.presentLimitedPicker()
+                    }
+                    .accessibilityElement(children: .combine)
+                    .accessibilityHint("Opens the system picker to manage which photos this app can access.")
+                }
                 UndoToolbar(viewModel: viewModel)
                 editorPreview
                     .padding(.horizontal, 16)
@@ -150,6 +179,7 @@ struct ContentView: View {
                 recipeStore = rstore
                 viewModel.recipeStore = rstore
             }
+            showLimitedBanner = PhotoLibraryAccess.isLimited
         }
         .task {
             // Listen for recipe imports from .onOpenURL and refresh the store.
