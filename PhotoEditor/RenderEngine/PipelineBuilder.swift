@@ -2,6 +2,11 @@ import CoreImage
 import CoreImage.CIFilterBuiltins
 import Foundation
 
+/// Resolves a filter ID to its loaded cube data. Injected so PipelineBuilder
+/// stays decoupled from FilterLibrary. Pass nil from contexts where no LUT
+/// resolution is possible (tests, Phase-1 callers).
+typealias CubeResolver = (String) -> ColorCubeData?
+
 /// Pure namespace that turns an `AdjustmentStack` into a CIImage filter chain.
 /// Stage order is locked per ADJUST-10:
 /// LUT → light → color → HSL → curves → split toning → grain → vignette → sharpness → crop.
@@ -9,9 +14,9 @@ import Foundation
 enum PipelineBuilder {
 
     /// Top-level entry point. Pure: same inputs always produce the same output.
-    static func build(stack: AdjustmentStack, source: CIImage) -> CIImage {
+    static func build(stack: AdjustmentStack, source: CIImage, cubeResolver: CubeResolver? = nil) -> CIImage {
         var img = source
-        img = applyLUT(stack.filter, to: img)             // 1. Phase 2
+        img = applyLUT(stack.filter, to: img, cubeResolver: cubeResolver)  // 1. Phase 2
         img = applyLight(stack.light, to: img)            // 2. Phase 1
         img = applyColor(stack.color, to: img)            // 3. Phase 1
         img = applyHSL(stack.hsl, to: img)                // 4. Phase 3
@@ -102,7 +107,44 @@ enum PipelineBuilder {
 
     // MARK: - Phase-deferred stages (return input unchanged in Phase 1)
 
-    static func applyLUT(_ filter: FilterSelection?, to image: CIImage) -> CIImage { image }      // Phase 2
+    static func applyLUT(_ filter: FilterSelection?,
+                         to image: CIImage,
+                         cubeResolver: CubeResolver? = nil) -> CIImage {
+        guard let filter = filter,
+              !filter.filterID.isEmpty,
+              filter.strength > 0,
+              let resolver = cubeResolver,
+              let cube = resolver(filter.filterID) else {
+            return image
+        }
+
+        // Apply the cube in linear sRGB working space (matches RenderEngine config).
+        // PITFALLS #1: explicitly pass the LUT's design color space.
+        let linearSRGB = CGColorSpace(name: CGColorSpace.extendedLinearSRGB)!
+
+        let cubeFilter = CIFilter.colorCubeWithColorSpace()
+        cubeFilter.inputImage = image
+        cubeFilter.cubeDimension = Float(ColorCubeData.dimension)
+        cubeFilter.cubeData = cube.rawData
+        cubeFilter.colorSpace = linearSRGB
+
+        guard let filtered = cubeFilter.outputImage else { return image }
+
+        // Strength == 1 → full filter; otherwise linear blend with original via
+        // CISourceOverCompositing on an alpha-scaled top layer.
+        let s = max(0.0, min(1.0, filter.strength))
+        if s >= 0.999 { return filtered }
+
+        let alpha = CIFilter.colorMatrix()
+        alpha.inputImage = filtered
+        alpha.aVector = CIVector(x: 0, y: 0, z: 0, w: CGFloat(s))
+        guard let topLayer = alpha.outputImage else { return filtered }
+
+        let composite = CIFilter.sourceOverCompositing()
+        composite.inputImage = topLayer
+        composite.backgroundImage = image
+        return composite.outputImage ?? filtered
+    }
     static func applyHSL(_ hsl: HSLAdjustments, to image: CIImage) -> CIImage { image }            // Phase 3
     static func applyCurves(_ curves: ToneCurves, to image: CIImage) -> CIImage { image }          // Phase 3
     static func applySplitToning(_ split: SplitToning, to image: CIImage) -> CIImage { image }     // Phase 3
