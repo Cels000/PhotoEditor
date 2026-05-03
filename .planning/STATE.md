@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: planning
-stopped_at: Completed 06-02-PLAN.md
-last_updated: "2026-05-03T22:15:57.854Z"
+stopped_at: Completed 06-03-PLAN.md
+last_updated: "2026-05-03T22:16:41.373Z"
 last_activity: 2026-05-03 — Roadmap created; requirements mapped to 7 phases
 progress:
   total_phases: 7
   completed_phases: 5
   total_plans: 39
-  completed_plans: 36
+  completed_plans: 37
   percent: 20
 ---
 
@@ -80,6 +80,7 @@ Progress: [██░░░░░░░░] 20%
 | Phase 06-recipes P06-04 | 3min | 1 tasks | 1 files |
 | Phase 06-recipes P06-01 | 5min | 3 tasks | 3 files |
 | Phase 06-recipes P06-02 | 5min | 1 tasks | 1 files |
+| Phase 06-recipes P06-03 | 3min | 1 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -137,6 +138,8 @@ Recent decisions affecting current work:
 - [Phase 06-recipes]: LSHandlerRank=Owner so iOS routes .photorecipe files exclusively to PhotoEditor
 - [Phase 06-recipes]: Extend LibrarySchemaV1 (not rename to AppSchemaV1) to preserve existing user LibraryItem rows on device upgrade
 - [Phase 06-recipes]: RecipeStore uses explicit refresh() after every mutation rather than @Query — UI-agnostic, consistent with LibraryStore pattern
+- [Phase 06-recipes]: RecipeFileIO.encode uses prettyPrinted+sortedKeys for human-readable .photorecipe files
+- [Phase 06-recipes]: ExportedRecipe fields all default-valued for forward-compat Codable decoding
 
 ### Pending Todos
 
@@ -151,6 +154,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-05-03T22:15:57.852Z
-Stopped at: Completed 06-02-PLAN.md
+Last session: 2026-05-03T22:16:37.772Z
+Stopped at: Completed 06-03-PLAN.md
 Resume file: None
