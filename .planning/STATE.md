@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: planning
-stopped_at: Completed 04-02-PLAN.md — LibraryStore service
-last_updated: "2026-05-03T21:38:45.410Z"
+stopped_at: Completed 04-01-PLAN.md — LibraryItem @Model + VersionedSchema scaffold
+last_updated: "2026-05-03T21:38:54.046Z"
 last_activity: 2026-05-03 — Roadmap created; requirements mapped to 7 phases
 progress:
   total_phases: 7
@@ -68,6 +68,7 @@ Progress: [██░░░░░░░░] 20%
 | Phase 03-editor-ui-full-adjustments P03-08 | 12min | 4 tasks | 9 files |
 | Phase 03-editor-ui-full-adjustments P03-10 | 5min | 1 tasks | 1 files |
 | Phase 04-library-persistence P04-02 | 5min | 1 tasks | 1 files |
+| Phase 04-library-persistence P04-01 | 1min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -109,6 +110,8 @@ Recent decisions affecting current work:
 - [Phase 03-editor-ui-full-adjustments]: PanelContainerView fixed panelHeight=280 in ZStack prevents canvas layout shift on tab switch
 - [Phase 03-editor-ui-full-adjustments]: ContentView is a pure wiring layer with no direct stack access — all adjustments owned by panels
 - [Phase 04-library-persistence]: LibraryStore uses explicit refresh() after mutation rather than @Query — service is UI-agnostic
+- [Phase 04-library-persistence]: JSON blob (stackData: Data) over normalized columns for AdjustmentStack — field-additive changes decode forward-compat via Codable defaults
+- [Phase 04-library-persistence]: VersionedSchema scaffold from v1 — per PITFALLS #12 retrofitting after data ships is destructive
 
 ### Pending Todos
 
@@ -123,6 +126,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-05-03T21:38:45.408Z
-Stopped at: Completed 04-02-PLAN.md — LibraryStore service
+Last session: 2026-05-03T21:38:54.043Z
+Stopped at: Completed 04-01-PLAN.md — LibraryItem @Model + VersionedSchema scaffold
 Resume file: None
