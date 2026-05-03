@@ -38,10 +38,10 @@
 
 ### Crop & Geometry
 
-- [ ] **CROP-01**: User can crop with aspect-ratio presets (free, original, 1:1, 4:5, 3:4, 9:16, 16:9, etc.)
-- [ ] **CROP-02**: User can free-rotate / straighten the crop with an angle ruler
-- [ ] **CROP-03**: User can rotate in 90° steps (left/right) and flip horizontally/vertically
-- [ ] **CROP-04**: Crop/rotate/straighten is stored separately from color adjustments and applies after them, with no progressive pixel drift on re-edit
+- [x] **CROP-01**: User can crop with aspect-ratio presets (free, original, 1:1, 4:5, 3:4, 9:16, 16:9, etc.)
+- [x] **CROP-02**: User can free-rotate / straighten the crop with an angle ruler
+- [x] **CROP-03**: User can rotate in 90° steps (left/right) and flip horizontally/vertically
+- [x] **CROP-04**: Crop/rotate/straighten is stored separately from color adjustments and applies after them, with no progressive pixel drift on re-edit
 
 ### History & Compare
 
@@ -140,10 +140,10 @@
 | ADJUST-08 | Phase 3 | Complete |
 | ADJUST-09 | Phase 3 | Complete |
 | ADJUST-10 | Phase 3 | Pending |
-| CROP-01 | Phase 3 | Pending |
-| CROP-02 | Phase 3 | Pending |
-| CROP-03 | Phase 3 | Pending |
-| CROP-04 | Phase 3 | Pending |
+| CROP-01 | Phase 3 | Complete |
+| CROP-02 | Phase 3 | Complete |
+| CROP-03 | Phase 3 | Complete |
+| CROP-04 | Phase 3 | Complete |
 | HIST-01 | Phase 3 | Complete |
 | HIST-02 | Phase 3 | Pending |
 | HIST-03 | Phase 3 | Complete |

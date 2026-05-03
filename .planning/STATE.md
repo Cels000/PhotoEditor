@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: planning
-stopped_at: Completed 03-06-PLAN.md — applyCurves and applySplitToning in PipelineBuilder
-last_updated: "2026-05-03T21:18:16.256Z"
+stopped_at: Completed 03-09-PLAN.md — Crop module with Mantis bridge and fallback UI
+last_updated: "2026-05-03T21:21:07.830Z"
 last_activity: 2026-05-03 — Roadmap created; requirements mapped to 7 phases
 progress:
   total_phases: 7
   completed_phases: 2
   total_plans: 21
-  completed_plans: 18
+  completed_plans: 19
   percent: 20
 ---
 
@@ -64,6 +64,7 @@ Progress: [██░░░░░░░░] 20%
 | Phase 03-editor-ui-full-adjustments P03-05 | 5min | 1 tasks | 1 files |
 | Phase 03-editor-ui-full-adjustments P03-07 | 4min | 2 tasks | 2 files |
 | Phase 03-editor-ui-full-adjustments P03-06 | 8min | 2 tasks | 1 files |
+| Phase 03-editor-ui-full-adjustments P03-09 | 8min | 3 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -101,6 +102,7 @@ Recent decisions affecting current work:
 - [Phase 03-editor-ui-full-adjustments]: UndoStack pure value type with no SwiftUI/CoreImage; pending-snapshot pattern coalesces drags to single undo entry
 - [Phase 03-editor-ui-full-adjustments]: 5-point CIToneCurve sampling with piecewise-linear interpolation; free-form >5 point curves deferred to v2 Metal kernel
 - [Phase 03-editor-ui-full-adjustments]: Per-channel curve approximation via CIColorMatrix decompose-recompose; documented as approximation
+- [Phase 03-editor-ui-full-adjustments]: applyCrop single-shot transform chain (no extent.integral); Mantis canImport guard; fallback UI as primary shipping path
 
 ### Pending Todos
 
@@ -115,6 +117,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-05-03T21:18:16.254Z
-Stopped at: Completed 03-06-PLAN.md — applyCurves and applySplitToning in PipelineBuilder
+Last session: 2026-05-03T21:21:07.828Z
+Stopped at: Completed 03-09-PLAN.md — Crop module with Mantis bridge and fallback UI
 Resume file: None
