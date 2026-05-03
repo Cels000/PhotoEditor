@@ -62,7 +62,7 @@
 - [ ] **RECIPE-01**: User can save the current adjustment stack as a named Recipe
 - [ ] **RECIPE-02**: User can apply any saved Recipe to any photo (replaces the current adjustment stack)
 - [ ] **RECIPE-03**: User can rename, reorder, and delete saved Recipes
-- [ ] **RECIPE-04**: User can export a Recipe to a shareable file and import a Recipe from a shared file (round-trip preserves all values)
+- [x] **RECIPE-04**: User can export a Recipe to a shareable file and import a Recipe from a shared file (round-trip preserves all values)
 - [ ] **RECIPE-05**: Recipes referencing a filter UUID that no longer exists fail gracefully (filter slot blank, other adjustments still apply)
 
 ### Export
@@ -161,7 +161,7 @@
 | RECIPE-01 | Phase 6 | Pending |
 | RECIPE-02 | Phase 6 | Pending |
 | RECIPE-03 | Phase 6 | Pending |
-| RECIPE-04 | Phase 6 | Pending |
+| RECIPE-04 | Phase 6 | Complete |
 | RECIPE-05 | Phase 6 | Pending |
 | UX-01 | Phase 7 | Pending |
 | UX-02 | Phase 7 | Pending |
