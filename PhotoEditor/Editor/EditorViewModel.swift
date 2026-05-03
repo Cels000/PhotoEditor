@@ -1,6 +1,7 @@
 import CoreImage
 import Foundation
 import Photos
+import SwiftData
 import SwiftUI
 import UIKit
 
@@ -15,6 +16,15 @@ final class EditorViewModel {
     var isSaving: Bool = false
     var errorMessage: String?
     var successMessage: String?
+
+    /// Set by ContentView once the SwiftData ModelContainer is available.
+    /// Optional so previews/tests don't require a container.
+    var libraryStore: LibraryStore?
+
+    /// The currently-open library item, if this session was launched from
+    /// the library (or has been saved to the library at least once). When
+    /// non-nil, saveToLibrary() updates this row instead of inserting a new one.
+    private(set) var currentLibraryItem: LibraryItem?
 
     // MARK: - Filter catalog
     let filterLibrary: FilterLibrary
@@ -85,6 +95,7 @@ final class EditorViewModel {
             self.importedImage = imported
             // Reset to identity so the new photo starts unedited.
             self.stack = .identity
+            self.currentLibraryItem = nil
             self.undoStack.clear(seed: .identity)
             // Render initial preview synchronously (no debounce on first frame).
             await renderPreviewNow()
