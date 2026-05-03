@@ -34,7 +34,7 @@
 - [x] **ADJUST-07**: User can apply Vignette (amount + feather)
 - [x] **ADJUST-08**: User can apply Sharpen
 - [x] **ADJUST-09**: Every slider supports double-tap to reset to default
-- [ ] **ADJUST-10**: Adjustments apply in a deterministic order (LUT → light → color → HSL → curves → split-toning → effects → crop) consistent across preview and export
+- [x] **ADJUST-10**: Adjustments apply in a deterministic order (LUT → light → color → HSL → curves → split-toning → effects → crop) consistent across preview and export
 
 ### Crop & Geometry
 
@@ -46,7 +46,7 @@
 ### History & Compare
 
 - [x] **HIST-01**: User can undo and redo every adjustment within an editing session
-- [ ] **HIST-02**: User can press-and-hold the canvas to compare against the unedited original (before/after)
+- [x] **HIST-02**: User can press-and-hold the canvas to compare against the unedited original (before/after)
 - [x] **HIST-03**: User can reset all edits at once (with a confirmation step)
 
 ### Library
@@ -139,13 +139,13 @@
 | ADJUST-07 | Phase 3 | Complete |
 | ADJUST-08 | Phase 3 | Complete |
 | ADJUST-09 | Phase 3 | Complete |
-| ADJUST-10 | Phase 3 | Pending |
+| ADJUST-10 | Phase 3 | Complete |
 | CROP-01 | Phase 3 | Complete |
 | CROP-02 | Phase 3 | Complete |
 | CROP-03 | Phase 3 | Complete |
 | CROP-04 | Phase 3 | Complete |
 | HIST-01 | Phase 3 | Complete |
-| HIST-02 | Phase 3 | Pending |
+| HIST-02 | Phase 3 | Complete |
 | HIST-03 | Phase 3 | Complete |
 | LIB-01 | Phase 4 | Pending |
 | LIB-02 | Phase 4 | Pending |

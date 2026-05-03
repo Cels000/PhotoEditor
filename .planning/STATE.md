@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: planning
-stopped_at: Completed 03-09-PLAN.md — Crop module with Mantis bridge and fallback UI
-last_updated: "2026-05-03T21:21:07.830Z"
+stopped_at: Completed 03-08-PLAN.md — Panel container UI
+last_updated: "2026-05-03T21:24:28.102Z"
 last_activity: 2026-05-03 — Roadmap created; requirements mapped to 7 phases
 progress:
   total_phases: 7
   completed_phases: 2
   total_plans: 21
-  completed_plans: 19
+  completed_plans: 20
   percent: 20
 ---
 
@@ -65,6 +65,7 @@ Progress: [██░░░░░░░░] 20%
 | Phase 03-editor-ui-full-adjustments P03-07 | 4min | 2 tasks | 2 files |
 | Phase 03-editor-ui-full-adjustments P03-06 | 8min | 2 tasks | 1 files |
 | Phase 03-editor-ui-full-adjustments P03-09 | 8min | 3 tasks | 5 files |
+| Phase 03-editor-ui-full-adjustments P03-08 | 12min | 4 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -103,6 +104,7 @@ Recent decisions affecting current work:
 - [Phase 03-editor-ui-full-adjustments]: 5-point CIToneCurve sampling with piecewise-linear interpolation; free-form >5 point curves deferred to v2 Metal kernel
 - [Phase 03-editor-ui-full-adjustments]: Per-channel curve approximation via CIColorMatrix decompose-recompose; documented as approximation
 - [Phase 03-editor-ui-full-adjustments]: applyCrop single-shot transform chain (no extent.integral); Mantis canImport guard; fallback UI as primary shipping path
+- [Phase 03-editor-ui-full-adjustments]: PanelContainerView fixed panelHeight=280 in ZStack prevents canvas layout shift on tab switch
 
 ### Pending Todos
 
@@ -117,6 +119,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-05-03T21:21:07.828Z
-Stopped at: Completed 03-09-PLAN.md — Crop module with Mantis bridge and fallback UI
+Last session: 2026-05-03T21:24:24.974Z
+Stopped at: Completed 03-08-PLAN.md — Panel container UI
 Resume file: None
