@@ -11,7 +11,7 @@ Build a premium-feeling iOS photo editor from a brownfield SwiftUI seed. The arc
 - [x] **Phase 3: Editor UI + Full Adjustments** - Build the complete editor surface (light, color, HSL, curves, grain, vignette, sharpen, crop, undo/redo, before/after) against the live render pipeline (completed 2026-05-03)
 - [x] **Phase 4: Library + Persistence** - SwiftData-backed in-app library with thumbnails, re-edit capability, and graceful PHAsset handling (completed 2026-05-03)
 - [x] **Phase 5: Export** - Full-resolution export with format/size/quality options, share sheet, ICC profile embedding, and EXIF passthrough (completed 2026-05-03)
-- [ ] **Phase 6: Recipes** - Save, apply, rename, delete, and share named adjustment stacks via a custom `.photorecipe` file format
+- [x] **Phase 6: Recipes** - Save, apply, rename, delete, and share named adjustment stacks via a custom `.photorecipe` file format (completed 2026-05-03)
 - [ ] **Phase 7: Polish + Accessibility** - Elevate the interface to genuinely premium: haptics, spring animations, VoiceOver audit, Dynamic Type XL verification, Reduce Motion compliance
 
 ## Phase Details
@@ -138,7 +138,17 @@ Plans:
   3. Panel transitions use spring animation with no canvas layout shift; Reduce Motion preference disables non-essential animations while all gestures remain functional
   4. VoiceOver can navigate and adjust every slider (accessibilityAdjustableAction), with correct labels and announced values; Dynamic Type XL does not truncate or overflow any control
   5. First-run photo library permission prompt appears with an explanation; `.limited` access is handled gracefully with a prompt to grant more access
-**Plans**: TBD
+**Plans**: 10 plans
+- [ ] 07-01-PLAN.md — Theme module (color/typography/spacing/radii/shadow tokens, light+dark)
+- [ ] 07-02-PLAN.md — Haptics module (named events: sliderZeroCross, sliderEnd, filterSelect, recipeApply, undoRedo, panelOpen, errorAlert)
+- [ ] 07-03-PLAN.md — Motion module (spring presets + reduceMotion adaptive helper)
+- [ ] 07-04-PLAN.md — AdjustmentSlider polish (haptics + Theme + Motion)
+- [ ] 07-05-PLAN.md — FilterStripView polish (Theme accent ring, filterSelect/favorite haptics)
+- [ ] 07-06-PLAN.md — PanelContainerView + UndoToolbar polish (Motion.adaptive, panel/undo haptics)
+- [ ] 07-07-PLAN.md — First-run sheet + .limited library banner
+- [ ] 07-08-PLAN.md — VoiceOver audit (Curves points, HSL channels, Crop controls)
+- [ ] 07-09-PLAN.md — Dynamic Type sweep across panels + library
+- [ ] 07-10-PLAN.md — Theme application sweep (ContentView, Library, Recipes, Export)
 
 ## Progress
 
@@ -149,5 +159,5 @@ Plans:
 | 3. Editor UI + Full Adjustments | 0/10 | Complete    | 2026-05-03 |
 | 4. Library + Persistence | 0/TBD | Complete    | 2026-05-03 |
 | 5. Export | 0/6 | Complete    | 2026-05-03 |
-| 6. Recipes | 0/TBD | Not started | - |
-| 7. Polish + Accessibility | 0/TBD | Not started | - |
+| 6. Recipes | 0/TBD | Complete    | 2026-05-03 |
+| 7. Polish + Accessibility | 0/10 | Not started | - |
