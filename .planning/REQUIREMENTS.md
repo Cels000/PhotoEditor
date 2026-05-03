@@ -51,10 +51,10 @@
 
 ### Library
 
-- [ ] **LIB-01**: Edited photos appear in an in-app library grid with thumbnails
+- [x] **LIB-01**: Edited photos appear in an in-app library grid with thumbnails
 - [ ] **LIB-02**: User can re-open any library item and continue editing exactly where they left off
-- [ ] **LIB-03**: User can delete library items (with confirmation), and deleted items also remove their thumbnails
-- [ ] **LIB-04**: Library persists across app launches using SwiftData `VersionedSchema`; schema migrations are non-destructive
+- [x] **LIB-03**: User can delete library items (with confirmation), and deleted items also remove their thumbnails
+- [x] **LIB-04**: Library persists across app launches using SwiftData `VersionedSchema`; schema migrations are non-destructive
 - [ ] **LIB-05**: Library handles the case where the source PHAsset has been deleted from Photos (graceful error, not a crash)
 
 ### Recipes
@@ -147,10 +147,10 @@
 | HIST-01 | Phase 3 | Complete |
 | HIST-02 | Phase 3 | Complete |
 | HIST-03 | Phase 3 | Complete |
-| LIB-01 | Phase 4 | Pending |
+| LIB-01 | Phase 4 | Complete |
 | LIB-02 | Phase 4 | Pending |
-| LIB-03 | Phase 4 | Pending |
-| LIB-04 | Phase 4 | Pending |
+| LIB-03 | Phase 4 | Complete |
+| LIB-04 | Phase 4 | Complete |
 | LIB-05 | Phase 4 | Pending |
 | EXPORT-01 | Phase 5 | Pending |
 | EXPORT-02 | Phase 5 | Pending |

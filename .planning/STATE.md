@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: planning
-stopped_at: Completed 03-10-PLAN.md — ContentView wire-up capstone
-last_updated: "2026-05-03T21:25:55.472Z"
+stopped_at: Completed 04-02-PLAN.md — LibraryStore service
+last_updated: "2026-05-03T21:38:45.410Z"
 last_activity: 2026-05-03 — Roadmap created; requirements mapped to 7 phases
 progress:
   total_phases: 7
   completed_phases: 3
-  total_plans: 21
-  completed_plans: 21
+  total_plans: 27
+  completed_plans: 23
   percent: 20
 ---
 
@@ -67,6 +67,7 @@ Progress: [██░░░░░░░░] 20%
 | Phase 03-editor-ui-full-adjustments P03-09 | 8min | 3 tasks | 5 files |
 | Phase 03-editor-ui-full-adjustments P03-08 | 12min | 4 tasks | 9 files |
 | Phase 03-editor-ui-full-adjustments P03-10 | 5min | 1 tasks | 1 files |
+| Phase 04-library-persistence P04-02 | 5min | 1 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -107,6 +108,7 @@ Recent decisions affecting current work:
 - [Phase 03-editor-ui-full-adjustments]: applyCrop single-shot transform chain (no extent.integral); Mantis canImport guard; fallback UI as primary shipping path
 - [Phase 03-editor-ui-full-adjustments]: PanelContainerView fixed panelHeight=280 in ZStack prevents canvas layout shift on tab switch
 - [Phase 03-editor-ui-full-adjustments]: ContentView is a pure wiring layer with no direct stack access — all adjustments owned by panels
+- [Phase 04-library-persistence]: LibraryStore uses explicit refresh() after mutation rather than @Query — service is UI-agnostic
 
 ### Pending Todos
 
@@ -121,6 +123,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-05-03T21:25:51.369Z
-Stopped at: Completed 03-10-PLAN.md — ContentView wire-up capstone
+Last session: 2026-05-03T21:38:45.408Z
+Stopped at: Completed 04-02-PLAN.md — LibraryStore service
 Resume file: None
