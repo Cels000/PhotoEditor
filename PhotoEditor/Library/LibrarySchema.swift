@@ -6,7 +6,12 @@
 // ships is destructive. Even though v1 has only one schema version, the plan exists so
 // future migrations slot in cleanly without restructuring app init.
 //
-// Usage (Plan 04-06):
+// v1 covers both LibraryItem (Phase 4) and RecipeItem (Phase 6, RECIPE-01).
+// Adding a model to an existing VersionedSchema is the lightweight, non-destructive path —
+// renaming to AppSchemaV1 would change SwiftData's persistent type identifier and discard
+// existing user library data on upgrade.
+//
+// Usage (Plan 04-06 / 06-01):
 //   Schema(versionedSchema: LibrarySchemaV1.self)
 //   migrationPlan: LibraryMigrationPlan.self
 
@@ -20,7 +25,7 @@ enum LibrarySchemaV1: VersionedSchema {
     static var versionIdentifier = Schema.Version(1, 0, 0)
 
     static var models: [any PersistentModel.Type] {
-        [LibraryItem.self]
+        [LibraryItem.self, RecipeItem.self]
     }
 }
 
