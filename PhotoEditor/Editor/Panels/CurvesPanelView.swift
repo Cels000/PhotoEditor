@@ -31,10 +31,16 @@ struct CurvesPanelView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Picker("", selection: $tab) {
-                ForEach(ChannelTab.allCases) { c in Text(c.label).tag(c) }
+            Picker("Curve channel", selection: $tab) {
+                ForEach(ChannelTab.allCases) { c in
+                    Text(c.label)
+                        .tag(c)
+                        .accessibilityLabel("\(c.label) channel")
+                        .accessibilityHint("Switches the curve to this channel")
+                }
             }
             .pickerStyle(.segmented)
+            .accessibilityLabel("Curve channel selector")
 
             GeometryReader { geo in
                 let size = min(geo.size.width, geo.size.height)
@@ -42,6 +48,8 @@ struct CurvesPanelView: View {
                     .frame(width: size, height: size)
             }
             .frame(height: 200)
+            .accessibilityLabel("Tone curve")
+            .accessibilityHint("Drag points to shape the curve. Use VoiceOver swipe up or down on each point to adjust.")
 
             Button("Reset Curve") {
                 viewModel.beginInteractiveEdit()
@@ -115,6 +123,21 @@ struct CurvesPanelView: View {
                                 viewModel.endInteractiveEdit()
                             }
                     )
+                    .accessibilityElement()
+                    .accessibilityLabel("Curve point \(i + 1) of \(pts.count)")
+                    .accessibilityValue("Y value \(Int(p.y * 100)) percent")
+                    .accessibilityAdjustableAction { direction in
+                        let step = 0.05
+                        var local = viewModel.stack[keyPath: curveKP].points
+                        guard i < local.count else { return }
+                        switch direction {
+                        case .increment: local[i].y = min(1.0, local[i].y + step)
+                        case .decrement: local[i].y = max(0.0, local[i].y - step)
+                        @unknown default: break
+                        }
+                        viewModel.stack[keyPath: curveKP].points = local
+                        viewModel.stackDidChange()
+                    }
             }
         }
     }
