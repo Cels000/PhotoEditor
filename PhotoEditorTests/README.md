@@ -23,3 +23,4 @@ These XCTest files will not compile or run until a test target is added to
 - `AdjustmentStackTests` passes after Plan 01-01 lands.
 - `PipelineBuilderTests` passes after Plan 01-03 lands `PipelineBuilder.build`.
 - `CubeParserTests` passes after Plan 02-02 lands.
+- `testIdentityLUTProducesPixelIdenticalOutput` passes after Plan 02-05 lands.
