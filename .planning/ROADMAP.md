@@ -10,7 +10,7 @@ Build a premium-feeling iOS photo editor from a brownfield SwiftUI seed. The arc
 - [x] **Phase 2: LUT Filter Pipeline** - Ship 20–30 hand-curated 64-point LUT filters with stable IDs, per-filter defaults, strength blending, and a live-preview filter strip (completed 2026-05-03)
 - [x] **Phase 3: Editor UI + Full Adjustments** - Build the complete editor surface (light, color, HSL, curves, grain, vignette, sharpen, crop, undo/redo, before/after) against the live render pipeline (completed 2026-05-03)
 - [x] **Phase 4: Library + Persistence** - SwiftData-backed in-app library with thumbnails, re-edit capability, and graceful PHAsset handling (completed 2026-05-03)
-- [ ] **Phase 5: Export** - Full-resolution export with format/size/quality options, share sheet, ICC profile embedding, and EXIF passthrough
+- [x] **Phase 5: Export** - Full-resolution export with format/size/quality options, share sheet, ICC profile embedding, and EXIF passthrough (completed 2026-05-03)
 - [ ] **Phase 6: Recipes** - Save, apply, rename, delete, and share named adjustment stacks via a custom `.photorecipe` file format
 - [ ] **Phase 7: Polish + Accessibility** - Elevate the interface to genuinely premium: haptics, spring animations, VoiceOver audit, Dynamic Type XL verification, Reduce Motion compliance
 
@@ -119,7 +119,14 @@ Plans:
   2. Applying a Recipe to any photo replaces the current adjustment stack and immediately updates the preview
   3. Recipes can be renamed, reordered, and deleted from a management screen
   4. Exporting a Recipe produces a `.photorecipe` file that can be shared; importing it from Files or a share restores all values including filter reference — a missing filter UUID leaves the filter slot blank without crashing
-**Plans**: TBD
+**Plans**: 6 plans
+Plans:
+- [ ] 06-01-PLAN.md — RecipeItem @Model + LibrarySchemaV1 extension
+- [ ] 06-02-PLAN.md — RecipeStore CRUD service
+- [ ] 06-03-PLAN.md — ExportedRecipe Codable doc + .photorecipe file I/O
+- [ ] 06-04-PLAN.md — Info.plist UTI registration for .photorecipe
+- [ ] 06-05-PLAN.md — EditorViewModel applyRecipe/saveCurrentAsRecipe + missing-filter test
+- [ ] 06-06-PLAN.md — Recipes UI (sheet, name prompt, toolbar, .onOpenURL import)
 
 ### Phase 7: Polish + Accessibility
 **Goal**: The interface earns the "premium feel" claim — motion, haptics, accessibility, and visual design are all at the level of a paid pro app
@@ -141,6 +148,6 @@ Plans:
 | 2. LUT Filter Pipeline | 0/6 | Complete    | 2026-05-03 |
 | 3. Editor UI + Full Adjustments | 0/10 | Complete    | 2026-05-03 |
 | 4. Library + Persistence | 0/TBD | Complete    | 2026-05-03 |
-| 5. Export | 0/6 | Not started | - |
+| 5. Export | 0/6 | Complete    | 2026-05-03 |
 | 6. Recipes | 0/TBD | Not started | - |
 | 7. Polish + Accessibility | 0/TBD | Not started | - |
