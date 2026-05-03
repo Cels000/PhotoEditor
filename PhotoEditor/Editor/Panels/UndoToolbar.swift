@@ -8,6 +8,7 @@ struct UndoToolbar: View {
     var body: some View {
         HStack(spacing: 16) {
             Button {
+                Haptic.play(.undoRedo)
                 viewModel.undo()
             } label: {
                 Image(systemName: "arrow.uturn.backward")
@@ -17,6 +18,7 @@ struct UndoToolbar: View {
             .accessibilityLabel("Undo")
 
             Button {
+                Haptic.play(.undoRedo)
                 viewModel.redo()
             } label: {
                 Image(systemName: "arrow.uturn.forward")
@@ -31,7 +33,7 @@ struct UndoToolbar: View {
                 showResetConfirm = true
             } label: {
                 Label("Reset All", systemImage: "arrow.counterclockwise")
-                    .font(.subheadline.weight(.semibold))
+                    .font(Theme.Typography.subtitle)
             }
             .disabled(viewModel.importedImage == nil)
             .accessibilityLabel("Reset all edits")
@@ -40,6 +42,7 @@ struct UndoToolbar: View {
         .padding(.vertical, 8)
         .alert("Reset all edits?", isPresented: $showResetConfirm) {
             Button("Reset", role: .destructive) {
+                Haptic.play(.recipeApply)
                 viewModel.resetAdjustments()
             }
             Button("Cancel", role: .cancel) {}
