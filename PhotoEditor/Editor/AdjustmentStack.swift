@@ -104,6 +104,8 @@ struct CropSettings: Codable, Equatable {
     var rotationDegrees: Double = 0
     var straighten: Double = 0
     var clockwiseRotations: Int = 0
+    var flippedHorizontally: Bool = false   // ADDED 03-09
+    var flippedVertically: Bool = false     // ADDED 03-09
 }
 
 // MARK: - AdjustmentStack (top-level edit state)

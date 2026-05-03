@@ -605,5 +605,68 @@ enum PipelineBuilder {
         s.sharpness = Float(max(0, min(1, sharpness)) * 2.0) // 0...2 useful
         return s.outputImage ?? image
     }
-    static func applyCrop(_ crop: CropSettings, to image: CIImage) -> CIImage { image }            // Phase 3
+    /// Crop, free-rotate, 90° steps, and flips. Applied LAST in the pipeline.
+    /// Per Pitfall #10: free-rotate MUST be a single transform from the source extent;
+    /// never chain extent.integral across renders.
+    static func applyCrop(_ crop: CropSettings, to image: CIImage) -> CIImage {
+        let isFullRect = crop.normalizedRect == CGRect(x: 0, y: 0, width: 1, height: 1)
+        let isIdentity = isFullRect
+            && crop.rotationDegrees == 0
+            && crop.clockwiseRotations == 0
+            && !crop.flippedHorizontally
+            && !crop.flippedVertically
+        guard !isIdentity else { return image }
+
+        var output = image
+        let extent0 = output.extent
+
+        // 1. 90° rotations.
+        let steps = ((crop.clockwiseRotations % 4) + 4) % 4
+        if steps != 0 {
+            let radians = -CGFloat(steps) * .pi / 2  // CW
+            let t = CGAffineTransform(rotationAngle: radians)
+            output = output.transformed(by: t)
+        }
+
+        // 2. Flips around the (current) extent center.
+        if crop.flippedHorizontally || crop.flippedVertically {
+            let ext = output.extent
+            let cx = ext.midX, cy = ext.midY
+            var t = CGAffineTransform(translationX: cx, y: cy)
+            t = t.scaledBy(x: crop.flippedHorizontally ? -1 : 1,
+                           y: crop.flippedVertically ? -1 : 1)
+            t = t.translatedBy(x: -cx, y: -cy)
+            output = output.transformed(by: t)
+        }
+
+        // 3. Free rotation (single transform, applied to current output).
+        if crop.rotationDegrees != 0 {
+            let rad = CGFloat(crop.rotationDegrees) * .pi / 180
+            let ext = output.extent
+            let cx = ext.midX, cy = ext.midY
+            var t = CGAffineTransform(translationX: cx, y: cy)
+            t = t.rotated(by: rad)
+            t = t.translatedBy(x: -cx, y: -cy)
+            output = output.transformed(by: t)
+        }
+
+        // 4. Crop to normalizedRect (computed in current extent).
+        if !isFullRect {
+            let ext = output.extent
+            let cropRect = CGRect(
+                x: ext.origin.x + crop.normalizedRect.origin.x * ext.width,
+                y: ext.origin.y + crop.normalizedRect.origin.y * ext.height,
+                width: crop.normalizedRect.width * ext.width,
+                height: crop.normalizedRect.height * ext.height
+            )
+            output = output.cropped(to: cropRect)
+        }
+
+        // Origin-correct: shift back to (0,0) for downstream consumers (export).
+        let final = output.transformed(by: CGAffineTransform(
+            translationX: -output.extent.origin.x,
+            y: -output.extent.origin.y))
+        _ = extent0  // referenced for symmetry (no-op)
+        return final
+    }
 }
