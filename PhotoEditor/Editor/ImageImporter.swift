@@ -6,6 +6,7 @@
 import CoreImage
 import Foundation
 import ImageIO
+import Photos
 
 /// Result of importing photo bytes — both a downsampled preview and the full-res
 /// oriented source. `sourceData` is retained for re-loading on export if needed.
@@ -14,10 +15,12 @@ struct ImportedImage {
     let previewCIImage: CIImage
     let exportCIImage: CIImage
     let pixelSize: CGSize           // full-res oriented size
+    let sourceAssetID: String?      // PHAsset localIdentifier; nil for picker-imported / no-asset paths
 }
 
 enum ImageImportError: Error {
     case invalidImageData
+    case phAssetUnavailable
 }
 
 /// Pure namespace that converts photo `Data` into an `ImportedImage`.
@@ -53,7 +56,46 @@ enum ImageImporter {
             sourceData: data,
             previewCIImage: preview,
             exportCIImage: oriented,
-            pixelSize: oriented.extent.size
+            pixelSize: oriented.extent.size,
+            sourceAssetID: nil
+        )
+    }
+
+    /// Loads an ImportedImage from a PHAsset localIdentifier. Used by the library
+    /// re-edit flow (LIB-02) and gracefully throws when the source has been
+    /// deleted from Photos (LIB-05).
+    static func importImage(fromAssetID assetID: String) async throws -> ImportedImage {
+        let fetch = PHAsset.fetchAssets(withLocalIdentifiers: [assetID], options: nil)
+        guard let asset = fetch.firstObject else {
+            throw ImageImportError.phAssetUnavailable
+        }
+
+        let options = PHImageRequestOptions()
+        options.isSynchronous = false
+        options.isNetworkAccessAllowed = true
+        options.deliveryMode = .highQualityFormat
+        options.version = .current
+
+        let data: Data = try await withCheckedThrowingContinuation { cont in
+            PHImageManager.default().requestImageDataAndOrientation(
+                for: asset, options: options
+            ) { data, _, _, info in
+                if let data { cont.resume(returning: data); return }
+                if (info?[PHImageErrorKey] as? Error) != nil {
+                    cont.resume(throwing: ImageImportError.phAssetUnavailable); return
+                }
+                cont.resume(throwing: ImageImportError.phAssetUnavailable)
+            }
+        }
+
+        // Reuse existing decode/orient/downsample path, then attach sourceAssetID.
+        let base = try importImage(from: data)
+        return ImportedImage(
+            sourceData: base.sourceData,
+            previewCIImage: base.previewCIImage,
+            exportCIImage: base.exportCIImage,
+            pixelSize: base.pixelSize,
+            sourceAssetID: assetID
         )
     }
 
