@@ -42,8 +42,8 @@ actor RenderEngine {
 
     /// Preview render. Caller MUST pass a source already downsampled to
     /// ≤`previewMaxLongEdge` px (typically the `previewCIImage` from `ImageImporter`).
-    func renderPreview(stack: AdjustmentStack, source: CIImage) throws -> CGImage {
-        let chain = PipelineBuilder.build(stack: stack, source: source)
+    func renderPreview(stack: AdjustmentStack, source: CIImage, cubeResolver: CubeResolver? = nil) throws -> CGImage {
+        let chain = PipelineBuilder.build(stack: stack, source: source, cubeResolver: cubeResolver)
         guard let cg = previewContext.createCGImage(chain, from: chain.extent) else {
             throw RenderError.outputEmpty
         }
@@ -51,8 +51,8 @@ actor RenderEngine {
     }
 
     /// Full-resolution export render. Called only from the save flow.
-    func renderExport(stack: AdjustmentStack, source: CIImage) throws -> CGImage {
-        let chain = PipelineBuilder.build(stack: stack, source: source)
+    func renderExport(stack: AdjustmentStack, source: CIImage, cubeResolver: CubeResolver? = nil) throws -> CGImage {
+        let chain = PipelineBuilder.build(stack: stack, source: source, cubeResolver: cubeResolver)
         guard let cg = exportContext.createCGImage(chain, from: chain.extent) else {
             throw RenderError.outputEmpty
         }

@@ -16,12 +16,16 @@ final class EditorViewModel {
     var errorMessage: String?
     var successMessage: String?
 
+    // MARK: - Filter catalog
+    let filterLibrary: FilterLibrary
+
     // MARK: - Internals
     private let engine: RenderEngine?
     private var renderTask: Task<Void, Never>?
     private static let debounceNanos: UInt64 = 40_000_000   // 40 ms
 
-    init() {
+    init(filterLibrary: FilterLibrary = FilterLibrary()) {
+        self.filterLibrary = filterLibrary
         do {
             self.engine = try RenderEngine()
         } catch {
@@ -50,18 +54,36 @@ final class EditorViewModel {
         renderTask?.cancel()
         let snapshotStack = stack
         guard let engine, let source = importedImage?.previewCIImage else { return }
+        let resolver = makeCubeResolver()
 
         renderTask = Task { [weak self] in
             try? await Task.sleep(nanoseconds: Self.debounceNanos)
             guard !Task.isCancelled, let self else { return }
             do {
-                let cg = try await engine.renderPreview(stack: snapshotStack, source: source)
+                let cg = try await engine.renderPreview(stack: snapshotStack, source: source, cubeResolver: resolver)
                 guard !Task.isCancelled else { return }
                 self.previewImage = UIImage(cgImage: cg)
             } catch {
                 // Render failure is non-fatal for live preview; keep last good image.
             }
         }
+    }
+
+    /// Selects a filter by ID. Pass nil (or BuiltInLUTs.ID.identity) to clear.
+    func selectFilter(id: String?) {
+        if let id = id, id != BuiltInLUTs.ID.identity {
+            stack.filter = FilterSelection(filterID: id, strength: stack.filter?.strength ?? 1.0)
+        } else {
+            stack.filter = nil
+        }
+        stackDidChange()
+    }
+
+    func setFilterStrength(_ value: Double) {
+        guard var sel = stack.filter else { return }
+        sel.strength = max(0.0, min(1.0, value))
+        stack.filter = sel
+        stackDidChange()
     }
 
     func resetAdjustments() {
@@ -89,7 +111,7 @@ final class EditorViewModel {
         }
 
         do {
-            let cg = try await engine.renderExport(stack: stack, source: imported.exportCIImage)
+            let cg = try await engine.renderExport(stack: stack, source: imported.exportCIImage, cubeResolver: self.makeCubeResolver())
             let uiImage = UIImage(cgImage: cg)
             try await PHPhotoLibrary.shared().performChanges {
                 PHAssetChangeRequest.creationRequestForAsset(from: uiImage)
@@ -104,10 +126,15 @@ final class EditorViewModel {
 
     // MARK: - Private helpers
 
+    private func makeCubeResolver() -> CubeResolver {
+        let lib = filterLibrary
+        return { id in lib.filter(withID: id)?.cube() }
+    }
+
     private func renderPreviewNow() async {
         guard let engine, let source = importedImage?.previewCIImage else { return }
         do {
-            let cg = try await engine.renderPreview(stack: stack, source: source)
+            let cg = try await engine.renderPreview(stack: stack, source: source, cubeResolver: self.makeCubeResolver())
             self.previewImage = UIImage(cgImage: cg)
         } catch {
             self.errorMessage = "Could not render preview."
