@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: planning
-stopped_at: Completed 01-04-PLAN.md — RenderEngine actor
-last_updated: "2026-05-03T20:24:40.009Z"
+stopped_at: Completed 01-05-PLAN.md — EditorViewModel + ContentView rewire + legacy VM deletion
+last_updated: "2026-05-03T20:27:32.811Z"
 last_activity: 2026-05-03 — Roadmap created; requirements mapped to 7 phases
 progress:
   total_phases: 7
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 5
-  completed_plans: 4
+  completed_plans: 5
   percent: 20
 ---
 
@@ -50,6 +50,7 @@ Progress: [██░░░░░░░░] 20%
 | Phase 01-rendering-foundation P01-02 | 2min | 1 tasks | 3 files |
 | Phase 01-rendering-foundation P03 | 8 | 2 tasks | 2 files |
 | Phase 01-rendering-foundation P01-04 | 5 | 1 tasks | 1 files |
+| Phase 01-rendering-foundation P01-05 | 10min | 3 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -68,6 +69,8 @@ Recent decisions affecting current work:
 - [Phase 01-rendering-foundation]: ImageImporter: no .colorSpace in CIImage(data:options:) — source ICC profile propagates; RenderEngine CIContext handles conversion (Plan 01-04)
 - [Phase 01-rendering-foundation]: RenderEngine: two separate CIContext instances to prevent preview/export race conditions
 - [Phase 01-rendering-foundation]: RenderEngine: cancellation deferred to EditorViewModel (Plan 01-05); actor renders are atomic
+- [Phase 01-rendering-foundation]: @Observable + @State replaces ObservableObject + @StateObject in EditorViewModel
+- [Phase 01-rendering-foundation]: Explicit Binding closures in ContentView sliders ensure stackDidChange() fires for debounce
 
 ### Pending Todos
 
@@ -82,6 +85,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-05-03T20:24:40.007Z
-Stopped at: Completed 01-04-PLAN.md — RenderEngine actor
+Last session: 2026-05-03T20:27:32.810Z
+Stopped at: Completed 01-05-PLAN.md — EditorViewModel + ContentView rewire + legacy VM deletion
 Resume file: None
