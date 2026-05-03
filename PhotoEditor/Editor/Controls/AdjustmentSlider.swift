@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// Reusable single-axis slider with title, formatted value, and double-tap-to-reset.
-/// Haptics are deliberately omitted here — Phase 7 wires UISelectionFeedbackGenerator.
+/// Phase 7: Theme tokens, zero-cross + end-stop haptics, Motion.adaptive animation.
 struct AdjustmentSlider: View {
     let title: String
     @Binding var value: Double
@@ -16,26 +16,40 @@ struct AdjustmentSlider: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
                 Text(title)
-                    .font(.subheadline.weight(.medium))
+                    .font(Theme.Typography.subtitle)
                 Spacer()
                 Text(format.format(value))
-                    .font(.caption.monospacedDigit())
+                    .font(Theme.Typography.valueBubble)
                     .foregroundStyle(isEditing ? .primary : .secondary)
                     .opacity(isEditing ? 1.0 : 0.7)
-                    .animation(.easeInOut(duration: 0.15), value: isEditing)
+                    .animation(Motion.adaptive(Motion.smooth), value: isEditing)
             }
 
             Slider(value: $value, in: range, onEditingChanged: { editing in
                 isEditing = editing
                 onEditingChanged(editing)
             })
-            .tint(.blue)
+            .tint(Theme.Colors.accent)
         }
         .contentShape(Rectangle())
         .onTapGesture(count: 2) {
             value = defaultValue
+            Haptic.play(.sliderEnd)
             onEditingChanged(true)
             onEditingChanged(false)
+        }
+        .onChange(of: value) { old, new in
+            // Zero-cross: sign flipped or one side equals 0 while other was non-zero
+            let crossedZero = (old < 0 && new >= 0) || (old > 0 && new <= 0) || (old != 0 && new == 0 && defaultValue == 0)
+            if crossedZero {
+                Haptic.play(.sliderZeroCross)
+            }
+            // End-stop: clamp at bounds
+            let clampedLow  = (new == range.lowerBound) && (old != range.lowerBound)
+            let clampedHigh = (new == range.upperBound) && (old != range.upperBound)
+            if clampedLow || clampedHigh {
+                Haptic.play(.sliderEnd)
+            }
         }
         .accessibilityElement(children: .combine)
         .accessibilityLabel(title)
