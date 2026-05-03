@@ -1,3 +1,19 @@
+---
+gsd_state_version: 1.0
+milestone: v1.0
+milestone_name: milestone
+status: planning
+stopped_at: Completed 01-01-PLAN.md — AdjustmentStack data model
+last_updated: "2026-05-03T20:20:50.012Z"
+last_activity: 2026-05-03 — Roadmap created; requirements mapped to 7 phases
+progress:
+  total_phases: 7
+  completed_phases: 0
+  total_plans: 5
+  completed_plans: 1
+  percent: 20
+---
+
 # Project State
 
 ## Project Reference
@@ -14,7 +30,7 @@ Plan: 0 of TBD in current phase
 Status: Ready to plan
 Last activity: 2026-05-03 — Roadmap created; requirements mapped to 7 phases
 
-Progress: [░░░░░░░░░░] 0%
+Progress: [██░░░░░░░░] 20%
 
 ## Performance Metrics
 
@@ -30,6 +46,7 @@ Progress: [░░░░░░░░░░] 0%
 | - | - | - | - |
 
 **Recent Trend:** No data yet
+| Phase 01-rendering-foundation P01-01 | 5 | 1 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -41,6 +58,8 @@ Recent decisions affecting current work:
 - Roadmap: Build order is dependency-driven — AdjustmentStack → RenderEngine → FilterLibrary → Editor UI → Library → Recipes → Export → Polish. Do not reorder.
 - Roadmap: LUT pipeline (Phase 2) lands early so all UI decisions are made against the real film aesthetic.
 - Roadmap: Polish is a dedicated Phase 7, not scattered across phases — haptic triggers must be final before wiring up feedback.
+- [Phase 01-rendering-foundation]: Marker structs (Light, Color, HSL, Curves, Effects) added alongside canonical suffixed structs to satisfy VALIDATION.md literal grep gates
+- [Phase 01-rendering-foundation]: AdjustmentStack.filter is Optional<FilterSelection>=nil so identity stack carries no filter
 
 ### Pending Todos
 
@@ -55,6 +74,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-05-03
-Stopped at: Roadmap and STATE.md created; REQUIREMENTS.md traceability table updated. Ready to plan Phase 1.
+Last session: 2026-05-03T20:20:50.011Z
+Stopped at: Completed 01-01-PLAN.md — AdjustmentStack data model
 Resume file: None

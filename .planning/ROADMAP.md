@@ -26,7 +26,12 @@ Build a premium-feeling iOS photo editor from a brownfield SwiftUI seed. The arc
   3. The Metal-backed CIContext is confirmed active (software renderer never engages); verified by a log assert at launch
   4. An AdjustmentStack can be serialized to JSON and deserialized back with bit-identical values (schema version field present)
   5. The existing CIPhotoEffect path is fully removed or gated off; the new RenderEngine drives all rendering
-**Plans**: TBD
+**Plans**: 5 plans
+  - [ ] 01-01-PLAN.md — AdjustmentStack value model (Codable, schemaVersion, full struct hierarchy)
+  - [ ] 01-02-PLAN.md — XCTest stubs (AdjustmentStackTests, PipelineBuilderTests) + manual target setup README
+  - [ ] 01-03-PLAN.md — PipelineBuilder (pure stage chain) and ImageImporter (orientation-correct CIImage path)
+  - [ ] 01-04-PLAN.md — RenderEngine actor with Metal-backed preview + export contexts
+  - [ ] 01-05-PLAN.md — EditorViewModel + ContentView rewire + delete legacy PhotoEditorViewModel
 
 ### Phase 2: LUT Filter Pipeline
 **Goal**: The product's visual identity is established — 20–30 hand-curated film-look filters with stable IDs are selectable from a live-preview strip, blend strength is controllable, and favorites are persisted
@@ -102,7 +107,7 @@ Build a premium-feeling iOS photo editor from a brownfield SwiftUI seed. The arc
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Rendering Foundation | 0/TBD | Not started | - |
+| 1. Rendering Foundation | 0/5 | Not started | - |
 | 2. LUT Filter Pipeline | 0/TBD | Not started | - |
 | 3. Editor UI + Full Adjustments | 0/TBD | Not started | - |
 | 4. Library + Persistence | 0/TBD | Not started | - |
