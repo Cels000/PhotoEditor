@@ -45,9 +45,9 @@
 
 ### History & Compare
 
-- [ ] **HIST-01**: User can undo and redo every adjustment within an editing session
+- [x] **HIST-01**: User can undo and redo every adjustment within an editing session
 - [ ] **HIST-02**: User can press-and-hold the canvas to compare against the unedited original (before/after)
-- [ ] **HIST-03**: User can reset all edits at once (with a confirmation step)
+- [x] **HIST-03**: User can reset all edits at once (with a confirmation step)
 
 ### Library
 
@@ -144,9 +144,9 @@
 | CROP-02 | Phase 3 | Pending |
 | CROP-03 | Phase 3 | Pending |
 | CROP-04 | Phase 3 | Pending |
-| HIST-01 | Phase 3 | Pending |
+| HIST-01 | Phase 3 | Complete |
 | HIST-02 | Phase 3 | Pending |
-| HIST-03 | Phase 3 | Pending |
+| HIST-03 | Phase 3 | Complete |
 | LIB-01 | Phase 4 | Pending |
 | LIB-02 | Phase 4 | Pending |
 | LIB-03 | Phase 4 | Pending |
