@@ -32,6 +32,10 @@ final class EditorViewModel {
     /// Optional so previews/tests don't require a container.
     var libraryStore: LibraryStore?
 
+    /// Set by ContentView once the SwiftData ModelContainer is available.
+    /// Optional so previews/tests don't require a container.
+    var recipeStore: RecipeStore?
+
     /// The currently-open library item, if this session was launched from
     /// the library (or has been saved to the library at least once). When
     /// non-nil, saveToLibrary() updates this row instead of inserting a new one.
@@ -319,6 +323,63 @@ final class EditorViewModel {
         } catch {
             errorMessage = "Could not reopen this edit."
         }
+    }
+
+    // MARK: - Recipes
+
+    /// Replace the current adjustment stack with the recipe's stack.
+    /// RECIPE-02: applies the recipe to the current photo; RECIPE-05: missing
+    /// filter ID is degraded to nil filter (slot blank) without affecting other
+    /// adjustments. Creates exactly ONE undo entry for the entire apply.
+    func applyRecipe(_ recipe: RecipeItem) {
+        var newStack = recipe.adjustmentStack
+
+        // RECIPE-05: resolve filter ID; if it doesn't exist in the current
+        // FilterLibrary, clear the filter slot. All other adjustments stay intact.
+        if let sel = newStack.filter, filterLibrary.filter(withID: sel.filterID) == nil {
+            newStack.filter = nil
+        }
+
+        stack = newStack
+        commitDiscreteChange()  // single undo entry for the whole apply
+        stackDidChange()         // debounced re-render of preview
+        successMessage = "Applied \"\(recipe.name)\"."
+    }
+
+    /// Persist the current stack as a named Recipe. If a photo is loaded, a
+    /// 200x200 JPEG thumbnail is rendered off the main actor and stored on the
+    /// RecipeItem. RECIPE-01.
+    func saveCurrentAsRecipe(name: String) async {
+        guard let store = recipeStore else {
+            errorMessage = "Recipes are not available."
+            return
+        }
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else {
+            errorMessage = "Please enter a name for the recipe."
+            return
+        }
+
+        let snapshotStack = stack
+        var thumbnailData: Data? = nil
+
+        // If a photo is loaded, render a thumbnail. If not, save without one
+        // (UI shows abstract gradient cell — locked decision in CONTEXT.md).
+        if let engine, let imported = importedImage {
+            let source = imported.previewCIImage
+            let resolver = makeCubeResolver()
+            thumbnailData = try? await Task.detached(priority: .background) {
+                try await ThumbnailGenerator.makeThumbnail(
+                    stack: snapshotStack,
+                    source: source,
+                    engine: engine,
+                    cubeResolver: resolver
+                )
+            }.value
+        }
+
+        store.save(name: trimmed, stack: snapshotStack, thumbnail: thumbnailData)
+        successMessage = "Saved Recipe \"\(trimmed)\"."
     }
 
     // MARK: - Private helpers
