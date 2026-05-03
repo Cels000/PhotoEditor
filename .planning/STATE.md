@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: planning
-stopped_at: Completed 02-02-PLAN.md — CubeParser.swift + CubeParserTests.swift
-last_updated: "2026-05-03T20:46:43.623Z"
+stopped_at: Completed 02-04-PLAN.md — Filter.swift + FilterLibrary.swift
+last_updated: "2026-05-03T20:48:38.731Z"
 last_activity: 2026-05-03 — Roadmap created; requirements mapped to 7 phases
 progress:
   total_phases: 7
   completed_phases: 1
   total_plans: 11
-  completed_plans: 8
+  completed_plans: 9
   percent: 20
 ---
 
@@ -54,6 +54,7 @@ Progress: [██░░░░░░░░] 20%
 | Phase 02-lut-filter-pipeline P02-01 | 5min | 1 tasks | 1 files |
 | Phase 02-lut-filter-pipeline P02-03 | 5min | 1 tasks | 1 files |
 | Phase 02-lut-filter-pipeline P02-02 | 2min | 2 tasks | 3 files |
+| Phase 02-lut-filter-pipeline P02-04 | 8min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -78,6 +79,8 @@ Recent decisions affecting current work:
 - [Phase 02-lut-filter-pipeline]: BuiltInLUTs: procedural starters are explicit PLACEHOLDERS — stable IDs frozen for Phase 6 Recipes
 - [Phase 02-lut-filter-pipeline]: CubeParser: R-fastest sweep order is canonical; plan 02-03 BuiltInLUTs must match
 - [Phase 02-lut-filter-pipeline]: CubeParser: No SPM dependency — pure-Swift ~160 LOC; accepted sizes {16,32,33,64} resampled to 64
+- [Phase 02-lut-filter-pipeline]: Filter.id is String (not UUID) to match FilterSelection.filterID from Phase 1
+- [Phase 02-lut-filter-pipeline]: FilterLibrary.orderedFilters always pins builtin.identity first; favorites follow; cube.<lowercased-filename> IDs for bundled .cube files
 
 ### Pending Todos
 
@@ -92,6 +95,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-05-03T20:46:43.621Z
-Stopped at: Completed 02-02-PLAN.md — CubeParser.swift + CubeParserTests.swift
+Last session: 2026-05-03T20:48:38.729Z
+Stopped at: Completed 02-04-PLAN.md — Filter.swift + FilterLibrary.swift
 Resume file: None
