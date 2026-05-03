@@ -39,6 +39,22 @@ struct LibraryItemThumbnail: View {
                 }
                 .padding(6)
             }
+
+            // Edited badge — every library item is by definition an edit; the
+            // badge makes that visible at a glance.
+            VStack {
+                HStack {
+                    Spacer()
+                    Image(systemName: "wand.and.stars")
+                        .font(.caption2.weight(.bold))
+                        .foregroundStyle(.white)
+                        .padding(5)
+                        .background(.ultraThinMaterial, in: Circle())
+                        .padding(6)
+                        .accessibilityLabel("Edited")
+                }
+                Spacer()
+            }
         }
         .aspectRatio(1, contentMode: .fit)
         .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
