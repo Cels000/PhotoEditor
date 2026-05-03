@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: planning
-stopped_at: Completed 06-06-PLAN.md
-last_updated: "2026-05-03T22:40:18.127Z"
+stopped_at: Completed 07-03-PLAN.md
+last_updated: "2026-05-03T22:51:00.253Z"
 last_activity: 2026-05-03 — Roadmap created; requirements mapped to 7 phases
 progress:
   total_phases: 7
   completed_phases: 6
-  total_plans: 39
-  completed_plans: 39
+  total_plans: 49
+  completed_plans: 41
   percent: 20
 ---
 
@@ -83,6 +83,7 @@ Progress: [██░░░░░░░░] 20%
 | Phase 06-recipes P06-03 | 3min | 1 tasks | 3 files |
 | Phase 06-recipes P06-05 | 5min | 2 tasks | 2 files |
 | Phase 06-recipes P06-06 | 8min | 4 tasks | 4 files |
+| Phase 07-polish-accessibility P07-03 | 3min | 1 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -146,6 +147,8 @@ Recent decisions affecting current work:
 - [Phase 06-recipes]: Missing filter ID cleared to nil on apply; all other recipe adjustments preserved (RECIPE-05)
 - [Phase 06-recipes]: RecipeItem: Identifiable extension in RecipesSheetView.swift; @Model macro doesn't auto-conform to Identifiable
 - [Phase 06-recipes]: Cross-scene refresh via NotificationCenter: App onOpenURL posts .recipeImported, ContentView .task refreshes store
+- [Phase 07-polish-accessibility]: @MainActor on Motion.adaptive(_:) ensures UIAccessibility read occurs on main thread; runtime Reduce Motion toggle honored immediately
+- [Phase 07-polish-accessibility]: Motion module has zero dependencies on Theme or Haptics — deliberately isolated per CONTEXT.md
 
 ### Pending Todos
 
@@ -160,6 +163,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-05-03T22:40:15.073Z
-Stopped at: Completed 06-06-PLAN.md
+Last session: 2026-05-03T22:51:00.251Z
+Stopped at: Completed 07-03-PLAN.md
 Resume file: None

@@ -78,10 +78,10 @@
 
 - [ ] **UX-01**: The interface visibly distinguishes itself from a stock SwiftUI template — distinctive typography, layout, and motion design
 - [ ] **UX-02**: All slider interactions have appropriate haptics (zero-crossing tick, end-stop bump, value-snap)
-- [ ] **UX-03**: Panel transitions use spring animation with no layout shift in the canvas during open/close
+- [x] **UX-03**: Panel transitions use spring animation with no layout shift in the canvas during open/close
 - [ ] **UX-04**: All controls support Dynamic Type up to XL without truncation or overflow
 - [ ] **UX-05**: All adjustment controls have correct VoiceOver labels and use `.accessibilityAdjustableAction` so values are announced and adjustable
-- [ ] **UX-06**: Reduce Motion preference disables non-essential animations; all gestures remain functional
+- [x] **UX-06**: Reduce Motion preference disables non-essential animations; all gestures remain functional
 - [ ] **UX-07**: App supports both Light and Dark appearance with deliberate per-mode color choices (not just system defaults)
 - [ ] **UX-08**: First-run flow explains the photo-library permission and gracefully handles `.limited` access
 - [ ] **UX-09**: iPhone layout is the primary target; iPad runs the same layout without crashing or clipping
@@ -165,10 +165,10 @@
 | RECIPE-05 | Phase 6 | Complete |
 | UX-01 | Phase 7 | Pending |
 | UX-02 | Phase 7 | Pending |
-| UX-03 | Phase 7 | Pending |
+| UX-03 | Phase 7 | Complete |
 | UX-04 | Phase 7 | Pending |
 | UX-05 | Phase 7 | Pending |
-| UX-06 | Phase 7 | Pending |
+| UX-06 | Phase 7 | Complete |
 | UX-07 | Phase 7 | Pending |
 | UX-08 | Phase 7 | Pending |
 | UX-09 | Phase 7 | Pending |
