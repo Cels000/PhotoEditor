@@ -116,17 +116,68 @@
 
 ## Traceability
 
-Populated during roadmap creation.
-
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| (pending roadmap) | — | Pending |
+| RENDER-01 | Phase 1 | Pending |
+| RENDER-02 | Phase 1 | Pending |
+| RENDER-03 | Phase 1 | Pending |
+| RENDER-04 | Phase 1 | Pending |
+| RENDER-05 | Phase 1 | Pending |
+| RENDER-06 | Phase 1 | Pending |
+| FILTER-01 | Phase 2 | Pending |
+| FILTER-02 | Phase 2 | Pending |
+| FILTER-03 | Phase 2 | Pending |
+| FILTER-04 | Phase 2 | Pending |
+| FILTER-05 | Phase 2 | Pending |
+| FILTER-06 | Phase 2 | Pending |
+| ADJUST-01 | Phase 3 | Pending |
+| ADJUST-02 | Phase 3 | Pending |
+| ADJUST-03 | Phase 3 | Pending |
+| ADJUST-04 | Phase 3 | Pending |
+| ADJUST-05 | Phase 3 | Pending |
+| ADJUST-06 | Phase 3 | Pending |
+| ADJUST-07 | Phase 3 | Pending |
+| ADJUST-08 | Phase 3 | Pending |
+| ADJUST-09 | Phase 3 | Pending |
+| ADJUST-10 | Phase 3 | Pending |
+| CROP-01 | Phase 3 | Pending |
+| CROP-02 | Phase 3 | Pending |
+| CROP-03 | Phase 3 | Pending |
+| CROP-04 | Phase 3 | Pending |
+| HIST-01 | Phase 3 | Pending |
+| HIST-02 | Phase 3 | Pending |
+| HIST-03 | Phase 3 | Pending |
+| LIB-01 | Phase 4 | Pending |
+| LIB-02 | Phase 4 | Pending |
+| LIB-03 | Phase 4 | Pending |
+| LIB-04 | Phase 4 | Pending |
+| LIB-05 | Phase 4 | Pending |
+| EXPORT-01 | Phase 5 | Pending |
+| EXPORT-02 | Phase 5 | Pending |
+| EXPORT-03 | Phase 5 | Pending |
+| EXPORT-04 | Phase 5 | Pending |
+| EXPORT-05 | Phase 5 | Pending |
+| EXPORT-06 | Phase 5 | Pending |
+| RECIPE-01 | Phase 6 | Pending |
+| RECIPE-02 | Phase 6 | Pending |
+| RECIPE-03 | Phase 6 | Pending |
+| RECIPE-04 | Phase 6 | Pending |
+| RECIPE-05 | Phase 6 | Pending |
+| UX-01 | Phase 7 | Pending |
+| UX-02 | Phase 7 | Pending |
+| UX-03 | Phase 7 | Pending |
+| UX-04 | Phase 7 | Pending |
+| UX-05 | Phase 7 | Pending |
+| UX-06 | Phase 7 | Pending |
+| UX-07 | Phase 7 | Pending |
+| UX-08 | Phase 7 | Pending |
+| UX-09 | Phase 7 | Pending |
 
 **Coverage:**
 - v1 requirements: 49 total
-- Mapped to phases: 0 (pending roadmap)
-- Unmapped: 49 ⚠️
+- Mapped to phases: 49 (6 + 6 + 17 + 5 + 6 + 5 + 9)
+- Unmapped: 0 ✓
 
 ---
 *Requirements defined: 2026-05-03*
-*Last updated: 2026-05-03 after initialization*
+*Last updated: 2026-05-03 after roadmap creation*
