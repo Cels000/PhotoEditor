@@ -182,6 +182,85 @@ final class EditorViewModel {
         isSaving = false
     }
 
+    // MARK: - Library
+
+    /// Persists the current edit to the in-app library. If this session was
+    /// opened from a library item, updates that row; otherwise inserts a new one.
+    /// Generates a 400x400 thumbnail of the current edit on a detached background
+    /// task so the main actor never blocks on rendering.
+    func saveToLibrary() async {
+        guard let store = libraryStore else {
+            errorMessage = "Library is not available."
+            return
+        }
+        guard let engine, let imported = importedImage else {
+            errorMessage = "Choose a photo before saving to library."
+            return
+        }
+
+        isSaving = true
+        errorMessage = nil
+        successMessage = nil
+
+        let snapshotStack = stack
+        let assetID = imported.sourceAssetID
+        let source = imported.previewCIImage
+        let resolver = makeCubeResolver()
+
+        // Render thumbnail off-main. ThumbnailGenerator is non-isolated; engine is an actor.
+        let thumb: Data?
+        do {
+            thumb = try await Task.detached(priority: .background) {
+                try await ThumbnailGenerator.makeThumbnail(
+                    stack: snapshotStack,
+                    source: source,
+                    engine: engine,
+                    cubeResolver: resolver
+                )
+            }.value
+        } catch {
+            isSaving = false
+            errorMessage = "Could not generate thumbnail."
+            return
+        }
+
+        if let existing = currentLibraryItem {
+            store.update(existing, stack: snapshotStack, thumbnail: thumb)
+        } else {
+            let inserted = store.save(stack: snapshotStack, sourceAssetID: assetID, thumbnail: thumb)
+            currentLibraryItem = inserted
+        }
+
+        successMessage = "Saved to Library."
+        isSaving = false
+    }
+
+    /// Opens an existing library item: re-loads its source from PHAsset, restores
+    /// the stored adjustment stack, resets undo history, and triggers a preview render.
+    /// LIB-05: PHAsset deletion produces a user-facing error, never a crash.
+    func openLibraryItem(_ item: LibraryItem) async {
+        errorMessage = nil
+        successMessage = nil
+
+        guard let assetID = item.sourceAssetID else {
+            errorMessage = "This photo's source is no longer in your Photos library."
+            return
+        }
+
+        do {
+            let imported = try await ImageImporter.importImage(fromAssetID: assetID)
+            self.importedImage = imported
+            self.stack = item.adjustmentStack
+            self.currentLibraryItem = item
+            self.undoStack.clear(seed: self.stack)
+            await renderPreviewNow()
+        } catch ImageImportError.phAssetUnavailable {
+            errorMessage = "This photo's source is no longer in your Photos library."
+        } catch {
+            errorMessage = "Could not reopen this edit."
+        }
+    }
+
     // MARK: - Private helpers
 
     private func makeCubeResolver() -> CubeResolver {
