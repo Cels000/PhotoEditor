@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: planning
-stopped_at: Completed 02-05-PLAN.md — PipelineBuilder.applyLUT wired with CIColorCubeWithColorSpace
-last_updated: "2026-05-03T20:50:47.654Z"
+stopped_at: Completed 02-06-PLAN.md — FilterStripView + FilterThumbnailCache wired; Phase 2 filter pipeline complete
+last_updated: "2026-05-03T20:54:04.434Z"
 last_activity: 2026-05-03 — Roadmap created; requirements mapped to 7 phases
 progress:
   total_phases: 7
-  completed_phases: 1
+  completed_phases: 2
   total_plans: 11
-  completed_plans: 10
+  completed_plans: 11
   percent: 20
 ---
 
@@ -56,6 +56,7 @@ Progress: [██░░░░░░░░] 20%
 | Phase 02-lut-filter-pipeline P02-02 | 2min | 2 tasks | 3 files |
 | Phase 02-lut-filter-pipeline P02-04 | 8min | 2 tasks | 2 files |
 | Phase 02-lut-filter-pipeline P02-05 | 10min | 2 tasks | 3 files |
+| Phase 02-lut-filter-pipeline P02-06 | 12min | 4 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -83,6 +84,8 @@ Recent decisions affecting current work:
 - [Phase 02-lut-filter-pipeline]: Filter.id is String (not UUID) to match FilterSelection.filterID from Phase 1
 - [Phase 02-lut-filter-pipeline]: FilterLibrary.orderedFilters always pins builtin.identity first; favorites follow; cube.<lowercased-filename> IDs for bundled .cube files
 - [Phase 02-lut-filter-pipeline]: PipelineBuilder.applyLUT: CubeResolver defaults nil for backward compat; strength blend via CIColorMatrix aVector + CISourceOverCompositing; 02-06 owns RenderEngine wiring
+- [Phase 02-lut-filter-pipeline]: ImportedImage is struct — photo identity in FilterStripView uses previewCIImage.extent.debugDescription, not ObjectIdentifier
+- [Phase 02-lut-filter-pipeline]: FilterStripView thumbnails bypass PipelineBuilder — LUT-only render so strip remains stable visual reference while user edits other adjustments
 
 ### Pending Todos
 
@@ -97,6 +100,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-05-03T20:50:47.652Z
-Stopped at: Completed 02-05-PLAN.md — PipelineBuilder.applyLUT wired with CIColorCubeWithColorSpace
+Last session: 2026-05-03T20:54:04.432Z
+Stopped at: Completed 02-06-PLAN.md — FilterStripView + FilterThumbnailCache wired; Phase 2 filter pipeline complete
 Resume file: None

@@ -17,8 +17,8 @@
 ### Filter Library (LUT)
 
 - [x] **FILTER-01**: App ships with at least 20 hand-curated film-style LUT filters covering film/portrait/B&W/cinematic categories
-- [ ] **FILTER-02**: Filters are presented as a horizontal strip with thumbnails generated from the user's current photo
-- [ ] **FILTER-03**: Each filter has a strength slider (0–100%) that smoothly blends between unfiltered and full-strength filtered output
+- [x] **FILTER-02**: Filters are presented as a horizontal strip with thumbnails generated from the user's current photo
+- [x] **FILTER-03**: Each filter has a strength slider (0–100%) that smoothly blends between unfiltered and full-strength filtered output
 - [x] **FILTER-04**: Filters can be marked as Favorites and Favorites appear first in the strip
 - [x] **FILTER-05**: Each filter has a stable UUID so saved Recipes survive filter library updates
 - [x] **FILTER-06**: Filters use 64-point `CIColorCubeWithColorSpace` LUTs in linear sRGB working space (no banding, no color drift)
@@ -125,8 +125,8 @@
 | RENDER-05 | Phase 1 | Complete |
 | RENDER-06 | Phase 1 | Complete |
 | FILTER-01 | Phase 2 | Complete |
-| FILTER-02 | Phase 2 | Pending |
-| FILTER-03 | Phase 2 | Pending |
+| FILTER-02 | Phase 2 | Complete |
+| FILTER-03 | Phase 2 | Complete |
 | FILTER-04 | Phase 2 | Complete |
 | FILTER-05 | Phase 2 | Complete |
 | FILTER-06 | Phase 2 | Complete |
