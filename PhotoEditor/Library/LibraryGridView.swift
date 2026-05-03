@@ -49,6 +49,7 @@ struct LibraryGridView: View {
                     }
                 }
             }
+            .background(Theme.Colors.canvas.ignoresSafeArea())
             .navigationTitle("Library")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -79,12 +80,12 @@ struct LibraryGridView: View {
         VStack(spacing: 12) {
             Image(systemName: "photo.on.rectangle.angled")
                 .font(.system(size: 44, weight: .semibold))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Theme.Colors.secondary)
             Text("No edits yet")
-                .font(.headline)
+                .font(Theme.Typography.subtitle)
             Text("Save an edit to see it here.")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
+                .font(Theme.Typography.body)
+                .foregroundStyle(Theme.Colors.secondary)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }

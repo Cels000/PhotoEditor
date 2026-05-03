@@ -22,7 +22,7 @@ struct LibraryItemThumbnail: View {
                     .scaledToFill()
             } else {
                 Rectangle()
-                    .fill(Color(.tertiarySystemBackground))
+                    .fill(Theme.Colors.panel)
             }
 
             if !sourceAvailable {

@@ -33,7 +33,7 @@ struct ExportSheetView: View {
                     .pickerStyle(.segmented)
                     if format == .png {
                         Text("PNG is lossless. Quality slider does not apply.")
-                            .font(.caption).foregroundStyle(.secondary)
+                            .font(Theme.Typography.caption).foregroundStyle(Theme.Colors.secondary)
                     }
                 }
 
@@ -52,7 +52,7 @@ struct ExportSheetView: View {
                                 .multilineTextAlignment(.trailing)
                                 .frame(width: 100)
                         }
-                        Text("Allowed: 256 to 8192").font(.caption).foregroundStyle(.secondary)
+                        Text("Allowed: 256 to 8192").font(Theme.Typography.caption).foregroundStyle(Theme.Colors.secondary)
                     }
                 }
 
@@ -60,6 +60,7 @@ struct ExportSheetView: View {
                     Section("Quality") {
                         HStack {
                             Slider(value: $quality, in: 0.4...1.0, step: 0.05)
+                                .tint(Theme.Colors.accent)
                             Text("\(Int(quality * 100))%").monospacedDigit().frame(width: 50, alignment: .trailing)
                         }
                     }
@@ -94,7 +95,7 @@ struct ExportSheetView: View {
                         Color.black.opacity(0.25).ignoresSafeArea()
                         VStack(spacing: 12) {
                             ProgressView()
-                            Text("Exporting…").font(.callout)
+                            Text("Exporting…").font(Theme.Typography.body)
                         }
                         .padding(20)
                         .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))

@@ -59,6 +59,7 @@ struct ContentView: View {
             }
             .navigationTitle("Photo Editor")
             .navigationBarTitleDisplayMode(.inline)
+            .tint(Theme.Colors.accent)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Button {
@@ -115,7 +116,7 @@ struct ContentView: View {
                     .accessibilityLabel("Save as Recipe")
                 }
             }
-            .background(Color(.systemGroupedBackground))
+            .background(Theme.Colors.canvas)
             .sheet(isPresented: $isLibraryPresented) {
                 if let store = libraryStore {
                     LibraryGridView(store: store) { item in
@@ -198,7 +199,7 @@ struct ContentView: View {
     private var editorPreview: some View {
         ZStack {
             RoundedRectangle(cornerRadius: 24, style: .continuous)
-                .fill(Color(.tertiarySystemBackground))
+                .fill(Theme.Colors.panel)
                 .aspectRatio(3 / 4, contentMode: .fit)
 
             if let image = displayedImage {
@@ -220,9 +221,9 @@ struct ContentView: View {
                 VStack(spacing: 12) {
                     Image(systemName: "photo.badge.plus")
                         .font(.system(size: 44, weight: .semibold))
-                        .foregroundStyle(.blue)
+                        .foregroundStyle(Theme.Colors.accent)
                     Text("Pick a photo to start editing")
-                        .font(.headline)
+                        .font(Theme.Typography.subtitle)
                 }
             }
         }

@@ -99,11 +99,11 @@ struct RecipesSheetView: View {
         VStack(spacing: 12) {
             Image(systemName: "wand.and.stars")
                 .font(.system(size: 44, weight: .semibold))
-                .foregroundStyle(.purple)
-            Text("No Recipes Yet").font(.headline)
+                .foregroundStyle(Theme.Colors.accent)
+            Text("No Recipes Yet").font(Theme.Typography.subtitle)
             Text("Tap the Save Recipe button while editing a photo to capture your current look.")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
+                .font(Theme.Typography.body)
+                .foregroundStyle(Theme.Colors.secondary)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 32)
         }
@@ -188,7 +188,7 @@ private struct RecipeRow: View {
             Image(uiImage: uiImage).resizable().scaledToFill()
         } else {
             LinearGradient(
-                colors: [.purple.opacity(0.6), .blue.opacity(0.6)],
+                colors: [Theme.Colors.accent.opacity(0.7), Theme.Colors.accent.opacity(0.3)],
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )
