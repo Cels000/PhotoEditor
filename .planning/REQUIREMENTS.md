@@ -72,7 +72,7 @@
 - [x] **EXPORT-03**: User can choose export format: JPEG / HEIC / PNG
 - [x] **EXPORT-04**: User can choose export size: full / web / story presets, plus custom long-edge value
 - [x] **EXPORT-05**: Lossy formats (JPEG/HEIC) expose a quality slider
-- [ ] **EXPORT-06**: Exports preserve color profile (Display P3 where supported) and basic EXIF (date/orientation); GPS/identifying metadata stripped by default
+- [x] **EXPORT-06**: Exports preserve color profile (Display P3 where supported) and basic EXIF (date/orientation); GPS/identifying metadata stripped by default
 
 ### UX & Accessibility
 
@@ -157,7 +157,7 @@
 | EXPORT-03 | Phase 5 | Complete |
 | EXPORT-04 | Phase 5 | Complete |
 | EXPORT-05 | Phase 5 | Complete |
-| EXPORT-06 | Phase 5 | Pending |
+| EXPORT-06 | Phase 5 | Complete |
 | RECIPE-01 | Phase 6 | Pending |
 | RECIPE-02 | Phase 6 | Pending |
 | RECIPE-03 | Phase 6 | Pending |
