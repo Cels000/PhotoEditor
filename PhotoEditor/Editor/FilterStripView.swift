@@ -106,7 +106,20 @@ struct FilterStripView: View {
             Slider(
                 value: Binding(
                     get: { viewModel.stack.filter?.strength ?? 1.0 },
-                    set: { viewModel.setFilterStrength($0) }
+                    set: { newValue in
+                        // Snap-to-anchors at 0 / 0.5 / 1.0 with a haptic tick when crossed.
+                        let anchors: [Double] = [0.0, 0.5, 1.0]
+                        let prev = viewModel.stack.filter?.strength ?? 1.0
+                        let snapped: Double = {
+                            for a in anchors where abs(newValue - a) < 0.04 { return a }
+                            return newValue
+                        }()
+                        viewModel.setFilterStrength(snapped)
+                        // Fire snap haptic only when crossing into a new anchor.
+                        if anchors.contains(snapped) && abs(prev - snapped) > 0.001 {
+                            Haptic.play(.sliderSnap)
+                        }
+                    }
                 ),
                 in: 0...1
             )

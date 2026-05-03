@@ -3,6 +3,7 @@ import UIKit
 enum Haptic {
     case sliderZeroCross
     case sliderEnd
+    case sliderSnap
     case filterSelect
     case recipeApply
     case undoRedo
@@ -18,6 +19,9 @@ enum Haptic {
         case .sliderEnd:
             Self.rigidImpact.impactOccurred()
             Self.rigidImpact.prepare()
+        case .sliderSnap:
+            Self.selection.selectionChanged()
+            Self.selection.prepare()
         case .filterSelect:
             Self.selection.selectionChanged()
             Self.selection.prepare()
