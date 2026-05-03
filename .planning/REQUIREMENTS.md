@@ -10,7 +10,7 @@
 - [ ] **RENDER-01**: App imports a photo from the iOS photo library preserving original orientation and color profile (sRGB/Display P3 round-trip without drift)
 - [x] **RENDER-02**: All edits apply non-destructively — the source image is never mutated; every edit is reversible
 - [ ] **RENDER-03**: Live preview stays responsive (visibly smooth) while a slider is being dragged, by rendering at a downsampled resolution (≤1080px long edge)
-- [ ] **RENDER-04**: Full-resolution rendering only runs on export (or thumbnail generation), never per-slider-tick
+- [x] **RENDER-04**: Full-resolution rendering only runs on export (or thumbnail generation), never per-slider-tick
 - [ ] **RENDER-05**: All rendering uses a Metal-backed CIContext; software rendering never engages
 - [x] **RENDER-06**: Edit state is captured in a Codable adjustment-stack model, versioned with a schema integer for forward-compatibility
 
@@ -121,7 +121,7 @@
 | RENDER-01 | Phase 1 | Pending |
 | RENDER-02 | Phase 1 | Complete |
 | RENDER-03 | Phase 1 | Pending |
-| RENDER-04 | Phase 1 | Pending |
+| RENDER-04 | Phase 1 | Complete |
 | RENDER-05 | Phase 1 | Pending |
 | RENDER-06 | Phase 1 | Complete |
 | FILTER-01 | Phase 2 | Pending |
