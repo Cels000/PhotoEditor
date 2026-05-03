@@ -24,6 +24,48 @@ final class EditorViewModel {
     private var renderTask: Task<Void, Never>?
     private static let debounceNanos: UInt64 = 40_000_000   // 40 ms
 
+    // MARK: - Undo / Redo
+    private var undoStack = UndoStack()
+    private var pendingDragSnapshot: AdjustmentStack?
+
+    var canUndo: Bool { undoStack.canUndo }
+    var canRedo: Bool { undoStack.canRedo }
+
+    /// Call when a slider drag begins (or any continuous edit). Captures the
+    /// pre-drag snapshot so endInteractiveEdit() can push exactly one entry.
+    func beginInteractiveEdit() {
+        // Only capture if we're not already tracking a drag (re-entrancy guard).
+        if pendingDragSnapshot == nil {
+            pendingDragSnapshot = stack
+        }
+    }
+
+    /// Call when a slider drag ends. Pushes the post-drag stack to the undo
+    /// stack iff it differs from the pre-drag snapshot.
+    func endInteractiveEdit() {
+        defer { pendingDragSnapshot = nil }
+        guard let pre = pendingDragSnapshot, pre != stack else { return }
+        undoStack.push(stack)
+    }
+
+    /// For discrete (non-drag) mutations: filter selection, crop apply, recipe apply.
+    /// Caller must have already mutated `stack` before calling this.
+    func commitDiscreteChange() {
+        undoStack.push(stack)
+    }
+
+    func undo() {
+        guard let restored = undoStack.undo() else { return }
+        stack = restored
+        stackDidChange()
+    }
+
+    func redo() {
+        guard let restored = undoStack.redo() else { return }
+        stack = restored
+        stackDidChange()
+    }
+
     init(filterLibrary: FilterLibrary = FilterLibrary()) {
         self.filterLibrary = filterLibrary
         do {
@@ -32,6 +74,7 @@ final class EditorViewModel {
             self.engine = nil
             self.errorMessage = "Metal is unavailable on this device. Rendering disabled."
         }
+        self.undoStack.seed(.identity)
     }
 
     // MARK: - Public API used by ContentView
@@ -42,6 +85,7 @@ final class EditorViewModel {
             self.importedImage = imported
             // Reset to identity so the new photo starts unedited.
             self.stack = .identity
+            self.undoStack.clear(seed: .identity)
             // Render initial preview synchronously (no debounce on first frame).
             await renderPreviewNow()
         } catch {
@@ -77,6 +121,7 @@ final class EditorViewModel {
             stack.filter = nil
         }
         stackDidChange()
+        commitDiscreteChange()
     }
 
     func setFilterStrength(_ value: Double) {
@@ -87,7 +132,9 @@ final class EditorViewModel {
     }
 
     func resetAdjustments() {
+        guard stack != .identity else { return }
         stack = .identity
+        undoStack.push(.identity)
         stackDidChange()
         errorMessage = nil
         successMessage = nil
