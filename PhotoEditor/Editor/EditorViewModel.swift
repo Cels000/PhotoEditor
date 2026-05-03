@@ -1,9 +1,17 @@
 import CoreImage
 import Foundation
+import ImageIO
 import Photos
 import SwiftData
 import SwiftUI
 import UIKit
+
+// MARK: - Export error type
+
+enum ExportPipelineError: Error {
+    case notReady
+    case engineUnavailable
+}
 
 @MainActor
 @Observable
@@ -14,6 +22,9 @@ final class EditorViewModel {
     var previewImage: UIImage?
     var importedImage: ImportedImage?
     var isSaving: Bool = false
+    var isExporting: Bool = false
+    var shareData: Data?
+    var shareFormat: ExportFormat?
     var errorMessage: String?
     var successMessage: String?
 
@@ -158,35 +169,77 @@ final class EditorViewModel {
         successMessage = nil
     }
 
-    func saveImage() async {
-        guard let engine, let imported = importedImage else {
-            errorMessage = "Choose a photo before saving."
-            return
-        }
+    // MARK: - Export pipeline
 
-        isSaving = true
-        errorMessage = nil
-        successMessage = nil
+    /// Render full-res, encode to options.format with options.quality, resize to options.size.
+    /// Preserves source EXIF (TIFF/Exif), strips GPS, embeds source color profile.
+    /// Caller dispatches the returned Data (Save to Photos / Share / Both).
+    func export(options: ExportOptions) async throws -> Data {
+        guard let engine else { throw ExportPipelineError.engineUnavailable }
+        guard let imported = importedImage else { throw ExportPipelineError.notReady }
 
-        let status = await PHPhotoLibrary.requestAuthorization(for: .addOnly)
-        guard status == .authorized || status == .limited else {
-            isSaving = false
-            errorMessage = "Photo Library access is required to save edits."
-            return
-        }
+        isExporting = true
+        defer { isExporting = false }
 
+        // Full-res render on the engine actor.
+        let cg = try await engine.renderExport(
+            stack: stack,
+            source: imported.exportCIImage,
+            cubeResolver: makeCubeResolver()
+        )
+
+        // Read source metadata + color space from the raw bytes (preserves EXIF dictionaries).
+        let (sourceProps, sourceCS) = Self.readSourceMetadata(from: imported.sourceData)
+            ?? ([:], imported.exportCIImage.colorSpace)
+
+        // Encode off the main actor (CGImageDestination + Lanczos resize is CPU-heavy).
+        let data: Data = try await Task.detached(priority: .userInitiated) {
+            try ExportService.encode(
+                cgImage: cg,
+                sourceProperties: sourceProps,
+                colorSpace: sourceCS,
+                options: options
+            )
+        }.value
+
+        return data
+    }
+
+    /// Save to Photos. Surfaces success/error via observable strings.
+    func saveExport(options: ExportOptions) async {
+        errorMessage = nil; successMessage = nil
         do {
-            let cg = try await engine.renderExport(stack: stack, source: imported.exportCIImage, cubeResolver: self.makeCubeResolver())
-            let uiImage = UIImage(cgImage: cg)
-            try await PHPhotoLibrary.shared().performChanges {
-                PHAssetChangeRequest.creationRequestForAsset(from: uiImage)
-            }
+            let data = try await export(options: options)
+            try await PhotoSaver.save(encodedData: data, format: options.format)
             successMessage = "Saved to Photos."
+        } catch PhotoSaver.Error.permissionDenied {
+            errorMessage = "Photo Library access is required to save."
         } catch {
-            errorMessage = error.localizedDescription
+            errorMessage = "Export failed: \(error.localizedDescription)"
         }
+    }
 
-        isSaving = false
+    /// Stage data for the share sheet. ContentView observes shareData/shareFormat
+    /// and presents ShareSheetView. Caller clears shareData on dismiss.
+    func shareExport(options: ExportOptions) async {
+        errorMessage = nil
+        do {
+            let data = try await export(options: options)
+            shareData = data
+            shareFormat = options.format
+        } catch {
+            errorMessage = "Export failed: \(error.localizedDescription)"
+        }
+    }
+
+    private static func readSourceMetadata(from data: Data) -> ([CFString: Any], CGColorSpace?)? {
+        guard let src = CGImageSourceCreateWithData(data as CFData, nil),
+              let props = CGImageSourceCopyPropertiesAtIndex(src, 0, nil) as? [CFString: Any] else {
+            return nil
+        }
+        // Try to extract a CGColorSpace via CGImageSourceCreateImageAtIndex (carries colorSpace).
+        let cs: CGColorSpace? = CGImageSourceCreateImageAtIndex(src, 0, nil)?.colorSpace
+        return (props, cs)
     }
 
     // MARK: - Library
