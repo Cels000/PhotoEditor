@@ -8,7 +8,7 @@ Build a premium-feeling iOS photo editor from a brownfield SwiftUI seed. The arc
 
 - [ ] **Phase 1: Rendering Foundation** - Replace the existing CIPhotoEffect pipeline with a Metal-backed RenderEngine, AdjustmentStack data model, and dual preview/export render paths
 - [x] **Phase 2: LUT Filter Pipeline** - Ship 20–30 hand-curated 64-point LUT filters with stable IDs, per-filter defaults, strength blending, and a live-preview filter strip (completed 2026-05-03)
-- [ ] **Phase 3: Editor UI + Full Adjustments** - Build the complete editor surface (light, color, HSL, curves, grain, vignette, sharpen, crop, undo/redo, before/after) against the live render pipeline
+- [x] **Phase 3: Editor UI + Full Adjustments** - Build the complete editor surface (light, color, HSL, curves, grain, vignette, sharpen, crop, undo/redo, before/after) against the live render pipeline (completed 2026-05-03)
 - [ ] **Phase 4: Library + Persistence** - SwiftData-backed in-app library with thumbnails, re-edit capability, and graceful PHAsset handling
 - [ ] **Phase 5: Export** - Full-resolution export with format/size/quality options, share sheet, ICC profile embedding, and EXIF passthrough
 - [ ] **Phase 6: Recipes** - Save, apply, rename, delete, and share named adjustment stacks via a custom `.photorecipe` file format
@@ -83,7 +83,14 @@ Build a premium-feeling iOS photo editor from a brownfield SwiftUI seed. The arc
   2. Tapping a library item reopens the editor with the exact same adjustment stack — all slider values, filter selection, and crop state restored
   3. Deleting a library item removes the thumbnail and entry; a crash does not occur if the underlying PHAsset has been deleted from Photos
   4. Library data survives an app update (SwiftData VersionedSchema migration is non-destructive)
-**Plans**: TBD
+**Plans**: 6 plans
+Plans:
+- [ ] 04-01-PLAN.md — SwiftData LibraryItem @Model + VersionedSchema scaffold
+- [ ] 04-02-PLAN.md — LibraryStore service (CRUD + observable items)
+- [ ] 04-03-PLAN.md — ImageImporter PHAsset support + ThumbnailGenerator
+- [ ] 04-04-PLAN.md — EditorViewModel saveToLibrary / openLibraryItem
+- [ ] 04-05-PLAN.md — LibraryGridView + delete confirmation + PHAsset-deleted placeholder
+- [ ] 04-06-PLAN.md — PhotoEditorApp ModelContainer + ContentView toolbar wiring
 
 ### Phase 5: Export
 **Goal**: Users can get their edited photos out of the app in any practical format — saved to Photos, shared anywhere, with format, size, and quality control
@@ -125,7 +132,7 @@ Build a premium-feeling iOS photo editor from a brownfield SwiftUI seed. The arc
 |-------|----------------|--------|-----------|
 | 1. Rendering Foundation | 0/5 | Not started | - |
 | 2. LUT Filter Pipeline | 0/6 | Complete    | 2026-05-03 |
-| 3. Editor UI + Full Adjustments | 0/10 | Not started | - |
+| 3. Editor UI + Full Adjustments | 0/10 | Complete    | 2026-05-03 |
 | 4. Library + Persistence | 0/TBD | Not started | - |
 | 5. Export | 0/TBD | Not started | - |
 | 6. Recipes | 0/TBD | Not started | - |
