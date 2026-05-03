@@ -128,7 +128,21 @@ enum PipelineBuilder {
             }
         }
 
-        // temperature / tint: Phase 1 stub — no-op (Phase 3 wires fully via CITemperatureAndTint)
+        // Temperature/Tint via CITemperatureAndTint.
+        // Map -1...+1 to Kelvin offset of ±2500K around 6500K neutral.
+        // Tint maps -1...+1 to ±100 on y axis (magenta/green).
+        if color.temperature != 0 || color.tint != 0 {
+            let tt = CIFilter.temperatureAndTint()
+            tt.inputImage = output
+            let kelvin = 6500.0 + color.temperature * 2500.0
+            let tintY = color.tint * 100.0
+            tt.neutral = CIVector(x: 6500, y: 0)
+            tt.targetNeutral = CIVector(x: CGFloat(kelvin), y: CGFloat(tintY))
+            if let result = tt.outputImage {
+                output = result
+            }
+        }
+
         return output
     }
 
