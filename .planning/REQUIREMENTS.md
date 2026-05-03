@@ -33,7 +33,7 @@
 - [ ] **ADJUST-06**: User can apply Grain (size + intensity controls)
 - [ ] **ADJUST-07**: User can apply Vignette (amount + feather)
 - [ ] **ADJUST-08**: User can apply Sharpen
-- [ ] **ADJUST-09**: Every slider supports double-tap to reset to default
+- [x] **ADJUST-09**: Every slider supports double-tap to reset to default
 - [ ] **ADJUST-10**: Adjustments apply in a deterministic order (LUT → light → color → HSL → curves → split-toning → effects → crop) consistent across preview and export
 
 ### Crop & Geometry
@@ -138,7 +138,7 @@
 | ADJUST-06 | Phase 3 | Pending |
 | ADJUST-07 | Phase 3 | Pending |
 | ADJUST-08 | Phase 3 | Pending |
-| ADJUST-09 | Phase 3 | Pending |
+| ADJUST-09 | Phase 3 | Complete |
 | ADJUST-10 | Phase 3 | Pending |
 | CROP-01 | Phase 3 | Pending |
 | CROP-02 | Phase 3 | Pending |

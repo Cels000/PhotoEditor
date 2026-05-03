@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: planning
-stopped_at: Completed 03-01-PLAN.md — whites/blacks CIToneCurve implemented; all 6 light controls wired
-last_updated: "2026-05-03T21:11:40.494Z"
+stopped_at: Completed 03-04-PLAN.md — AdjustmentSlider + SliderValueFormatter components created
+last_updated: "2026-05-03T21:11:59.471Z"
 last_activity: 2026-05-03 — Roadmap created; requirements mapped to 7 phases
 progress:
   total_phases: 7
   completed_phases: 2
   total_plans: 21
-  completed_plans: 12
+  completed_plans: 13
   percent: 20
 ---
 
@@ -58,6 +58,7 @@ Progress: [██░░░░░░░░] 20%
 | Phase 02-lut-filter-pipeline P02-05 | 10min | 2 tasks | 3 files |
 | Phase 02-lut-filter-pipeline P02-06 | 12min | 4 tasks | 5 files |
 | Phase 03-editor-ui-full-adjustments P03-01 | 5min | 1 tasks | 1 files |
+| Phase 03-editor-ui-full-adjustments P03-04 | 5min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -88,6 +89,7 @@ Recent decisions affecting current work:
 - [Phase 02-lut-filter-pipeline]: ImportedImage is struct — photo identity in FilterStripView uses previewCIImage.extent.debugDescription, not ObjectIdentifier
 - [Phase 02-lut-filter-pipeline]: FilterStripView thumbnails bypass PipelineBuilder — LUT-only render so strip remains stable visual reference while user edits other adjustments
 - [Phase 03-editor-ui-full-adjustments]: Whites/Blacks: 5-point CIToneCurve endpoint shaping; input ±1 → ±0.3 curve shift; gated on non-zero to preserve identity
+- [Phase 03-editor-ui-full-adjustments]: AdjustmentSlider value bubble implemented as opacity animation on header label; no floating overlay needed
 
 ### Pending Todos
 
@@ -102,6 +104,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-05-03T21:11:40.492Z
-Stopped at: Completed 03-01-PLAN.md — whites/blacks CIToneCurve implemented; all 6 light controls wired
+Last session: 2026-05-03T21:11:56.542Z
+Stopped at: Completed 03-04-PLAN.md — AdjustmentSlider + SliderValueFormatter components created
 Resume file: None
