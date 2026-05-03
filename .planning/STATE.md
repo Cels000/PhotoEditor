@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: planning
-stopped_at: Completed 07-02-PLAN.md
-last_updated: "2026-05-03T22:51:09.942Z"
+stopped_at: Completed 07-01-PLAN.md
+last_updated: "2026-05-03T22:51:13.204Z"
 last_activity: 2026-05-03 — Roadmap created; requirements mapped to 7 phases
 progress:
   total_phases: 7
@@ -153,6 +153,8 @@ Recent decisions affecting current work:
 - [Phase 07-polish-accessibility]: Motion module has zero dependencies on Theme or Haptics — deliberately isolated per CONTEXT.md
 - [Phase 07-polish-accessibility]: Haptic.play is @MainActor — UIKit feedback generators require main thread; callers must dispatch accordingly
 - [Phase 07-polish-accessibility]: No reduceMotion guard — haptics are not motion per Apple HIG; they remain on with Reduce Motion enabled
+- [Phase 07-polish-accessibility]: Theme: Color(light:dark:) uses UIColor dynamicProvider so tokens work outside SwiftUI view hierarchy
+- [Phase 07-polish-accessibility]: Theme: Accent locked to #E89A52 (dark) / #B66A2A (light) — replaces Apple-blue tint throughout app
 
 ### Pending Todos
 
@@ -167,6 +169,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-05-03T22:51:07.535Z
-Stopped at: Completed 07-02-PLAN.md
+Last session: 2026-05-03T22:51:13.201Z
+Stopped at: Completed 07-01-PLAN.md
 Resume file: None
