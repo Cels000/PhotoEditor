@@ -1,0 +1,132 @@
+# Requirements: PhotoEditor
+
+**Defined:** 2026-05-03
+**Core Value:** A photo editor that *feels* like a paid pro tool — distinctive filters, deep controls, polished interface — given away free, with edits you can come back to and refine.
+
+## v1 Requirements
+
+### Render Foundation
+
+- [ ] **RENDER-01**: App imports a photo from the iOS photo library preserving original orientation and color profile (sRGB/Display P3 round-trip without drift)
+- [ ] **RENDER-02**: All edits apply non-destructively — the source image is never mutated; every edit is reversible
+- [ ] **RENDER-03**: Live preview stays responsive (visibly smooth) while a slider is being dragged, by rendering at a downsampled resolution (≤1080px long edge)
+- [ ] **RENDER-04**: Full-resolution rendering only runs on export (or thumbnail generation), never per-slider-tick
+- [ ] **RENDER-05**: All rendering uses a Metal-backed CIContext; software rendering never engages
+- [ ] **RENDER-06**: Edit state is captured in a Codable adjustment-stack model, versioned with a schema integer for forward-compatibility
+
+### Filter Library (LUT)
+
+- [ ] **FILTER-01**: App ships with at least 20 hand-curated film-style LUT filters covering film/portrait/B&W/cinematic categories
+- [ ] **FILTER-02**: Filters are presented as a horizontal strip with thumbnails generated from the user's current photo
+- [ ] **FILTER-03**: Each filter has a strength slider (0–100%) that smoothly blends between unfiltered and full-strength filtered output
+- [ ] **FILTER-04**: Filters can be marked as Favorites and Favorites appear first in the strip
+- [ ] **FILTER-05**: Each filter has a stable UUID so saved Recipes survive filter library updates
+- [ ] **FILTER-06**: Filters use 64-point `CIColorCubeWithColorSpace` LUTs in linear sRGB working space (no banding, no color drift)
+
+### Adjustments
+
+- [ ] **ADJUST-01**: User can adjust Exposure, Contrast, Highlights, Shadows, Whites, Blacks (light panel, 6 controls, default 0)
+- [ ] **ADJUST-02**: User can adjust Saturation, Vibrance, Temperature, Tint (color panel, 4 controls, default 0)
+- [ ] **ADJUST-03**: User can adjust Hue, Saturation, Luminance per color channel (HSL panel, 8 channels × 3 controls)
+- [ ] **ADJUST-04**: User can shape RGB and per-channel tone curves (curves panel)
+- [ ] **ADJUST-05**: User can apply Split Toning to highlights and shadows (hue + amount per zone)
+- [ ] **ADJUST-06**: User can apply Grain (size + intensity controls)
+- [ ] **ADJUST-07**: User can apply Vignette (amount + feather)
+- [ ] **ADJUST-08**: User can apply Sharpen
+- [ ] **ADJUST-09**: Every slider supports double-tap to reset to default
+- [ ] **ADJUST-10**: Adjustments apply in a deterministic order (LUT → light → color → HSL → curves → split-toning → effects → crop) consistent across preview and export
+
+### Crop & Geometry
+
+- [ ] **CROP-01**: User can crop with aspect-ratio presets (free, original, 1:1, 4:5, 3:4, 9:16, 16:9, etc.)
+- [ ] **CROP-02**: User can free-rotate / straighten the crop with an angle ruler
+- [ ] **CROP-03**: User can rotate in 90° steps (left/right) and flip horizontally/vertically
+- [ ] **CROP-04**: Crop/rotate/straighten is stored separately from color adjustments and applies after them, with no progressive pixel drift on re-edit
+
+### History & Compare
+
+- [ ] **HIST-01**: User can undo and redo every adjustment within an editing session
+- [ ] **HIST-02**: User can press-and-hold the canvas to compare against the unedited original (before/after)
+- [ ] **HIST-03**: User can reset all edits at once (with a confirmation step)
+
+### Library
+
+- [ ] **LIB-01**: Edited photos appear in an in-app library grid with thumbnails
+- [ ] **LIB-02**: User can re-open any library item and continue editing exactly where they left off
+- [ ] **LIB-03**: User can delete library items (with confirmation), and deleted items also remove their thumbnails
+- [ ] **LIB-04**: Library persists across app launches using SwiftData `VersionedSchema`; schema migrations are non-destructive
+- [ ] **LIB-05**: Library handles the case where the source PHAsset has been deleted from Photos (graceful error, not a crash)
+
+### Recipes
+
+- [ ] **RECIPE-01**: User can save the current adjustment stack as a named Recipe
+- [ ] **RECIPE-02**: User can apply any saved Recipe to any photo (replaces the current adjustment stack)
+- [ ] **RECIPE-03**: User can rename, reorder, and delete saved Recipes
+- [ ] **RECIPE-04**: User can export a Recipe to a shareable file and import a Recipe from a shared file (round-trip preserves all values)
+- [ ] **RECIPE-05**: Recipes referencing a filter UUID that no longer exists fail gracefully (filter slot blank, other adjustments still apply)
+
+### Export
+
+- [ ] **EXPORT-01**: User can save the full-resolution edited image to Photos (full-res, original aspect)
+- [ ] **EXPORT-02**: User can share via the system share sheet (any iOS share target)
+- [ ] **EXPORT-03**: User can choose export format: JPEG / HEIC / PNG
+- [ ] **EXPORT-04**: User can choose export size: full / web / story presets, plus custom long-edge value
+- [ ] **EXPORT-05**: Lossy formats (JPEG/HEIC) expose a quality slider
+- [ ] **EXPORT-06**: Exports preserve color profile (Display P3 where supported) and basic EXIF (date/orientation); GPS/identifying metadata stripped by default
+
+### UX & Accessibility
+
+- [ ] **UX-01**: The interface visibly distinguishes itself from a stock SwiftUI template — distinctive typography, layout, and motion design
+- [ ] **UX-02**: All slider interactions have appropriate haptics (zero-crossing tick, end-stop bump, value-snap)
+- [ ] **UX-03**: Panel transitions use spring animation with no layout shift in the canvas during open/close
+- [ ] **UX-04**: All controls support Dynamic Type up to XL without truncation or overflow
+- [ ] **UX-05**: All adjustment controls have correct VoiceOver labels and use `.accessibilityAdjustableAction` so values are announced and adjustable
+- [ ] **UX-06**: Reduce Motion preference disables non-essential animations; all gestures remain functional
+- [ ] **UX-07**: App supports both Light and Dark appearance with deliberate per-mode color choices (not just system defaults)
+- [ ] **UX-08**: First-run flow explains the photo-library permission and gracefully handles `.limited` access
+- [ ] **UX-09**: iPhone layout is the primary target; iPad runs the same layout without crashing or clipping
+
+## v2 Requirements
+
+### Camera
+
+- **CAM-01**: In-app manual camera (ISO/shutter/focus/WB)
+- **CAM-02**: RAW (DNG) capture
+- **CAM-03**: Grid overlay, level indicator, front/back switching, flash control
+- **CAM-04**: Direct hand-off from camera capture into the editor
+
+### Polish & Beyond
+
+- **CLOUD-01**: Optional iCloud sync of library + recipes (CloudKit, no accounts)
+- **IPAD-01**: iPad-optimized layout (split panels, keyboard shortcuts, pencil support)
+- **BATCH-01**: Apply a Recipe to multiple library items at once
+
+## Out of Scope
+
+| Feature | Reason |
+|---------|--------|
+| Social feed / profiles / discovery | VSCO's social side is explicitly not part of this product — editor only |
+| Accounts / sign-in / auth | No backend by design |
+| AI auto-enhance / sky replace / generative fill | Contradicts the "human-curated film look" identity |
+| Video editing | Photos only |
+| Subscriptions / IAP / paid filter packs | Free, no monetization |
+| Real-time collaborative editing | Local-only by design |
+| Backend / analytics / telemetry | Local-only, privacy-first |
+| Watermark on exports | Free product, no attribution required |
+
+## Traceability
+
+Populated during roadmap creation.
+
+| Requirement | Phase | Status |
+|-------------|-------|--------|
+| (pending roadmap) | — | Pending |
+
+**Coverage:**
+- v1 requirements: 49 total
+- Mapped to phases: 0 (pending roadmap)
+- Unmapped: 49 ⚠️
+
+---
+*Requirements defined: 2026-05-03*
+*Last updated: 2026-05-03 after initialization*
