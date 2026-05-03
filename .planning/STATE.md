@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: planning
-stopped_at: Completed 07-06-PLAN.md
-last_updated: "2026-05-03T22:52:46.974Z"
+stopped_at: Completed 07-05-PLAN.md
+last_updated: "2026-05-03T22:52:50.542Z"
 last_activity: 2026-05-03 — Roadmap created; requirements mapped to 7 phases
 progress:
   total_phases: 7
@@ -87,6 +87,7 @@ Progress: [██░░░░░░░░] 20%
 | Phase 07-polish-accessibility P07-02 | 3min | 1 tasks | 1 files |
 | Phase 07-polish-accessibility P07-01 | 3min | 1 tasks | 1 files |
 | Phase 07-polish-accessibility P07-04 | 5min | 1 tasks | 1 files |
+| Phase 07-polish-accessibility P07-05 | 5min | 1 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -157,6 +158,7 @@ Recent decisions affecting current work:
 - [Phase 07-polish-accessibility]: Theme: Color(light:dark:) uses UIColor dynamicProvider so tokens work outside SwiftUI view hierarchy
 - [Phase 07-polish-accessibility]: Theme: Accent locked to #E89A52 (dark) / #B66A2A (light) — replaces Apple-blue tint throughout app
 - [Phase 07-polish-accessibility]: AdjustmentSlider: zero-cross haptic uses defaultValue==0 guard; end-stop fires on double-tap reset; Motion.adaptive wraps value-bubble fade for Reduce Motion compliance
+- [Phase 07-polish-accessibility]: FilterStripView: Haptic.play(.filterSelect) guarded by selectedFilterID != filter.id — no haptic when tapping already-selected filter
 
 ### Pending Todos
 
@@ -171,6 +173,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-05-03T22:52:46.972Z
-Stopped at: Completed 07-06-PLAN.md
+Last session: 2026-05-03T22:52:50.540Z
+Stopped at: Completed 07-05-PLAN.md
 Resume file: None
