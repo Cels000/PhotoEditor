@@ -7,7 +7,7 @@ Build a premium-feeling iOS photo editor from a brownfield SwiftUI seed. The arc
 ## Phases
 
 - [ ] **Phase 1: Rendering Foundation** - Replace the existing CIPhotoEffect pipeline with a Metal-backed RenderEngine, AdjustmentStack data model, and dual preview/export render paths
-- [ ] **Phase 2: LUT Filter Pipeline** - Ship 20–30 hand-curated 64-point LUT filters with stable IDs, per-filter defaults, strength blending, and a live-preview filter strip
+- [x] **Phase 2: LUT Filter Pipeline** - Ship 20–30 hand-curated 64-point LUT filters with stable IDs, per-filter defaults, strength blending, and a live-preview filter strip (completed 2026-05-03)
 - [ ] **Phase 3: Editor UI + Full Adjustments** - Build the complete editor surface (light, color, HSL, curves, grain, vignette, sharpen, crop, undo/redo, before/after) against the live render pipeline
 - [ ] **Phase 4: Library + Persistence** - SwiftData-backed in-app library with thumbnails, re-edit capability, and graceful PHAsset handling
 - [ ] **Phase 5: Export** - Full-resolution export with format/size/quality options, share sheet, ICC profile embedding, and EXIF passthrough
@@ -62,7 +62,17 @@ Build a premium-feeling iOS photo editor from a brownfield SwiftUI seed. The arc
   4. Undo and redo step through every discrete adjustment in the session; Reset All (with confirmation) returns to the original
   5. Press-and-hold the canvas shows the unedited original; release restores the edited view
   6. Double-tap any slider resets it to its default value
-**Plans**: TBD
+**Plans**: 10 plans
+  - [ ] 03-01-PLAN.md — PipelineBuilder.applyLight: whites + blacks via CIToneCurve 5-point endpoint shaping
+  - [ ] 03-02-PLAN.md — PipelineBuilder.applyColor: temperature + tint via CITemperatureAndTint
+  - [ ] 03-03-PLAN.md — PipelineBuilder effects group: applyGrain, applyVignette, applySharpness
+  - [ ] 03-04-PLAN.md — Reusable AdjustmentSlider + SliderValueFormatter (double-tap reset, value bubble, accessibility)
+  - [ ] 03-05-PLAN.md — PipelineBuilder.applyHSL via CIColorMatrix-masked per-channel passes
+  - [ ] 03-06-PLAN.md — PipelineBuilder.applyCurves (5-point sampled CIToneCurve, RGB + per-channel) and applySplitToning
+  - [ ] 03-07-PLAN.md — UndoStack value type + EditorViewModel undo/redo with drag coalescing and reset-with-undo
+  - [ ] 03-08-PLAN.md — Panel container UI: tabs + slide-up + Light/Color/HSL/Curves/Effects panels + UndoToolbar + CompareGesture (no canvas layout shift)
+  - [ ] 03-09-PLAN.md — Crop module: aspect presets + rotate/flip + Mantis SPM bridge with #if canImport fallback (build never breaks)
+  - [ ] 03-10-PLAN.md — Replace ContentView smoke-test sliders with full panel system; remove inline AdjustmentSlider declaration
 
 ### Phase 4: Library + Persistence
 **Goal**: Edited photos persist in an in-app library across launches; users can return to any photo and continue editing exactly where they left off
@@ -114,8 +124,8 @@ Build a premium-feeling iOS photo editor from a brownfield SwiftUI seed. The arc
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Rendering Foundation | 0/5 | Not started | - |
-| 2. LUT Filter Pipeline | 0/6 | Not started | - |
-| 3. Editor UI + Full Adjustments | 0/TBD | Not started | - |
+| 2. LUT Filter Pipeline | 0/6 | Complete    | 2026-05-03 |
+| 3. Editor UI + Full Adjustments | 0/10 | Not started | - |
 | 4. Library + Persistence | 0/TBD | Not started | - |
 | 5. Export | 0/TBD | Not started | - |
 | 6. Recipes | 0/TBD | Not started | - |

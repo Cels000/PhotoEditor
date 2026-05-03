@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: planning
-stopped_at: Completed 02-06-PLAN.md — FilterStripView + FilterThumbnailCache wired; Phase 2 filter pipeline complete
-last_updated: "2026-05-03T20:54:04.434Z"
+stopped_at: Completed 03-01-PLAN.md — whites/blacks CIToneCurve implemented; all 6 light controls wired
+last_updated: "2026-05-03T21:11:40.494Z"
 last_activity: 2026-05-03 — Roadmap created; requirements mapped to 7 phases
 progress:
   total_phases: 7
   completed_phases: 2
-  total_plans: 11
-  completed_plans: 11
+  total_plans: 21
+  completed_plans: 12
   percent: 20
 ---
 
@@ -57,6 +57,7 @@ Progress: [██░░░░░░░░] 20%
 | Phase 02-lut-filter-pipeline P02-04 | 8min | 2 tasks | 2 files |
 | Phase 02-lut-filter-pipeline P02-05 | 10min | 2 tasks | 3 files |
 | Phase 02-lut-filter-pipeline P02-06 | 12min | 4 tasks | 5 files |
+| Phase 03-editor-ui-full-adjustments P03-01 | 5min | 1 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -86,6 +87,7 @@ Recent decisions affecting current work:
 - [Phase 02-lut-filter-pipeline]: PipelineBuilder.applyLUT: CubeResolver defaults nil for backward compat; strength blend via CIColorMatrix aVector + CISourceOverCompositing; 02-06 owns RenderEngine wiring
 - [Phase 02-lut-filter-pipeline]: ImportedImage is struct — photo identity in FilterStripView uses previewCIImage.extent.debugDescription, not ObjectIdentifier
 - [Phase 02-lut-filter-pipeline]: FilterStripView thumbnails bypass PipelineBuilder — LUT-only render so strip remains stable visual reference while user edits other adjustments
+- [Phase 03-editor-ui-full-adjustments]: Whites/Blacks: 5-point CIToneCurve endpoint shaping; input ±1 → ±0.3 curve shift; gated on non-zero to preserve identity
 
 ### Pending Todos
 
@@ -100,6 +102,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-05-03T20:54:04.432Z
-Stopped at: Completed 02-06-PLAN.md — FilterStripView + FilterThumbnailCache wired; Phase 2 filter pipeline complete
+Last session: 2026-05-03T21:11:40.492Z
+Stopped at: Completed 03-01-PLAN.md — whites/blacks CIToneCurve implemented; all 6 light controls wired
 Resume file: None
