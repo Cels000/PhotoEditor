@@ -31,8 +31,8 @@ struct PanelContainerView: View {
             }
             .frame(height: panelHeight)
             .frame(maxWidth: .infinity)
-            .background(Color(.secondarySystemBackground))
-            .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+            .background(Theme.Colors.panel)
+            .clipShape(RoundedRectangle(cornerRadius: Theme.Radii.large, style: .continuous))
             .transition(.move(edge: .bottom))
 
             // Tab bar.
@@ -46,7 +46,9 @@ struct PanelContainerView: View {
             HStack(spacing: 16) {
                 ForEach(EditorPanelTab.allCases) { tab in
                     Button {
-                        withAnimation(.spring(duration: 0.3, bounce: 0.2)) {
+                        guard selectedTab != tab else { return }
+                        Haptic.play(.panelOpen)
+                        withAnimation(Motion.adaptive(Motion.panel)) {
                             selectedTab = tab
                         }
                     } label: {
@@ -54,9 +56,9 @@ struct PanelContainerView: View {
                             Image(systemName: tab.systemImage)
                                 .font(.system(size: 18, weight: .semibold))
                             Text(tab.displayName)
-                                .font(.caption2)
+                                .font(Theme.Typography.caption)
                         }
-                        .foregroundStyle(selectedTab == tab ? Color.accentColor : .secondary)
+                        .foregroundStyle(selectedTab == tab ? Theme.Colors.accent : Theme.Colors.secondary)
                         .frame(width: 64)
                     }
                     .accessibilityLabel("\(tab.displayName) panel")
