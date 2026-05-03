@@ -70,7 +70,34 @@ enum PipelineBuilder {
             }
         }
 
-        // whites / blacks: Phase 1 stub — no-op (Phase 3 wires fully)
+        // Whites/Blacks: 5-point CIToneCurve endpoint shaping (full free-form curves come in 03-06).
+        // Skip if both zero to preserve identity-stack guarantee.
+        if light.whites != 0 || light.blacks != 0 {
+            let curve = CIFilter.toneCurve()
+            curve.inputImage = output
+
+            // -1...+1 inputs → endpoint shifts of ±0.3 in normalized space.
+            let blacksShift = Float(max(-1, min(1, light.blacks))) * 0.3
+            let whitesShift = Float(max(-1, min(1, light.whites))) * 0.3
+
+            // p0 lifts/crushes blacks: positive blacks → x>0 → blacks lifted; negative → y<0 (clamped 0).
+            let p0x: Float = max(0, blacksShift)
+            let p0y: Float = max(0, -blacksShift)
+            // p4 compresses/extends whites: positive whites → y stays 1.0 (push x<1 toward 1, brightening); negative → y<1 (compress whites)
+            let p4x: Float = min(1, 1.0 - max(0, whitesShift))
+            let p4y: Float = min(1, 1.0 + min(0, whitesShift))
+
+            curve.point0 = CGPoint(x: CGFloat(p0x), y: CGFloat(p0y))
+            curve.point1 = CGPoint(x: 0.25, y: 0.25)
+            curve.point2 = CGPoint(x: 0.5,  y: 0.5)
+            curve.point3 = CGPoint(x: 0.75, y: 0.75)
+            curve.point4 = CGPoint(x: CGFloat(p4x), y: CGFloat(p4y))
+
+            if let result = curve.outputImage {
+                output = result
+            }
+        }
+
         return output
     }
 
