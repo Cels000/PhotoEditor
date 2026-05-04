@@ -11,6 +11,7 @@ enum RecipeCategory: String, CaseIterable, Identifiable {
     case colorFilm     = "color_film"
     case bwFilm        = "bw_film"
     case era           = "era"
+    case modern        = "modern"
 
     var id: String { rawValue }
 
@@ -20,6 +21,7 @@ enum RecipeCategory: String, CaseIterable, Identifiable {
         case .colorFilm:  return "Color Film"
         case .bwFilm:     return "B&W Film"
         case .era:        return "Era & Camera"
+        case .modern:     return "Modern"
         }
     }
 }

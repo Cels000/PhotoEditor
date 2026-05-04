@@ -32,7 +32,7 @@ import Foundation
 
 enum BuiltInPresets {
 
-    private static let seedKey = "builtInPresetsSeeded.v9"
+    private static let seedKey = "builtInPresetsSeeded.v10"
 
     /// Old preset name → new preset name. v9 swap renames so each preset's
     /// title matches the underlying bundled LUT (Polaroid 600 was using a
@@ -98,7 +98,7 @@ enum BuiltInPresets {
                 inserted += 1
             }
         }
-        NSLog("PhotoEditor: BuiltInPresets seed v9 — renamed \(renamed), inserted \(inserted), updated \(updated) of \(all.count)")
+        NSLog("PhotoEditor: BuiltInPresets seed v10 — renamed \(renamed), inserted \(inserted), updated \(updated) of \(all.count)")
         defaults.set(true, forKey: seedKey)
     }
 
@@ -154,10 +154,18 @@ enum BuiltInPresets {
         static let eliteColor400  = "cube.kodak_elite_color_400"
         static let polaroid669    = "cube.polaroid_669"
         static let fp100c         = "cube.fuji_fp-100c"
+        // Modern / creative grades (not film emulations)
+        static let cinematicTeal  = "cube.cinematic_teal"
+        static let punchOverlay   = "cube.punch_overlay"
+        static let vividDusk1     = "cube.vivid_dusk_1"
+        static let vividDusk2     = "cube.vivid_dusk_2"
+        static let vividDusk3     = "cube.vivid_dusk_3"
+        static let vividDusk4     = "cube.vivid_dusk_4"
+        static let vividDusk5     = "cube.vivid_dusk_5"
     }
 
     private static var all: [Preset] {
-        defaults + colorFilm + bwFilm + era
+        defaults + colorFilm + bwFilm + era + modern
     }
 
     // MARK: Default — surface the bundled LUTs as one-tap recipes
@@ -917,6 +925,70 @@ enum BuiltInPresets {
                 CurvePoint(x: 1.0, y: 0.84)
             ]
             s.halation = 0.12
+            return s
+        }())
+    ]
+
+    // MARK: Modern
+    //
+    // Creative grades, not film emulations. The LUT carries the look — recipes
+    // here are thin (light vibrance / contrast polish) so the LUT's authored
+    // intent dominates. Punch Overlay was authored as a low-opacity overlay
+    // (40-60% in After Effects), so its strength stays low.
+
+    private static let modern: [Preset] = [
+
+        // Cinematic Teal — orange-skin / teal-shadow Hollywood grade. Lifts
+        // and cools shadows, warms midtones. Looks great on outdoor portraits
+        // and travel; reads heavy on neutral product shots.
+        Preset(name: "Cinematic Teal", category: .modern, stack: {
+            var s = stack(filterID: LUT.cinematicTeal, strength: 0.85)
+            s.color.vibrance = 0.05
+            s.light.shadows = 0.05
+            s.light.highlights = -0.05
+            return s
+        }()),
+
+        // Punch Overlay — contrast + saturation booster designed as an
+        // overlay. Half-strength so it adds zip without crushing.
+        Preset(name: "Punch", category: .modern, stack: {
+            var s = stack(filterID: LUT.punchOverlay, strength: 0.5)
+            s.color.vibrance = 0.05
+            return s
+        }()),
+
+        // Vivid Dusk 1 — warm magenta sunset wash.
+        Preset(name: "Dusk 01", category: .modern, stack: {
+            var s = stack(filterID: LUT.vividDusk1, strength: 0.85)
+            s.color.vibrance = 0.05
+            return s
+        }()),
+
+        // Vivid Dusk 2 — cool blue-magenta twilight.
+        Preset(name: "Dusk 02", category: .modern, stack: {
+            var s = stack(filterID: LUT.vividDusk2, strength: 0.85)
+            s.color.vibrance = 0.05
+            return s
+        }()),
+
+        // Vivid Dusk 3 — saturated golden-hour amber.
+        Preset(name: "Dusk 03", category: .modern, stack: {
+            var s = stack(filterID: LUT.vividDusk3, strength: 0.85)
+            s.color.vibrance = 0.05
+            return s
+        }()),
+
+        // Vivid Dusk 4 — punchy teal/orange with deep shadows.
+        Preset(name: "Dusk 04", category: .modern, stack: {
+            var s = stack(filterID: LUT.vividDusk4, strength: 0.85)
+            s.color.vibrance = 0.05
+            return s
+        }()),
+
+        // Vivid Dusk 5 — desaturated moody pastel.
+        Preset(name: "Dusk 05", category: .modern, stack: {
+            var s = stack(filterID: LUT.vividDusk5, strength: 0.85)
+            s.color.vibrance = 0.05
             return s
         }())
     ]
