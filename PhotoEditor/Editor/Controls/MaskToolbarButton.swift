@@ -39,7 +39,10 @@ struct MaskToolbarButton: View {
     }
 
     private var disabled: Bool {
-        viewModel.importedImage == nil || viewModel.maskComputeInFlight
+        // Active masks always allow taps (open refinement). For idle, defer to
+        // canApplyMask which gates 0-instance state in addition to no-photo.
+        if viewModel.document.mask != nil { return false }
+        return !viewModel.canApplyMask || viewModel.maskComputeInFlight
     }
 
     private var accessibilityLabel: String {

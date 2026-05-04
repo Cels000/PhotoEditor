@@ -395,7 +395,14 @@ final class EditorViewModel {
             self.currentLibraryItem = item
             self.undoStack.clear(seed: self.document)
             await renderPreviewNow()
-            prefetchMaskForCurrentPhoto()
+            // If the saved document already has a mask, restore the mask result so
+            // the composite renders correctly. Otherwise just prefetch for the
+            // common case where the user enables a mask later.
+            if self.document.mask != nil {
+                await restoreMaskResultForCurrentPhoto()
+            } else {
+                prefetchMaskForCurrentPhoto()
+            }
         } catch ImageImportError.phAssetUnavailable {
             errorMessage = "This photo's source is no longer in your Photos library."
         } catch {
@@ -469,9 +476,16 @@ final class EditorViewModel {
     // MARK: - Mask lifecycle (Task 8)
 
     /// True when the mask toolbar button should accept taps.
-    /// False if no photo is loaded, or if a previous compute returned 0 instances.
+    /// Disabled when no photo is loaded, or when a previous compute on this asset
+    /// returned 0 instances (currentMaskResult is non-nil with instanceCount == 0).
     var canApplyMask: Bool {
-        importedImage != nil
+        guard importedImage != nil else { return false }
+        // After a compute that returned 0 instances, leave the button disabled
+        // until a new photo is imported (which clears currentMaskResult).
+        if let result = currentMaskResult, result.instanceCount == 0 {
+            return false
+        }
+        return true
     }
 
     /// Triggered by the toolbar tap. Computes (or fetches cached) mask, then enables
@@ -518,6 +532,26 @@ final class EditorViewModel {
         guard let imported = importedImage else { return }
         let assetID: AssetID = imported.sourceAssetID ?? "unattached-\(ObjectIdentifier(self).hashValue)"
         maskStore.prefetch(for: assetID, source: imported.previewCIImage)
+    }
+
+    /// Compute (or fetch cached) mask result and update currentMaskResult so the
+    /// composite render path can use it. Used by openLibraryItem when the saved
+    /// document already has a mask attached. Errors are swallowed — if Vision fails
+    /// here, the document still loads with single-stack render until the user
+    /// re-enables the mask manually.
+    private func restoreMaskResultForCurrentPhoto() async {
+        guard let imported = importedImage else { return }
+        let assetID: AssetID = imported.sourceAssetID ?? "unattached-\(ObjectIdentifier(self).hashValue)"
+        do {
+            let result = try await maskStore.mask(for: assetID, source: imported.previewCIImage)
+            // The user may have removed the mask while we were waiting; double-check.
+            guard document.mask != nil else { return }
+            self.currentMaskResult = result
+            self.lastDetectedInstanceCount = result.instanceCount
+            stackDidChange()  // re-render with composite
+        } catch {
+            // Soft failure — single-stack render remains until user re-taps mask.
+        }
     }
 
     /// Refinement: feather slider (0–1).

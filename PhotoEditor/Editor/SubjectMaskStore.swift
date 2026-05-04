@@ -14,7 +14,7 @@ import Vision
 
 typealias AssetID = String
 
-struct SubjectMaskResult: Equatable {
+struct SubjectMaskResult: Equatable, @unchecked Sendable {
     let combined: CIImage
     let perInstance: [CIImage]
     let instanceCount: Int
