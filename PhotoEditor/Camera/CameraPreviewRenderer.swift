@@ -84,7 +84,7 @@ final class CameraPreviewRenderer: NSObject {
     /// Public-static so tests can call it directly.
     static func applyLUT(filterSelection: FilterSelection?,
                          to image: CIImage,
-                         cubeResolver: CubeResolver) -> CIImage {
+                         cubeResolver: @escaping CubeResolver) -> CIImage {
         guard let sel = filterSelection,
               !sel.filterID.isEmpty,
               sel.strength > 0,
