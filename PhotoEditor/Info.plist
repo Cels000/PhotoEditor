@@ -39,6 +39,8 @@
 	<string>Photo Editor saves your edited images to your photo library.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Photo Editor needs full Photos access so you can pick photos to edit and re-open saved edits later.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Photo Editor uses your camera so you can shoot through your favorite presets.</string>
 	<key>PHPhotoLibraryPreventAutomaticLimitedAccessAlert</key>
 	<true/>
 	<key>UIApplicationSceneManifest</key>
