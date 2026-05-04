@@ -608,6 +608,8 @@ enum PipelineBuilder {
         s.sharpness = Float(max(0, min(1, sharpness)) * 2.0) // 0...2 useful
         return s.outputImage ?? image
     }
+    // MARK: - applyCrop (internal visibility for masked-compositing extension)
+
     /// Crop, free-rotate, 90° steps, and flips. Applied LAST in the pipeline.
     /// Per Pitfall #10: free-rotate MUST be a single transform from the source extent;
     /// never chain extent.integral across renders.
@@ -671,5 +673,83 @@ enum PipelineBuilder {
             y: -output.extent.origin.y))
         _ = extent0  // referenced for symmetry (no-op)
         return final
+    }
+}
+
+// MARK: - Masked compositing (Task 3)
+//
+// Renders an EditDocument: when document.mask is set and a SubjectMaskProvider
+// returns a mask for the given assetID, the subject and background stacks are
+// rendered uncropped, composited via CIBlendWithMask, then cropped using
+// subjectStack.crop. When mask is nil OR no provider/result is available, the
+// path falls back to a single-stack render of subjectStack (legacy behavior).
+
+extension PipelineBuilder {
+
+    static func build(document: EditDocument,
+                      source: CIImage,
+                      cubeResolver: CubeResolver?,
+                      maskProvider: SubjectMaskProvider?,
+                      assetID: AssetID? = nil) -> CIImage {
+
+        guard let mask = document.mask,
+              let assetID = assetID,
+              let provider = maskProvider,
+              let maskResult = provider.currentMask(for: assetID) else {
+            return build(stack: document.subjectStack, source: source, cubeResolver: cubeResolver)
+        }
+
+        let subjectPass = build(stack: document.subjectStack, source: source,
+                                cubeResolver: cubeResolver, suppressCrop: true)
+        let bgPass = build(stack: document.backgroundStack, source: source,
+                           cubeResolver: cubeResolver, suppressCrop: true)
+
+        let effectiveMask = resolveEffectiveMask(maskResult: maskResult,
+                                                 settings: mask,
+                                                 sourceExtent: source.extent)
+
+        let blend = CIFilter.blendWithMask()
+        blend.inputImage = subjectPass
+        blend.backgroundImage = bgPass
+        blend.maskImage = effectiveMask
+        let composite = blend.outputImage ?? subjectPass
+
+        return applyCrop(document.subjectStack.crop, to: composite)
+    }
+
+    private static func resolveEffectiveMask(maskResult: SubjectMaskResult,
+                                             settings: SubjectMask,
+                                             sourceExtent: CGRect) -> CIImage {
+        var mask = maskResult.combined
+
+        // Subtract excluded per-instance masks from the combined.
+        if !settings.excludedInstances.isEmpty {
+            for index in settings.excludedInstances {
+                guard index >= 0, index < maskResult.perInstance.count else { continue }
+                let exclude = maskResult.perInstance[index]
+                let subtract = CIFilter.subtractBlendMode()
+                subtract.inputImage = exclude
+                subtract.backgroundImage = mask
+                if let r = subtract.outputImage {
+                    mask = r.cropped(to: sourceExtent)
+                }
+            }
+        }
+
+        if settings.invert {
+            let inv = CIFilter.colorInvert()
+            inv.inputImage = mask
+            if let r = inv.outputImage { mask = r }
+        }
+
+        if settings.feather > 0 {
+            let radius = settings.feather * Double(min(sourceExtent.width, sourceExtent.height)) * 0.02
+            let blur = CIFilter.gaussianBlur()
+            blur.inputImage = mask
+            blur.radius = Float(radius)
+            if let r = blur.outputImage?.cropped(to: sourceExtent) { mask = r }
+        }
+
+        return mask
     }
 }
