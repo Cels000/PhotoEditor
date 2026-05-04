@@ -33,10 +33,11 @@ struct EffectsPanelView: View {
 
     @ViewBuilder
     private func sectionHeader(_ title: String) -> some View {
-        Text(title)
-            .font(Theme.Typography.caption)
-            .foregroundStyle(.secondary)
-            .textCase(.uppercase)
+        Text(title.uppercased())
+            .font(Theme.Typography.label)
+            .tracking(1.5)
+            .foregroundStyle(Theme.Colors.secondary)
+            .padding(.top, Theme.Spacing.sm)
     }
 
     @ViewBuilder

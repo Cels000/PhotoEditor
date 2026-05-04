@@ -32,8 +32,16 @@ struct PanelContainerView: View {
             }
             .frame(height: panelHeight)
             .frame(maxWidth: .infinity)
-            .background(Theme.Colors.panel)
-            .clipShape(RoundedRectangle(cornerRadius: Theme.Radii.large, style: .continuous))
+            // No rounded card chrome — panel is continuous with canvas, only
+            // a single hairline separator distinguishes it from the photo area.
+            .background(
+                Theme.Colors.canvas
+                    .overlay(alignment: .top) {
+                        Rectangle()
+                            .fill(Theme.Colors.separator)
+                            .frame(height: 0.5)
+                    }
+            )
             .transition(.move(edge: .bottom))
 
             // Tab bar.
@@ -43,8 +51,11 @@ struct PanelContainerView: View {
     }
 
     private var tabBar: some View {
+        // VSCO-style: tiny UPPERCASE labels with letterspacing. Selection is
+        // bold + accent text only — no pill, no underline, no decoration.
+        // The chrome stays out of the photo's way.
         ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: Theme.Spacing.sm) {
+            HStack(spacing: Theme.Spacing.lg) {
                 ForEach(EditorPanelTab.allCases) { tab in
                     Button {
                         guard selectedTab != tab else { return }
@@ -53,21 +64,12 @@ struct PanelContainerView: View {
                             selectedTab = tab
                         }
                     } label: {
-                        HStack(spacing: 6) {
-                            Image(systemName: tab.systemImage)
-                                .font(.system(size: 14, weight: .semibold))
-                            if selectedTab == tab {
-                                Text(tab.displayName)
-                                    .font(Theme.Typography.caption)
-                            }
-                        }
-                        .foregroundStyle(selectedTab == tab ? Theme.Colors.canvas : Theme.Colors.secondary)
-                        .padding(.horizontal, Theme.Spacing.md)
-                        .padding(.vertical, 6)
-                        .background(
-                            Capsule()
-                                .fill(selectedTab == tab ? Theme.Colors.accent : Color.clear)
-                        )
+                        Text(tab.displayName.uppercased())
+                            .font(Theme.Typography.label)
+                            .tracking(1.5)
+                            .foregroundStyle(selectedTab == tab ? Theme.Colors.text : Theme.Colors.secondary)
+                            .padding(.vertical, Theme.Spacing.sm)
+                            .frame(minWidth: 44)
                     }
                     .accessibilityLabel("\(tab.displayName) panel")
                     .accessibilityAddTraits(selectedTab == tab ? .isSelected : [])

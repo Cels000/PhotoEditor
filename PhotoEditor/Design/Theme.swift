@@ -1,22 +1,29 @@
 import SwiftUI
 
 enum Theme {
+    // VSCO-style monochrome palette. The accent is intentionally non-chromatic
+    // — selection state in VSCO is just darker text on white (or white on black),
+    // never a colored highlight. The photo provides all the color in the UI.
     enum Colors {
-        static let canvas: Color    = Color(light: 0xF5EFE8, dark: 0x0E0D0C)
-        static let panel: Color     = Color(light: 0xFFFFFF, dark: 0x1B1916)
-        static let accent: Color    = Color(light: 0xB66A2A, dark: 0xE89A52)
-        static let text: Color      = Color(light: 0x1A1816, dark: 0xF5EFE8)
-        static let secondary: Color = Color(light: 0x6E6961, dark: 0x8A8378)
-        static let separator: Color = Color(light: 0xE5DED4, dark: 0x2A2622)
+        static let canvas: Color    = Color(light: 0xFFFFFF, dark: 0x000000)
+        static let panel: Color     = Color(light: 0xFAFAFA, dark: 0x0A0A0A)
+        static let accent: Color    = Color(light: 0x0A0A0A, dark: 0xFFFFFF) // emphasis tone
+        static let text: Color      = Color(light: 0x0A0A0A, dark: 0xF2F2F2)
+        static let secondary: Color = Color(light: 0x8E8E8E, dark: 0x6E6E6E)
+        static let separator: Color = Color(light: 0xEAEAEA, dark: 0x1A1A1A)
     }
 
+    // Typography is small, sparse, often UPPERCASE with letterspacing — VSCO's
+    // signature understatement. Body text is system-default; chrome labels are
+    // tiny, tracked-out captions.
     enum Typography {
-        // All use relativeTo: a system text style so Dynamic Type works (UX-04).
-        static let title: Font        = .system(.largeTitle, design: .rounded).weight(.semibold)
-        static let subtitle: Font     = .system(.headline, design: .default).weight(.medium)
+        static let title: Font        = .system(.title2, design: .default).weight(.regular)
+        static let subtitle: Font     = .system(.subheadline, design: .default).weight(.regular)
         static let body: Font         = .system(.body)
-        static let caption: Font      = .system(.caption)
-        static let valueBubble: Font  = .system(.footnote, design: .monospaced).monospacedDigit()
+        static let caption: Font      = .system(.caption2).weight(.medium)
+        static let valueBubble: Font  = .system(.caption, design: .monospaced).monospacedDigit()
+        // Tab/section labels: ALL CAPS at ~10pt with positive tracking.
+        static let label: Font        = .system(size: 10, weight: .semibold)
     }
 
     enum Spacing {
@@ -28,15 +35,18 @@ enum Theme {
     }
 
     enum Radii {
-        static let small: CGFloat  = 8
-        static let medium: CGFloat = 12
-        static let large: CGFloat  = 20
-        static let xLarge: CGFloat = 24
+        // VSCO uses minimal-to-zero rounding. Squares everywhere.
+        static let small: CGFloat  = 2
+        static let medium: CGFloat = 4
+        static let large: CGFloat  = 6
+        static let xLarge: CGFloat = 8
     }
 
     enum Shadow {
+        // VSCO uses essentially no drop shadows. Keep this for parity but
+        // dial way down — most surfaces should be flat.
         static let panel: (color: Color, radius: CGFloat, x: CGFloat, y: CGFloat) =
-            (Color.black.opacity(0.18), 12, 0, 4)
+            (Color.black.opacity(0.04), 4, 0, 1)
     }
 }
 

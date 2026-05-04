@@ -13,16 +13,18 @@ struct AdjustmentSlider: View {
     @State private var isEditing: Bool = false
 
     var body: some View {
+        // VSCO-style row: tiny UPPERCASE label, monospaced value, single
+        // hairline slider with mono accent. No card, no shadow.
         VStack(alignment: .leading, spacing: 2) {
             HStack {
-                Text(title)
-                    .font(Theme.Typography.caption)
+                Text(title.uppercased())
+                    .font(Theme.Typography.label)
+                    .tracking(1.0)
                     .foregroundStyle(Theme.Colors.secondary)
                 Spacer()
                 Text(format.format(value))
                     .font(Theme.Typography.valueBubble)
                     .foregroundStyle(isEditing ? Theme.Colors.text : Theme.Colors.secondary)
-                    .opacity(isEditing ? 1.0 : 0.8)
                     .animation(Motion.adaptive(Motion.smooth), value: isEditing)
             }
 
@@ -30,7 +32,7 @@ struct AdjustmentSlider: View {
                 isEditing = editing
                 onEditingChanged(editing)
             })
-            .tint(Theme.Colors.accent)
+            .tint(Theme.Colors.text)
         }
         .contentShape(Rectangle())
         .onTapGesture(count: 2) {

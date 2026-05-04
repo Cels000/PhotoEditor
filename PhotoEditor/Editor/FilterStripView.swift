@@ -56,34 +56,31 @@ struct FilterStripView: View {
                             .redacted(reason: .placeholder)
                     }
                 }
-                .frame(width: 56, height: 56)
-                .clipShape(RoundedRectangle(cornerRadius: 10))
+                .frame(width: 60, height: 60)
                 .overlay(
-                    RoundedRectangle(cornerRadius: 10)
-                        .stroke(isSelected ? Theme.Colors.accent : Color.clear, lineWidth: 2.5)
+                    // VSCO-style: hairline border only on selected cell. No
+                    // rounded corners — squares.
+                    Rectangle()
+                        .stroke(isSelected ? Theme.Colors.accent : Color.clear, lineWidth: 1.5)
                         .animation(Motion.adaptive(Motion.snappy), value: isSelected)
                 )
 
                 if isFavorite {
                     Image(systemName: "star.fill")
-                        .font(.system(size: 9))
-                        .foregroundStyle(Theme.Colors.accent)
+                        .font(.system(size: 8))
+                        .foregroundStyle(Theme.Colors.text)
                         .padding(3)
                 }
             }
-            // Show the name only on the selected cell — keeps the strip compact.
-            if isSelected {
-                Text(filter.displayName)
-                    .font(.system(size: 10, weight: .semibold))
-                    .lineLimit(1)
-                    .foregroundStyle(Theme.Colors.accent)
-            } else {
-                Text(" ")
-                    .font(.system(size: 10))
-                    .hidden()
-            }
+            // Always show the filter code — tiny, ALL CAPS, letterspaced.
+            // Selected cell turns text bold + primary; otherwise muted.
+            Text(filter.displayName.uppercased())
+                .font(Theme.Typography.label)
+                .tracking(1.0)
+                .lineLimit(1)
+                .foregroundStyle(isSelected ? Theme.Colors.text : Theme.Colors.secondary)
         }
-        .frame(width: 60)
+        .frame(width: 64)
         .contentShape(Rectangle())
         .onTapGesture {
             if selectedFilterID != filter.id { Haptic.play(.filterSelect) }

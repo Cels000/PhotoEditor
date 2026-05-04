@@ -18,7 +18,10 @@ struct CropPanelView: View {
 
     private var aspectPicker: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("Aspect").font(Theme.Typography.subtitle)
+            Text("ASPECT")
+                .font(Theme.Typography.label)
+                .tracking(1.5)
+                .foregroundStyle(Theme.Colors.secondary)
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 10) {
                     ForEach(CropAspectPreset.allCases) { preset in
