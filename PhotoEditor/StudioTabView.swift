@@ -16,15 +16,20 @@ struct StudioTabView: View {
     var onPhotoOpened: () -> Void
 
     @State private var segment: StudioSegment = .cameraRoll
-    @State private var showCamera: Bool = false
-    // Hoisted so they survive parent body re-evaluations. Creating these
-    // inside the .fullScreenCover content closure made every parent re-eval
-    // mint a fresh CameraViewModel — wiping the carousel thumbnailer's
-    // rendered cache and leaving every preset thumbnail grey on the next
-    // tap. State storage gives them stable identity across the cover's
-    // lifetime.
-    @State private var cameraVM: CameraViewModel?
-    @State private var cameraSession: CameraSession?
+    // Single piece of @State for camera presentation. The .fullScreenCover
+    // `item:` variant presents iff this is non-nil and dismisses by setting
+    // it nil — atomic, no race between separate Bool/VM/Session writes.
+    // Creating these inside the cover's content closure (the original code)
+    // re-minted a fresh CameraViewModel on every parent body re-eval, wiping
+    // the carousel thumbnailer's cached thumbs and leaving every preset
+    // grey after a tap.
+    @State private var cameraPresentation: CameraPresentation?
+
+    private struct CameraPresentation: Identifiable {
+        let id = UUID()
+        let viewModel: CameraViewModel
+        let session: CameraSession
+    }
 
     var body: some View {
         ZStack(alignment: .bottomTrailing) {
@@ -66,16 +71,9 @@ struct StudioTabView: View {
                 .padding(.trailing, 16)
                 .padding(.bottom, 16)
         }
-        .fullScreenCover(
-            isPresented: $showCamera,
-            onDismiss: {
-                cameraVM = nil
-                cameraSession = nil
-            }
-        ) {
-            if let cameraVM, let cameraSession {
-                CameraView(viewModel: cameraVM, session: cameraSession)
-            }
+        .fullScreenCover(item: $cameraPresentation) { presentation in
+            CameraView(viewModel: presentation.viewModel,
+                       session: presentation.session)
         }
     }
 
@@ -95,13 +93,13 @@ struct StudioTabView: View {
     private func presentCamera() {
         guard let libraryStore, let recipeStore = viewModel.recipeStore else { return }
         let library = viewModel.filterLibrary
-        cameraVM = CameraViewModel(
+        let vm = CameraViewModel(
             libraryStore: libraryStore,
             recipeStore: recipeStore,
             cubeResolver: { id in library.filter(withID: id)?.cube() }
         )
-        cameraSession = CameraSession()
-        showCamera = true
+        cameraPresentation = CameraPresentation(viewModel: vm,
+                                                session: CameraSession())
     }
 
     // MARK: - EDITS segment
