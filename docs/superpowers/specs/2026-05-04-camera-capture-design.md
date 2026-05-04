@@ -79,9 +79,10 @@ flag to `UserDefaults`. On capture:
 2. Write to Photos via `PHPhotoLibrary.shared().performChanges { … }` using
    `PHAssetCreationRequest.forAsset().addResource(with: .photo, data:, options:)`.
 3. Fetch the new `PHAsset.localIdentifier` from the change block.
-4. Call `LibraryStore.importFromCamera(assetID:initialFilterID:)` to create a
-   `LibraryItem` whose `AdjustmentStack` has only `filter = FilterSelection(
-   filterID: <selected>, strength: 1.0)` and everything else default.
+4. Call `LibraryStore.importFromCamera(assetID:stack:thumbnail:)` to create a
+   `LibraryItem` whose `AdjustmentStack` is the *full* stack of the selected
+   recipe (the entire recipe, not just its LUT). For the ORIGINAL slot the
+   stack is `AdjustmentStack.identity`.
 5. Use the cooked preview frame (already in memory) as the Library item
    thumbnail — faster than re-rendering.
 
@@ -113,7 +114,8 @@ flag to `UserDefaults`. On capture:
 
 ### State persistence
 `UserDefaults` keys (no SwiftData schema changes):
-- `camera.lastFilterID` — `String?`, nil for ORIGINAL slot
+- `camera.lastRecipeID` — `String?`, nil for ORIGINAL slot (otherwise
+  `RecipeItem.id.uuidString`)
 - `camera.flashMode` — `Int` (0=auto, 1=on, 2=off)
 - `camera.gridEnabled` — `Bool`
 
@@ -156,10 +158,16 @@ Portrait-only for v1.
 - Selected slot: 2pt white ring + 1.05 scale
 - Selected preset's display name shown below in tracked uppercase (matches
   app's VSCO-monochrome theme)
-- ORIGINAL slot at index 0 (always); subsequent slots are every preset shown
-  in the editor's preset picker (built-ins *and* user-imported `.photorecipe`
-  files), flattened across categories and presented in the same order the
-  editor uses; no category headers in the carousel
+- Carousel slot = a `RecipeItem` from `RecipeStore` (built-in presets *and*
+  user-imported `.photorecipe` recipes — the same source the editor's
+  `EditorPresetPickerView` reads). A synthetic ORIGINAL slot is prepended at
+  index 0; it carries `AdjustmentStack.identity` (no LUT, no adjustments).
+  Order: ORIGINAL, then `RecipeStore.items` flattened across categories in
+  `sortOrder` ascending (no category headers in the carousel).
+- Live preview applies only the recipe's `adjustmentStack.filter` portion (the
+  LUT) — every other adjustment (light, color, grain, vignette, etc.) is
+  ignored at viewfinder time but baked into the captured Library item's stack
+  in full.
 - Thumbnails refresh at 2 Hz, visible-only
 
 ### Shutter
@@ -239,15 +247,15 @@ Add a new method:
 ```swift
 func importFromCamera(
     assetID: String,
-    initialFilterID: String?,
-    thumbnail: CGImage?
+    stack: AdjustmentStack,
+    thumbnail: Data?
 ) -> LibraryItem
 ```
 
-Creates a `LibraryItem` referencing the `PHAsset` by `localIdentifier`, with an
-`AdjustmentStack` whose only non-default field is `filter` (set if
-`initialFilterID != nil`). Persists the supplied thumbnail to skip the
-`ThumbnailGenerator` round-trip on first display.
+Creates a `LibraryItem` referencing the `PHAsset` by `localIdentifier`, with the
+supplied `AdjustmentStack` (full recipe stack from the selected carousel slot,
+or `.identity` for ORIGINAL). Persists the supplied JPEG thumbnail bytes to
+skip the `ThumbnailGenerator` round-trip on first display.
 
 ### `Filters/FilterLibrary.swift`
 Reuse the existing `cubeResolver` closure that the editor uses; no API changes.
