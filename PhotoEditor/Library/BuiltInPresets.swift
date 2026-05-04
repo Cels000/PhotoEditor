@@ -32,7 +32,7 @@ import Foundation
 
 enum BuiltInPresets {
 
-    private static let seedKey = "builtInPresetsSeeded.v10"
+    private static let seedKey = "builtInPresetsSeeded.v11"
 
     /// Old preset name → new preset name. v9 swap renames so each preset's
     /// title matches the underlying bundled LUT (Polaroid 600 was using a
@@ -48,7 +48,17 @@ enum BuiltInPresets {
         "90s Disposable":  "Elite Color 400",
         "Polaroid SX-70":  "Polaroid 669",
         "Polaroid 600":    "Fuji FP-100C",
-        "T-Max 100":       "Delta 3200"
+        "T-Max 100":       "Delta 3200",
+        "Dusk 02":         "Dusk Cool",
+        "Dusk 04":         "Dusk Warm"
+    ]
+
+    /// Built-in preset names dropped from the curated set. Any item matching
+    /// a name here gets removed during seed (only when its name still matches
+    /// — user-renamed items are preserved). Used to clean up the redundant
+    /// Dusk 01/03/05 cubes that mid-grey-sampling showed were near-duplicates.
+    private static let removedNames: Set<String> = [
+        "Dusk 01", "Dusk 03", "Dusk 05"
     ]
 
     /// Insert (and update) built-in presets the first time we see this device on
@@ -77,6 +87,14 @@ enum BuiltInPresets {
             }
         }
 
+        // Second pass: remove dropped built-ins (only if name still matches a
+        // known dropped built-in — user-renamed items are user-owned now).
+        var removed = 0
+        for item in store.items where removedNames.contains(item.name) {
+            store.delete(item)
+            removed += 1
+        }
+
         let knownBuiltInNames = Set(nameToCategory.keys)
         var existingByName: [String: RecipeItem] = [:]
         for item in store.items where knownBuiltInNames.contains(item.name) {
@@ -98,7 +116,7 @@ enum BuiltInPresets {
                 inserted += 1
             }
         }
-        NSLog("PhotoEditor: BuiltInPresets seed v10 — renamed \(renamed), inserted \(inserted), updated \(updated) of \(all.count)")
+        NSLog("PhotoEditor: BuiltInPresets seed v11 — renamed \(renamed), removed \(removed), inserted \(inserted), updated \(updated) of \(all.count)")
         defaults.set(true, forKey: seedKey)
     }
 
@@ -157,11 +175,8 @@ enum BuiltInPresets {
         // Modern / creative grades (not film emulations)
         static let cinematicTeal  = "cube.cinematic_teal"
         static let punchOverlay   = "cube.punch_overlay"
-        static let vividDusk1     = "cube.vivid_dusk_1"
-        static let vividDusk2     = "cube.vivid_dusk_2"
-        static let vividDusk3     = "cube.vivid_dusk_3"
-        static let vividDusk4     = "cube.vivid_dusk_4"
-        static let vividDusk5     = "cube.vivid_dusk_5"
+        static let duskCool       = "cube.vivid_dusk_2"   // green-cool tint at mid-grey
+        static let duskWarm       = "cube.vivid_dusk_4"   // orange-warm tint at mid-grey
     }
 
     private static var all: [Preset] {
@@ -957,38 +972,24 @@ enum BuiltInPresets {
             return s
         }()),
 
-        // Vivid Dusk 1 — warm magenta sunset wash.
-        Preset(name: "Dusk 01", category: .modern, stack: {
-            var s = stack(filterID: LUT.vividDusk1, strength: 0.85)
+        // Dusk Cool — green-cool twilight wash (Vivid LUTs #2). Mid-grey
+        // shifts toward cyan-green; pulls reds warmer; lifts shadows.
+        Preset(name: "Dusk Cool", category: .modern, stack: {
+            var s = stack(filterID: LUT.duskCool, strength: 1.0)
             s.color.vibrance = 0.05
+            s.light.shadows = 0.10
+            s.light.highlights = -0.05
             return s
         }()),
 
-        // Vivid Dusk 2 — cool blue-magenta twilight.
-        Preset(name: "Dusk 02", category: .modern, stack: {
-            var s = stack(filterID: LUT.vividDusk2, strength: 0.85)
+        // Dusk Warm — orange/amber sunset wash (Vivid LUTs #4). Mid-grey
+        // shifts toward warm-orange; bumps reds and yellows; gentle
+        // shoulder so highlights stay readable.
+        Preset(name: "Dusk Warm", category: .modern, stack: {
+            var s = stack(filterID: LUT.duskWarm, strength: 1.0)
             s.color.vibrance = 0.05
-            return s
-        }()),
-
-        // Vivid Dusk 3 — saturated golden-hour amber.
-        Preset(name: "Dusk 03", category: .modern, stack: {
-            var s = stack(filterID: LUT.vividDusk3, strength: 0.85)
-            s.color.vibrance = 0.05
-            return s
-        }()),
-
-        // Vivid Dusk 4 — punchy teal/orange with deep shadows.
-        Preset(name: "Dusk 04", category: .modern, stack: {
-            var s = stack(filterID: LUT.vividDusk4, strength: 0.85)
-            s.color.vibrance = 0.05
-            return s
-        }()),
-
-        // Vivid Dusk 5 — desaturated moody pastel.
-        Preset(name: "Dusk 05", category: .modern, stack: {
-            var s = stack(filterID: LUT.vividDusk5, strength: 0.85)
-            s.color.vibrance = 0.05
+            s.light.shadows = 0.08
+            s.light.highlights = -0.08
             return s
         }())
     ]
