@@ -48,6 +48,23 @@ gh run download --name PhotoEditor-ipa --repo Cels000/PhotoEditor
 ideviceinstaller -i PhotoEditor.ipa
 ```
 
+### Post-push helper for Claude
+
+After every successful `git push`, paste a copy-pasteable block to the user
+with the actual run id substituted in. The user runs `gh run list --repo
+Cels000/PhotoEditor --limit 1` immediately after the push to grab the id, or
+Claude can call it themselves. Format:
+
+```bash
+gh run watch <RUN_ID> --repo Cels000/PhotoEditor
+cd ~/Downloads && rm -f PhotoEditor*.ipa
+gh run download <RUN_ID> --name PhotoEditor-ipa --repo Cels000/PhotoEditor
+ideviceinstaller -i PhotoEditor.ipa
+```
+
+Always include the run id explicitly — don't rely on `gh run download`'s
+default-to-latest behavior, since the user often has multiple runs queued.
+
 ### Renewal
 - **Provisioning profile**: ~1 year. Regenerate at developer.apple.com/profiles, re-base64 into `BUILD_PROVISION_PROFILE_BASE64`.
 - **Apple Development cert**: 1 year. Regenerate via OpenSSL CSR flow, re-export `.p12`, re-base64 into `BUILD_CERTIFICATE_BASE64` (and update `P12_PASSWORD` if changed).
