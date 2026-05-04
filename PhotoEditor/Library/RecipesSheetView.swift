@@ -165,7 +165,7 @@ struct RecipesSheetView: View {
         title: String,
         iconSystemName: String,
         count: Int,
-        @ViewBuilder content: () -> Content
+        @ViewBuilder content: @escaping () -> Content
     ) -> some View {
         DisclosureGroup(
             isExpanded: Binding(
