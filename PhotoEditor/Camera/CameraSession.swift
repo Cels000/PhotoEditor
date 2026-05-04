@@ -49,8 +49,11 @@ final class CameraSession: NSObject {
     private func configureIfNeeded() {
         guard videoInput == nil else { return }   // first-time only
         session.beginConfiguration()
-        session.sessionPreset = .photo            // 4:3 native
+        // Setting device.activeFormat below switches the session to
+        // .inputPriority automatically; explicit preset would just be
+        // overridden, so we don't set one.
         attachInput(position: position)
+        applyHighQualityFormat()
 
         videoOutput.setSampleBufferDelegate(sampleBufferDelegate, queue: sampleBufferQueue)
         videoOutput.alwaysDiscardsLateVideoFrames = true
@@ -59,10 +62,48 @@ final class CameraSession: NSObject {
         ]
         if session.canAddOutput(videoOutput) { session.addOutput(videoOutput) }
 
+        if let conn = videoOutput.connection(with: .video),
+           conn.isVideoStabilizationSupported {
+            conn.preferredVideoStabilizationMode = .auto
+        }
+
         if session.canAddOutput(photoOutput) { session.addOutput(photoOutput) }
         photoOutput.maxPhotoQualityPrioritization = .quality
 
         session.commitConfiguration()
+    }
+
+    /// Pick the highest-resolution 4:3 format on the active device, capped at
+    /// ~8 MP per frame so the LUT pipeline can hold 30 fps without thermal
+    /// throttling. Enables HDR when the chosen format supports it.
+    private func applyHighQualityFormat() {
+        guard let device = videoInput?.device else { return }
+        let pixelCap: Int64 = 8_000_000
+        let candidates = device.formats.filter { format in
+            let dim = CMVideoFormatDescriptionGetDimensions(format.formatDescription)
+            guard dim.width > 0, dim.height > 0 else { return false }
+            let aspect = Double(dim.width) / Double(dim.height)
+            let pixels = Int64(dim.width) * Int64(dim.height)
+            return abs(aspect - 4.0/3.0) < 0.05 && pixels <= pixelCap
+        }
+        let best = candidates.max { a, b in
+            let dimA = CMVideoFormatDescriptionGetDimensions(a.formatDescription)
+            let dimB = CMVideoFormatDescriptionGetDimensions(b.formatDescription)
+            return Int64(dimA.width) * Int64(dimA.height)
+                 < Int64(dimB.width) * Int64(dimB.height)
+        }
+        guard let format = best else { return }
+        do {
+            try device.lockForConfiguration()
+            device.activeFormat = format
+            if format.isVideoHDRSupported {
+                device.automaticallyAdjustsVideoHDREnabled = false
+                device.isVideoHDREnabled = true
+            }
+            device.unlockForConfiguration()
+        } catch {
+            // Fall back to whatever default the session picked.
+        }
     }
 
     private func attachInput(position: CameraPosition) {
@@ -87,6 +128,7 @@ final class CameraSession: NSObject {
             let next: CameraPosition = self.position == .back ? .front : .back
             self.session.beginConfiguration()
             self.attachInput(position: next)
+            self.applyHighQualityFormat()
             self.session.commitConfiguration()
         }
     }
