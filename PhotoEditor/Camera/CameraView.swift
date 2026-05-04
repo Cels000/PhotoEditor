@@ -16,6 +16,8 @@ struct CameraView: View {
     @State private var exposureBias: Float = 0
     @State private var showExposureSlider: Bool = false
     @State private var hideSliderTask: Task<Void, Never>?
+    @State private var ghostsVisible: Bool = false
+    @State private var scrolledID: String?
 
     var body: some View {
         ZStack {
@@ -151,13 +153,83 @@ struct CameraView: View {
     private var bottomDeck: some View {
         VStack(spacing: Theme.Spacing.sm) {
             carousel
-            Text(viewModel.selectedSlot.displayName.uppercased())
-                .font(Theme.Typography.label)
-                .tracking(2)
-                .foregroundStyle(Theme.Colors.text)
-                .frame(height: 16)
+            labelRow
             shutterRow
         }
+    }
+
+    private var labelRow: some View {
+        let cellEdge: CGFloat = 72
+        let cellSpacing: CGFloat = 8
+        let neighborOffset: CGFloat = cellEdge + cellSpacing
+        let slot = viewModel.selectedSlot
+        let idx = viewModel.slots.firstIndex(where: { $0.id == slot.id })
+        let leftSlot: CameraSlot? = {
+            guard let idx, idx > 0 else { return nil }
+            return viewModel.slots[idx - 1]
+        }()
+        let rightSlot: CameraSlot? = {
+            guard let idx, idx < viewModel.slots.count - 1 else { return nil }
+            return viewModel.slots[idx + 1]
+        }()
+
+        return ZStack {
+            if let leftSlot {
+                ghostLabel(for: leftSlot)
+                    .offset(x: -neighborOffset)
+            }
+            if let rightSlot {
+                ghostLabel(for: rightSlot)
+                    .offset(x: neighborOffset)
+            }
+            centeredLabel(for: slot)
+        }
+        .frame(height: 16)
+    }
+
+    @ViewBuilder
+    private func centeredLabel(for slot: CameraSlot) -> some View {
+        let name = Text(slot.displayName.uppercased())
+            .font(Theme.Typography.label)
+            .tracking(2)
+            .foregroundStyle(Theme.Colors.text)
+
+        if let categoryText = slot.categoryDisplayName {
+            HStack(spacing: 6) {
+                Button {
+                    jumpToNextCategory()
+                } label: {
+                    HStack(spacing: 2) {
+                        Text(categoryText)
+                            .font(Theme.Typography.label)
+                            .tracking(2)
+                            .foregroundStyle(Theme.Colors.secondary)
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 8, weight: .semibold))
+                            .foregroundStyle(Theme.Colors.secondary)
+                    }
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                Text("·")
+                    .font(Theme.Typography.label)
+                    .tracking(2)
+                    .foregroundStyle(Theme.Colors.secondary)
+                name
+            }
+        } else {
+            name
+        }
+    }
+
+    @ViewBuilder
+    private func ghostLabel(for slot: CameraSlot) -> some View {
+        Text(slot.displayName.uppercased())
+            .font(Theme.Typography.label)
+            .tracking(2)
+            .foregroundStyle(Theme.Colors.text.opacity(0.4))
+            .scaleEffect(0.85)
+            .opacity(ghostsVisible ? 1 : 0)
     }
 
     @ViewBuilder
@@ -166,8 +238,8 @@ struct CameraView: View {
         ScrollViewReader { proxy in
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 8) {
-                    ForEach(viewModel.slots) { slot in
-                        carouselCell(for: slot, edge: edge)
+                    ForEach(Array(viewModel.slots.enumerated()), id: \.element.id) { idx, slot in
+                        carouselCell(for: slot, edge: edge, index: idx)
                             .id(slot.id)
                             .onAppear { addVisible(slot.id) }
                             .onDisappear { removeVisible(slot.id) }
@@ -177,16 +249,45 @@ struct CameraView: View {
                 .scrollTargetLayout()
             }
             .scrollTargetBehavior(.viewAligned)
+            .scrollPosition(id: $scrolledID, anchor: .center)
             .frame(height: edge + 8)
             .onAppear {
+                scrolledID = viewModel.selectedSlotID
                 proxy.scrollTo(viewModel.selectedSlotID, anchor: .center)
+            }
+            // Guard prevents scroll<->select feedback loop with the
+            // proxy.scrollTo below.
+            .onChange(of: scrolledID) { _, newID in
+                guard let newID, newID != viewModel.selectedSlotID,
+                      let slot = viewModel.slots.first(where: { $0.id == newID })
+                else { return }
+                viewModel.selectSlot(slot)
+            }
+            // Ghost labels are tied to scroll phase rather than centered-cell
+            // identity so they fade out only after the user releases, not on
+            // every snap during a continuous flick.
+            .onScrollPhaseChange { _, newPhase in
+                let active = (newPhase != .idle)
+                withAnimation(.easeInOut(duration: active ? 0.12 : 0.25)) {
+                    ghostsVisible = active
+                }
+            }
+            .onChange(of: viewModel.selectedSlotID) { _, newID in
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    proxy.scrollTo(newID, anchor: .center)
+                }
             }
         }
     }
 
-    private func carouselCell(for slot: CameraSlot, edge: CGFloat) -> some View {
+
+    private func carouselCell(for slot: CameraSlot, edge: CGFloat, index: Int) -> some View {
         let isSelected = slot.id == viewModel.selectedSlotID
         let cg = viewModel.thumbnailer?.thumbnails[slot.id]
+        let showsCategoryBoundary: Bool = {
+            guard index > 0 else { return false }
+            return categoryKey(for: slot) != categoryKey(for: viewModel.slots[index - 1])
+        }()
         return Button {
             viewModel.selectSlot(slot)
         } label: {
@@ -208,9 +309,44 @@ struct CameraView: View {
                     .stroke(Color.white,
                             lineWidth: isSelected ? 2 : 0)
             )
+            .overlay(alignment: .leading) {
+                if showsCategoryBoundary {
+                    Rectangle()
+                        .fill(Theme.Colors.secondary.opacity(0.3))
+                        .frame(width: 1, height: edge)
+                        .offset(x: -4)
+                }
+            }
             .scaleEffect(isSelected ? 1.05 : 1.0)
         }
         .buttonStyle(.plain)
+    }
+
+    private func categoryKey(for slot: CameraSlot) -> String {
+        switch slot {
+        case .original:        return "__original__"
+        case .recipe:          return slot.categoryDisplayName ?? "__uncategorized__"
+        }
+    }
+
+    private func firstSlotIDOfNextCategory(after slotID: String) -> String? {
+        let slots = viewModel.slots
+        guard let idx = slots.firstIndex(where: { $0.id == slotID }) else { return nil }
+        let currentKey = categoryKey(for: slots[idx])
+        for i in (idx + 1)..<slots.count {
+            if categoryKey(for: slots[i]) != currentKey {
+                return slots[i].id
+            }
+        }
+        return CameraSlot.originalID
+    }
+
+    private func jumpToNextCategory() {
+        guard let nextID = firstSlotIDOfNextCategory(after: viewModel.selectedSlotID),
+              let nextSlot = viewModel.slots.first(where: { $0.id == nextID })
+        else { return }
+        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        viewModel.selectSlot(nextSlot)
     }
 
     private func addVisible(_ id: String) {

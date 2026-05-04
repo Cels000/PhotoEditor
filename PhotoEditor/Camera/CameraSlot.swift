@@ -44,4 +44,25 @@ enum CameraSlot: Identifiable, Hashable {
     static func build(from recipes: [RecipeItem]) -> [CameraSlot] {
         [.original] + recipes.map { .recipe($0) }
     }
+
+    var category: RecipeCategory? {
+        switch self {
+        case .original:        return nil
+        case .recipe(let r):   return BuiltInPresets.category(forName: r.name)
+        }
+    }
+
+    /// "COLOR FILM" / "MY RECIPES" / etc. nil for `.original` so the caller
+    /// renders only the name half with no separator.
+    var categoryDisplayName: String? {
+        switch self {
+        case .original:
+            return nil
+        case .recipe(let r):
+            if let cat = BuiltInPresets.category(forName: r.name) {
+                return cat.displayName.uppercased()
+            }
+            return "MY RECIPES"
+        }
+    }
 }
