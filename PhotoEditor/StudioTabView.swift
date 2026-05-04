@@ -1,4 +1,3 @@
-import PhotosUI
 import SwiftUI
 
 enum StudioSegment: Hashable {
@@ -7,15 +6,16 @@ enum StudioSegment: Hashable {
 }
 
 /// Studio tab — the unified entry point for getting a photo into the editor.
-/// Two segments: EDITS (your saved app library) and CAMERA ROLL (system picker).
-/// Solves the previous icon ambiguity (Library vs Add Photo were near-identical).
+/// Two segments: CAMERA ROLL (inline PHAsset grid) and EDITS (your saved
+/// app library). Camera Roll is the default landing — most sessions start
+/// from a fresh photo. Solves the previous icon ambiguity in v1 (Library
+/// vs Add Photo were near-identical).
 struct StudioTabView: View {
     @Bindable var viewModel: EditorViewModel
     let libraryStore: LibraryStore?
     var onPhotoOpened: () -> Void
 
-    @State private var segment: StudioSegment = .edits
-    @State private var pickerSelection: PhotosPickerItem?
+    @State private var segment: StudioSegment = .cameraRoll
 
     var body: some View {
         VStack(spacing: 0) {
@@ -30,10 +30,11 @@ struct StudioTabView: View {
             .padding(.horizontal, Theme.Spacing.lg)
             .padding(.top, Theme.Spacing.sm)
 
-            // Segmented control: EDITS | CAMERA ROLL.
+            // Segmented control: CAMERA ROLL is the default landing — most
+            // sessions start by picking a fresh photo, not browsing past edits.
             Picker("", selection: $segment) {
-                Text("EDITS").tag(StudioSegment.edits)
                 Text("CAMERA ROLL").tag(StudioSegment.cameraRoll)
+                Text("EDITS").tag(StudioSegment.edits)
             }
             .pickerStyle(.segmented)
             .padding(.horizontal, Theme.Spacing.lg)
@@ -41,10 +42,10 @@ struct StudioTabView: View {
 
             Group {
                 switch segment {
+                case .cameraRoll:
+                    CameraRollGridView(viewModel: viewModel, onPhotoOpened: onPhotoOpened)
                 case .edits:
                     editsGrid
-                case .cameraRoll:
-                    cameraRollPicker
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -52,7 +53,6 @@ struct StudioTabView: View {
         .background(Theme.Colors.canvas.ignoresSafeArea())
         .toolbarBackground(Theme.Colors.canvas, for: .tabBar)
         .toolbarBackground(.visible, for: .tabBar)
-        .task(id: pickerSelection) { await loadPickedPhoto() }
     }
 
     // MARK: - EDITS segment
@@ -69,52 +69,5 @@ struct StudioTabView: View {
         } else {
             ProgressView()
         }
-    }
-
-    // MARK: - CAMERA ROLL segment
-
-    private var cameraRollPicker: some View {
-        // v1: a single full-area "tap to pick" tile that triggers PhotosPicker.
-        // v2: a real PHAsset thumbnail grid. PhotosPicker handles permission UX
-        // and limited-library access for free, so v1 is fine to ship.
-        VStack(spacing: Theme.Spacing.lg) {
-            Spacer()
-            PhotosPicker(selection: $pickerSelection, matching: .images, preferredItemEncoding: .automatic) {
-                VStack(spacing: Theme.Spacing.md) {
-                    Image(systemName: "photo.badge.plus")
-                        .font(.system(size: 40, weight: .light))
-                        .foregroundStyle(Theme.Colors.text)
-                    Text("PICK FROM CAMERA ROLL")
-                        .font(Theme.Typography.label)
-                        .tracking(1.5)
-                        .foregroundStyle(Theme.Colors.text)
-                }
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, Theme.Spacing.xl * 2)
-                .background(Theme.Colors.panel)
-            }
-            .padding(.horizontal, Theme.Spacing.lg)
-            Text("Photos open in the editor.")
-                .font(Theme.Typography.caption)
-                .foregroundStyle(Theme.Colors.secondary)
-            Spacer()
-        }
-    }
-
-    @MainActor
-    private func loadPickedPhoto() async {
-        guard let item = pickerSelection else { return }
-        let assetID = item.itemIdentifier
-        do {
-            if let data = try await item.loadTransferable(type: Data.self) {
-                await viewModel.importPhoto(data: data, sourceAssetID: assetID)
-                onPhotoOpened()
-            } else {
-                viewModel.errorMessage = "The selected photo could not be loaded."
-            }
-        } catch {
-            viewModel.errorMessage = error.localizedDescription
-        }
-        pickerSelection = nil
     }
 }
