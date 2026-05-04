@@ -1,12 +1,14 @@
 // RecipesSheetView.swift
 // User-facing recipe management surface.
 // - Tap row: apply (calls onApply, closes sheet)
-// - Context menu: Rename, Share, Delete (works on built-in presets too —
+// - Context menu / swipe: Rename, Share, Delete (works on built-in presets too —
 //   if a user removes one, it's gone unless they bump the seed key)
 // - Sections: "My Recipes" (uncategorized) + one per RecipeCategory.
-//   All collapsible, all collapsed by default to keep the sheet compact.
+//   All collapsible, all collapsed by default to keep the surface compact.
 // - User-recipe section supports reorder; preset sections do not.
-// RECIPE-02, RECIPE-03, RECIPE-04, presets seed (BuiltInPresets).
+// - Visuals tuned to the app's VSCO-style monochrome palette: pure canvas
+//   background, square thumbnails, ALL-CAPS tracked-out section labels, no
+//   grouped boxing, no system shadows. Driven entirely by Theme.
 
 import SwiftUI
 import UIKit
@@ -25,7 +27,7 @@ struct RecipesSheetView: View {
     @State private var deleteTarget: RecipeItem?
     @State private var shareURL: URL?
     @State private var errorMessage: String?
-    /// Section expansion state — keyed by category, with `nil` for "My Recipes".
+    /// Section expansion state — keyed by category, with `"user"` for "My Recipes".
     /// All start collapsed so the sheet is compact on open.
     @State private var expandedSections: Set<String> = []
 
@@ -38,12 +40,16 @@ struct RecipesSheetView: View {
                     sectionList
                 }
             }
+            .background(Theme.Colors.canvas.ignoresSafeArea())
             .navigationTitle("Recipes")
             .navigationBarTitleDisplayMode(.inline)
+            .toolbarBackground(Theme.Colors.canvas, for: .navigationBar)
+            .toolbarBackground(.visible, for: .navigationBar)
             .toolbar {
                 if let onDismiss {
                     ToolbarItem(placement: .cancellationAction) {
                         Button("Done") { onDismiss() }
+                            .foregroundStyle(Theme.Colors.text)
                     }
                 }
             }
@@ -101,7 +107,7 @@ struct RecipesSheetView: View {
     private var emptyState: some View {
         VStack(spacing: 12) {
             Image(systemName: "wand.and.stars")
-                .font(.system(size: 44, weight: .semibold))
+                .font(.system(size: 44, weight: .regular))
                 .foregroundStyle(Theme.Colors.accent)
             Text("No Recipes Yet").font(Theme.Typography.subtitle)
             Text("Tap the Save Recipe button while editing a photo to capture your current look.")
@@ -127,10 +133,9 @@ struct RecipesSheetView: View {
     private var sectionList: some View {
         List {
             if !userRecipes.isEmpty {
-                disclosure(
+                section(
                     key: "user",
                     title: "My Recipes",
-                    iconSystemName: "person.crop.square",
                     count: userRecipes.count
                 ) {
                     ForEach(userRecipes, id: \.id) { recipe in
@@ -143,10 +148,9 @@ struct RecipesSheetView: View {
             ForEach(RecipeCategory.allCases) { category in
                 let items = recipes(in: category)
                 if !items.isEmpty {
-                    disclosure(
+                    section(
                         key: category.rawValue,
                         title: category.displayName,
-                        iconSystemName: category.iconSystemName,
                         count: items.count
                     ) {
                         ForEach(items, id: \.id) { recipe in
@@ -156,38 +160,55 @@ struct RecipesSheetView: View {
                 }
             }
         }
-        .listStyle(.insetGrouped)
+        .listStyle(.plain)
+        .scrollContentBackground(.hidden)
+        .background(Theme.Colors.canvas)
     }
 
     @ViewBuilder
-    private func disclosure<Content: View>(
+    private func section<Content: View>(
         key: String,
         title: String,
-        iconSystemName: String,
         count: Int,
         @ViewBuilder content: @escaping () -> Content
     ) -> some View {
-        DisclosureGroup(
-            isExpanded: Binding(
-                get: { expandedSections.contains(key) },
-                set: { isOpen in
-                    if isOpen { expandedSections.insert(key) }
-                    else { expandedSections.remove(key) }
-                }
-            )
-        ) {
-            content()
-        } label: {
-            HStack(spacing: 10) {
-                Image(systemName: iconSystemName)
-                    .foregroundStyle(Theme.Colors.accent)
-                    .frame(width: 22)
-                Text(title).font(.body.weight(.semibold))
-                Spacer()
-                Text("\(count)")
-                    .font(.caption.monospacedDigit())
-                    .foregroundStyle(.secondary)
+        let isExpanded = expandedSections.contains(key)
+        Section {
+            if isExpanded {
+                content()
             }
+        } header: {
+            Button {
+                withAnimation(.easeInOut(duration: 0.18)) {
+                    if isExpanded { expandedSections.remove(key) }
+                    else { expandedSections.insert(key) }
+                }
+            } label: {
+                HStack(spacing: Theme.Spacing.sm) {
+                    Text(title.uppercased())
+                        .font(Theme.Typography.label)
+                        .tracking(1.5)
+                        .foregroundStyle(Theme.Colors.text)
+                    Text("\(count)")
+                        .font(Theme.Typography.label)
+                        .tracking(1.0)
+                        .foregroundStyle(Theme.Colors.secondary)
+                    Spacer()
+                    Image(systemName: "chevron.down")
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundStyle(Theme.Colors.secondary)
+                        .rotationEffect(.degrees(isExpanded ? 0 : -90))
+                }
+                .padding(.vertical, Theme.Spacing.sm)
+                .padding(.horizontal, Theme.Spacing.lg)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Theme.Colors.canvas)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .listRowInsets(EdgeInsets())
+            .listRowBackground(Theme.Colors.canvas)
+            .textCase(nil)
         }
     }
 
@@ -199,6 +220,8 @@ struct RecipesSheetView: View {
                 onApply(recipe)
                 onDismiss?()
             }
+            .listRowBackground(Theme.Colors.canvas)
+            .listRowSeparatorTint(Theme.Colors.separator)
             .contextMenu {
                 Button { renameTarget = recipe } label: {
                     Label("Rename", systemImage: "pencil")
@@ -253,19 +276,17 @@ private struct RecipeRow: View {
     let recipe: RecipeItem
 
     var body: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: Theme.Spacing.md) {
             thumbnail
-                .frame(width: 44, height: 44)
-                .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-            VStack(alignment: .leading, spacing: 2) {
-                Text(recipe.name).font(.body.weight(.medium))
-                Text(recipe.updatedAt, style: .date)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
+                .frame(width: 40, height: 40)
+                .clipShape(RoundedRectangle(cornerRadius: Theme.Radii.medium, style: .continuous))
+            Text(recipe.name)
+                .font(Theme.Typography.body)
+                .foregroundStyle(Theme.Colors.text)
             Spacer()
         }
-        .padding(.vertical, 2)
+        .padding(.vertical, Theme.Spacing.xs)
+        .padding(.horizontal, Theme.Spacing.lg)
     }
 
     @ViewBuilder
@@ -273,11 +294,9 @@ private struct RecipeRow: View {
         if let data = recipe.thumbnailData, let uiImage = UIImage(data: data) {
             Image(uiImage: uiImage).resizable().scaledToFill()
         } else {
-            LinearGradient(
-                colors: [Theme.Colors.accent.opacity(0.7), Theme.Colors.accent.opacity(0.3)],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
+            // No-thumbnail fallback: flat panel — no colored gradient (keeps
+            // the chrome purely monochrome per Theme).
+            Theme.Colors.panel
         }
     }
 }

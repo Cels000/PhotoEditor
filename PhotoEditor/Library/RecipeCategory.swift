@@ -22,13 +22,4 @@ enum RecipeCategory: String, CaseIterable, Identifiable {
         case .era:        return "Era & Camera"
         }
     }
-
-    var iconSystemName: String {
-        switch self {
-        case .default:    return "wand.and.stars"
-        case .colorFilm:  return "camera.aperture"
-        case .bwFilm:     return "circle.lefthalf.filled"
-        case .era:        return "clock.arrow.circlepath"
-        }
-    }
 }
