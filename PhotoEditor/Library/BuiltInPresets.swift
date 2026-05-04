@@ -58,7 +58,7 @@ enum BuiltInPresets {
         var updated = 0
         for preset in all {
             if let existing = existingByName[preset.name] {
-                if existing.stack != preset.stack {
+                if existing.adjustmentStack != preset.stack {
                     store.updateStack(existing, to: preset.stack)
                     updated += 1
                 }

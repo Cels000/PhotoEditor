@@ -65,10 +65,10 @@ final class RecipeStore {
     /// Replace an existing recipe's stack in place. Used by BuiltInPresets
     /// during a seed-version bump to refresh built-in stacks while preserving
     /// the recipe's id, sortOrder, and (importantly) any thumbnail.
+    /// (RecipeItem.adjustmentStack's setter already updates stackData,
+    /// schemaVersion, and updatedAt — see RecipeItem.swift.)
     func updateStack(_ item: RecipeItem, to newStack: AdjustmentStack) {
-        item.stack = newStack
-        item.schemaVersion = newStack.schemaVersion
-        item.updatedAt = Date()
+        item.adjustmentStack = newStack
         try? context.save()
         refresh()
     }
