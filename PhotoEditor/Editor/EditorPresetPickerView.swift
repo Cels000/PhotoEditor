@@ -1,16 +1,14 @@
 // EditorPresetPickerView.swift
 // Replaces FilterStripView in the editor's "Looks" panel with a categorized
 // recipe picker. Each row is a category (MY RECIPES, DEFAULT, COLOR FILM,
-// B&W FILM, ERA & CAMERA); cells show a LUT-preview thumbnail (when the
-// recipe references a built-in LUT) or a flat panel fallback. Tap to apply
-// the full recipe stack via viewModel.applyRecipe; long-press a user-saved
-// recipe for rename/delete.
+// B&W FILM, ERA & CAMERA). Tap a thumbnail to apply the full recipe stack;
+// long-press a user-saved recipe for rename/delete.
 //
-// Thumbnail rendering reuses FilterThumbnailCache: only the LUT portion of
-// each recipe is previewed (the slider/curve/grain bits aren't applied —
-// rendering the full pipeline per cell would be too expensive). Means
-// recipes that share a LUT (e.g. several use warmFade) share one thumbnail
-// regardless of slider differences. Acceptable trade for v1.
+// Thumbnail rendering: each cell runs the recipe's full AdjustmentStack
+// through PipelineBuilder against a downsampled (~200px) source image, so
+// the preview reflects every slider/curve/split-tone — not just the LUT.
+// Cached by recipe.id for the lifetime of the photo; recipes added or
+// renamed get fresh renders on next photo import.
 
 import CoreImage
 import SwiftUI
@@ -20,9 +18,10 @@ struct EditorPresetPickerView: View {
 
     @Bindable var viewModel: EditorViewModel
 
+    /// Keyed by recipe.id (UUID string). Each entry is the recipe's full
+    /// pipeline rendered against the current photo at thumbnail resolution.
     @State private var thumbnails: [String: UIImage] = [:]
     @State private var thumbnailContext = CIContext(options: [.useSoftwareRenderer: false])
-    @State private var thumbnailCache = FilterThumbnailCache()
     @State private var photoID: String = ""
 
     @State private var renameTarget: RecipeItem?
@@ -111,10 +110,9 @@ struct EditorPresetPickerView: View {
 
     @ViewBuilder
     private func cell(_ recipe: RecipeItem, isUserSection: Bool) -> some View {
-        let filterID = recipe.adjustmentStack.filter?.filterID
         VStack(spacing: 4) {
             ZStack {
-                if let fid = filterID, let img = thumbnails[fid] {
+                if let img = thumbnails[recipe.id.uuidString] {
                     Image(uiImage: img)
                         .resizable()
                         .aspectRatio(contentMode: .fill)
@@ -167,32 +165,27 @@ struct EditorPresetPickerView: View {
         }
         let newID = importedPhotoIdentity
         if newID != photoID {
-            thumbnailCache.clear()
             thumbnails = [:]
             photoID = newID
         }
+        // Downsample the source so each per-recipe pipeline render is cheap.
         let src = imported.previewCIImage
         let side = FilterThumbnailCache.thumbnailSide
         let scale = side / max(src.extent.width, src.extent.height)
         let small = src.transformed(by: CGAffineTransform(scaleX: scale, y: scale))
 
-        // Collect unique filterIDs referenced across all current presets so we
-        // render each LUT thumbnail only once.
+        // Stable LUT lookup closure for PipelineBuilder.
+        let lib = viewModel.filterLibrary
+        let cubeResolver: CubeResolver = { id in lib.filter(withID: id)?.cube() }
+
         let allRecipes: [RecipeItem] = (store?.items) ?? []
-        let referencedIDs: Set<String> = Set(
-            allRecipes.compactMap { $0.adjustmentStack.filter?.filterID }
-        )
-        for filterID in referencedIDs {
-            if let cached = thumbnailCache.image(forPhotoID: photoID, filterID: filterID) {
-                thumbnails[filterID] = cached
-                continue
-            }
-            guard let filter = viewModel.filterLibrary.filter(withID: filterID) else { continue }
-            let cube = filter.cube()
-            if let img = FilterThumbnailCache.renderThumbnail(
-                source: small, cube: cube, strength: 1.0, context: thumbnailContext) {
-                thumbnailCache.setImage(img, forPhotoID: photoID, filterID: filterID)
-                thumbnails[filterID] = img
+        for recipe in allRecipes {
+            let key = recipe.id.uuidString
+            if thumbnails[key] != nil { continue }
+            let stack = recipe.adjustmentStack
+            let chain = PipelineBuilder.build(stack: stack, source: small, cubeResolver: cubeResolver)
+            if let cg = thumbnailContext.createCGImage(chain, from: chain.extent) {
+                thumbnails[key] = UIImage(cgImage: cg)
             }
             await Task.yield()
         }

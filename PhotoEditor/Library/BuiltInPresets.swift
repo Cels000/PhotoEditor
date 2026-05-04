@@ -17,7 +17,7 @@ import Foundation
 
 enum BuiltInPresets {
 
-    private static let seedKey = "builtInPresetsSeeded.v2"
+    private static let seedKey = "builtInPresetsSeeded.v3"
 
     /// Insert built-in presets the first time we see this device on this seed
     /// version. Idempotent — safe to call on every launch.
@@ -144,6 +144,57 @@ enum BuiltInPresets {
             s.grain.size = 0.40
             s.grain.intensity = 0.35
             return s
+        }()),
+
+        // Fuji digital film simulations — mid-2020s X-series / GFX bodies.
+        // Treated as color-film entries since the user thinks of them
+        // alongside actual stock looks.
+
+        Preset(name: "Classic Chrome", category: .colorFilm, stack: {
+            var s = stack(filterID: BuiltInLUTs.ID.cinematicCool, strength: 0.4)
+            s.color.temperature = -0.05
+            s.color.saturation = -0.20
+            s.color.vibrance = -0.05
+            s.light.contrast = 0.10
+            s.splitToning.shadowHue = 200             // cool blue shadows
+            s.splitToning.shadowSaturation = 0.10
+            return s
+        }()),
+
+        Preset(name: "Classic Negative", category: .colorFilm, stack: {
+            var s = stack(filterID: BuiltInLUTs.ID.warmFade, strength: 0.45)
+            s.color.temperature = 0.04
+            s.color.tint = -0.05                      // slight green pull
+            s.color.saturation = -0.10
+            s.color.vibrance = 0.05
+            s.light.blacks = 0.10
+            s.light.shadows = 0.05
+            s.light.contrast = 0.05
+            return s
+        }()),
+
+        Preset(name: "Eterna", category: .colorFilm, stack: {
+            var s = stack(filterID: BuiltInLUTs.ID.warmFade, strength: 0.3)
+            s.color.saturation = -0.20
+            s.color.vibrance = -0.05
+            s.light.contrast = -0.15
+            s.light.shadows = 0.20
+            s.light.highlights = -0.10
+            s.light.blacks = 0.15
+            return s
+        }()),
+
+        Preset(name: "Nostalgic Neg", category: .colorFilm, stack: {
+            var s = stack(filterID: BuiltInLUTs.ID.warmFade, strength: 0.6)
+            s.color.temperature = 0.15
+            s.color.tint = 0.05
+            s.color.vibrance = 0.10
+            s.color.saturation = -0.05
+            s.splitToning.highlightHue = 30           // amber highlights
+            s.splitToning.highlightSaturation = 0.20
+            s.light.shadows = 0.20
+            s.light.blacks = 0.10
+            return s
         }())
     ]
 
@@ -174,6 +225,18 @@ enum BuiltInPresets {
             s.light.contrast = 0.05
             s.grain.size = 0.20
             s.grain.intensity = 0.15
+            return s
+        }()),
+
+        Preset(name: "Acros", category: .bwFilm, stack: {
+            // Fuji's signature B&W film simulation — punchy contrast,
+            // crushed blacks, slightly lifted highlights, fine grain.
+            var s = stack(filterID: BuiltInLUTs.ID.noir, strength: 1.0)
+            s.light.contrast = 0.25
+            s.light.blacks = -0.15
+            s.light.whites = 0.10
+            s.grain.size = 0.35
+            s.grain.intensity = 0.45
             return s
         }())
     ]
@@ -215,6 +278,34 @@ enum BuiltInPresets {
             s.light.contrast = -0.10
             s.light.blacks = 0.15
             s.vignette.amount = -0.18
+            s.vignette.feather = 0.65
+            return s
+        }()),
+
+        Preset(name: "Polaroid 600", category: .era, stack: {
+            // Warmer / more saturated than SX-70, with the iconic
+            // green-yellow shadow cast and softer overall contrast.
+            var s = stack(filterID: BuiltInLUTs.ID.warmFade, strength: 0.6)
+            s.color.temperature = 0.12
+            s.color.tint = 0.10
+            s.color.saturation = 0.05
+            s.light.shadows = 0.20
+            s.light.contrast = -0.05
+            s.splitToning.shadowHue = 90              // yellow-green shadows
+            s.splitToning.shadowSaturation = 0.15
+            s.vignette.amount = -0.20
+            s.vignette.feather = 0.60
+            return s
+        }()),
+
+        Preset(name: "Polaroid Now", category: .era, stack: {
+            // Modern Polaroid: more accurate colors, mild warmth, very subtle vignette.
+            var s = stack(filterID: BuiltInLUTs.ID.warmFade, strength: 0.4)
+            s.color.temperature = 0.06
+            s.color.vibrance = 0.10
+            s.color.saturation = 0.05
+            s.light.shadows = 0.10
+            s.vignette.amount = -0.10
             s.vignette.feather = 0.65
             return s
         }())
