@@ -85,9 +85,11 @@ enum PipelineBuilder {
             let blacksShift = Float(max(-1, min(1, light.blacks))) * 0.3
             let whitesShift = Float(max(-1, min(1, light.whites))) * 0.3
 
-            // p0 lifts/crushes blacks: positive blacks → x>0 → blacks lifted; negative → y<0 (clamped 0).
-            let p0x: Float = max(0, blacksShift)
-            let p0y: Float = max(0, -blacksShift)
+            // p0 lifts/crushes blacks (Lightroom convention):
+            //   positive blacks → p0=(0, +shift)  → input 0 maps to output >0  → LIFTED
+            //   negative blacks → p0=(+shift, 0)  → input 0..+shift maps to 0  → CRUSHED
+            let p0x: Float = max(0, -blacksShift)
+            let p0y: Float = max(0,  blacksShift)
             // p4 compresses/extends whites: positive whites → y stays 1.0 (push x<1 toward 1, brightening); negative → y<1 (compress whites)
             let p4x: Float = min(1, 1.0 - max(0, whitesShift))
             let p4y: Float = min(1, 1.0 + min(0, whitesShift))
