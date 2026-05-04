@@ -64,7 +64,10 @@ enum CubeParser {
         }
 
         guard let s = size else { throw Error.missingSize }
-        guard [16, 32, 33, 64].contains(s) else { throw Error.invalidSize(s) }
+        // Accept any sane 3D-LUT cube size. The bundled Film-Luts (G'MIC)
+        // cubes are 13³; common other sizes are 8, 16, 17, 25, 32, 33, 64.
+        // The trilinear resampler is general — it just needs fromSize >= 2.
+        guard s >= 2, s <= 128 else { throw Error.invalidSize(s) }
         let expectedTriplets = s * s * s * 3
         guard triplets.count == expectedTriplets else {
             throw Error.wrongTripletCount(expected: expectedTriplets, got: triplets.count)
