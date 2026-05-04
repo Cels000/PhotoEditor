@@ -13,45 +13,51 @@ struct MaskRefinementSheet: View {
 
     var body: some View {
         NavigationStack {
-            Form {
-                Section("Edge") {
-                    HStack {
-                        Text("Feather")
-                            .foregroundStyle(Theme.Colors.text)
-                        Slider(value: Binding(
-                            get: { viewModel.document.mask?.feather ?? 0 },
-                            set: { viewModel.updateMaskFeather($0) }
-                        ), in: 0...1)
-                    }
-                    Toggle("Invert", isOn: Binding(
-                        get: { viewModel.document.mask?.invert ?? false },
-                        set: { viewModel.setMaskInvert($0) }
-                    ))
+            VStack(spacing: 0) {
+                if viewModel.lastDetectedInstanceCount > 0 {
+                    InstancePickerOverlay(viewModel: viewModel)
+                        .padding(.bottom, 8)
                 }
+                Form {
+                    Section("Edge") {
+                        HStack {
+                            Text("Feather")
+                                .foregroundStyle(Theme.Colors.text)
+                            Slider(value: Binding(
+                                get: { viewModel.document.mask?.feather ?? 0 },
+                                set: { viewModel.updateMaskFeather($0) }
+                            ), in: 0...1)
+                        }
+                        Toggle("Invert", isOn: Binding(
+                            get: { viewModel.document.mask?.invert ?? false },
+                            set: { viewModel.setMaskInvert($0) }
+                        ))
+                    }
 
-                if viewModel.lastDetectedInstanceCount > 1 {
-                    Section("Subjects") {
-                        ForEach(0..<viewModel.lastDetectedInstanceCount, id: \.self) { i in
-                            Button {
-                                viewModel.toggleInstanceExcluded(i)
-                            } label: {
-                                HStack {
-                                    Text("Subject \(i + 1)")
-                                        .foregroundStyle(Theme.Colors.text)
-                                    Spacer()
-                                    Image(systemName: isExcluded(i) ? "circle" : "checkmark.circle.fill")
-                                        .foregroundStyle(isExcluded(i) ? Theme.Colors.secondary : Theme.Colors.accent)
+                    if viewModel.lastDetectedInstanceCount > 1 {
+                        Section("Subjects") {
+                            ForEach(0..<viewModel.lastDetectedInstanceCount, id: \.self) { i in
+                                Button {
+                                    viewModel.toggleInstanceExcluded(i)
+                                } label: {
+                                    HStack {
+                                        Text("Subject \(i + 1)")
+                                            .foregroundStyle(Theme.Colors.text)
+                                        Spacer()
+                                        Image(systemName: isExcluded(i) ? "circle" : "checkmark.circle.fill")
+                                            .foregroundStyle(isExcluded(i) ? Theme.Colors.secondary : Theme.Colors.accent)
+                                    }
                                 }
                             }
                         }
                     }
-                }
 
-                Section {
-                    Button(role: .destructive) {
-                        confirmingRemove = true
-                    } label: {
-                        Text("Remove Mask")
+                    Section {
+                        Button(role: .destructive) {
+                            confirmingRemove = true
+                        } label: {
+                            Text("Remove Mask")
+                        }
                     }
                 }
             }
