@@ -28,7 +28,17 @@ targets:
         excludes:
           - "Info.plist"
           - "**/*.md"
+          - "Resources/LUTs"
+          - "Resources/LUTs/**"
         type: group
+      # Folder reference (NOT group) so the LUTs/ directory is preserved as
+      # a real subfolder in the .app bundle. FilterLibrary.swift resolves
+      # `bundle.url(forResource: "LUTs", withExtension: nil)` to enumerate
+      # .cube files at runtime — that requires the folder to exist as a
+      # bundled directory, which `type: group` would flatten.
+      - path: PhotoEditor/Resources/LUTs
+        type: folder
+        buildPhase: resources
     # Deliberately NO `info:` block — XcodeGen's info directive *generates* the
     # Info.plist at the specified path, overwriting our hand-crafted file and
     # stripping privacy keys (NSPhotoLibraryUsageDescription, etc.). Causes a

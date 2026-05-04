@@ -99,7 +99,7 @@ final class FilterLibrary {
                 let stableID = "cube.\(name.lowercased())"
                 result.append(
                     Filter(id: stableID,
-                           displayName: name,
+                           displayName: humanize(name),
                            category: .film,
                            kind: .cubeFile(url: url))
                 )
@@ -107,5 +107,22 @@ final class FilterLibrary {
         }
 
         return result
+    }
+
+    /// `kodak_portra_400` → `Kodak Portra 400`. Acronyms like `bw`, `hp`, `fp`
+    /// stay uppercase; roman numerals (`iii`) get capitalized too.
+    private static func humanize(_ stem: String) -> String {
+        let upper: Set<String> = ["bw", "hp", "fp", "px", "iii", "ii", "iv"]
+        return stem
+            .replacingOccurrences(of: "_", with: " ")
+            .replacingOccurrences(of: "-", with: " ")
+            .split(separator: " ")
+            .map { token -> String in
+                let lower = token.lowercased()
+                if upper.contains(lower) { return lower.uppercased() }
+                if token.allSatisfy({ $0.isNumber }) { return String(token) }
+                return lower.prefix(1).uppercased() + lower.dropFirst()
+            }
+            .joined(separator: " ")
     }
 }
