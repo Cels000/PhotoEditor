@@ -60,6 +60,7 @@ struct ContentView: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .padding(.horizontal, isChromeHidden ? 0 : Theme.Spacing.sm)
                     .padding(.bottom, isChromeHidden ? 0 : Theme.Spacing.xs)
+                    .ignoresSafeArea(isChromeHidden ? .all : [], edges: isChromeHidden ? [.top, .bottom] : [])
                 if !isChromeHidden {
                     PanelContainerView(viewModel: viewModel, selectedTab: $selectedTab)
                         .transition(.move(edge: .bottom).combined(with: .opacity))
@@ -124,7 +125,7 @@ struct ContentView: View {
                     .accessibilityLabel("Save as Recipe")
                 }
             }
-            .background(Theme.Colors.canvas)
+            .background(Theme.Colors.canvas.ignoresSafeArea())
             .sheet(isPresented: $isLibraryPresented) {
                 if let store = libraryStore {
                     LibraryGridView(store: store) { item in
@@ -207,9 +208,11 @@ struct ContentView: View {
 
     private var editorPreview: some View {
         ZStack {
-            // Canvas background fills the full available space — no decorative
-            // rounded-rect frame stealing pixels from the photo.
+            // Canvas background fills the full available space — extends past
+            // safe areas (nav bar, home indicator) so the screen reads as one
+            // continuous surface rather than a letterboxed editor.
             Theme.Colors.canvas
+                .ignoresSafeArea()
 
             if let image = displayedImage {
                 Image(uiImage: image)
