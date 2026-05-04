@@ -11,6 +11,11 @@ struct CameraView: View {
     let session: CameraSession
 
     @State private var permissionStatus: AVAuthorizationStatus = .notDetermined
+    @State private var renderer: CameraPreviewRenderer?
+    @State private var focusPoint: CGPoint?
+    @State private var exposureBias: Float = 0
+    @State private var showExposureSlider: Bool = false
+    @State private var hideSliderTask: Task<Void, Never>?
 
     var body: some View {
         ZStack {
@@ -18,15 +23,29 @@ struct CameraView: View {
 
             VStack(spacing: 0) {
                 topBar
-                Spacer()
+                Spacer(minLength: 0)
+                if let renderer {
+                    previewArea(renderer: renderer)
+                        .aspectRatio(3/4, contentMode: .fit)
+                }
+                Spacer(minLength: 0)
                 shutterRow
             }
         }
         .task {
             permissionStatus = await CameraPermissions.request()
-            if permissionStatus == .authorized {
-                session.start()
-            }
+            guard permissionStatus == .authorized else { return }
+            let r = CameraPreviewRenderer(cubeResolver: viewModel.cubeResolver)
+            r.setFilterSelection(viewModel.selectedSlot.filterSelection)
+            r.isFrontCamera = (session.position == .front)
+            session.sampleBufferDelegate = r
+            renderer = r
+            viewModel.bindHEIC(provider: { try await session.capturePhoto() })
+            viewModel.bindFront(isFront: { session.position == .front })
+            session.start()
+        }
+        .onChange(of: viewModel.selectedSlotID) { _, _ in
+            renderer?.setFilterSelection(viewModel.selectedSlot.filterSelection)
         }
         .onDisappear { session.stop() }
         .alert("Camera access needed", isPresented: Binding(
@@ -117,5 +136,91 @@ struct CameraView: View {
         UIImpactFeedbackGenerator(style: .medium).impactOccurred()
         do { try await viewModel.capture() }
         catch { viewModel.errorMessage = "Couldn't save photo." }
+    }
+
+    // MARK: - Preview area
+
+    @ViewBuilder
+    private func previewArea(renderer: CameraPreviewRenderer) -> some View {
+        GeometryReader { geo in
+            ZStack {
+                CameraPreviewView(renderer: renderer)
+                if viewModel.gridEnabled {
+                    gridOverlay
+                }
+                if let p = focusPoint {
+                    Circle()
+                        .stroke(Color.white, lineWidth: 1.5)
+                        .frame(width: 64, height: 64)
+                        .position(p)
+                        .transition(.opacity)
+                }
+                if showExposureSlider {
+                    HStack {
+                        Spacer()
+                        exposureSlider
+                            .frame(width: 32, height: 200)
+                            .padding(.trailing, Theme.Spacing.md)
+                    }
+                }
+            }
+            .contentShape(Rectangle())
+            .onTapGesture { location in
+                handleTap(at: location, in: geo.size)
+            }
+        }
+    }
+
+    private var gridOverlay: some View {
+        GeometryReader { geo in
+            Path { p in
+                let w = geo.size.width, h = geo.size.height
+                p.move(to: CGPoint(x: w/3, y: 0));    p.addLine(to: CGPoint(x: w/3,   y: h))
+                p.move(to: CGPoint(x: 2*w/3, y: 0));  p.addLine(to: CGPoint(x: 2*w/3, y: h))
+                p.move(to: CGPoint(x: 0, y: h/3));    p.addLine(to: CGPoint(x: w,     y: h/3))
+                p.move(to: CGPoint(x: 0, y: 2*h/3));  p.addLine(to: CGPoint(x: w,     y: 2*h/3))
+            }
+            .stroke(Color.white.opacity(0.3), lineWidth: 1)
+        }
+    }
+
+    private var exposureSlider: some View {
+        VStack {
+            Image(systemName: "sun.max.fill").foregroundStyle(.white)
+            Slider(value: Binding(
+                get: { Double(exposureBias) },
+                set: { newVal in
+                    exposureBias = Float(newVal)
+                    session.setExposureCompensation(exposureBias)
+                    rescheduleSliderHide()
+                }),
+                in: -2...2)
+                .rotationEffect(.degrees(-90))
+                .frame(width: 200)
+                .tint(.white)
+            Text(String(format: "%+.1f", exposureBias))
+                .font(.caption2).foregroundStyle(.white)
+        }
+    }
+
+    private func handleTap(at location: CGPoint, in size: CGSize) {
+        focusPoint = location
+        let nx = location.x / size.width
+        let ny = location.y / size.height
+        session.setFocusPoint(CGPoint(x: nx, y: ny))
+        showExposureSlider = true
+        rescheduleSliderHide()
+        Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 800_000_000)
+            withAnimation { focusPoint = nil }
+        }
+    }
+
+    private func rescheduleSliderHide() {
+        hideSliderTask?.cancel()
+        hideSliderTask = Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 3_000_000_000)
+            if !Task.isCancelled { withAnimation { showExposureSlider = false } }
+        }
     }
 }
