@@ -12,7 +12,7 @@ Build a premium-feeling iOS photo editor from a brownfield SwiftUI seed. The arc
 - [x] **Phase 4: Library + Persistence** - SwiftData-backed in-app library with thumbnails, re-edit capability, and graceful PHAsset handling (completed 2026-05-03)
 - [x] **Phase 5: Export** - Full-resolution export with format/size/quality options, share sheet, ICC profile embedding, and EXIF passthrough (completed 2026-05-03)
 - [x] **Phase 6: Recipes** - Save, apply, rename, delete, and share named adjustment stacks via a custom `.photorecipe` file format (completed 2026-05-03)
-- [ ] **Phase 7: Polish + Accessibility** - Elevate the interface to genuinely premium: haptics, spring animations, VoiceOver audit, Dynamic Type XL verification, Reduce Motion compliance
+- [x] **Phase 7: Polish + Accessibility** - Elevate the interface to genuinely premium: haptics, spring animations, VoiceOver audit, Dynamic Type XL verification, Reduce Motion compliance (completed 2026-05-03)
 
 ## Phase Details
 
@@ -160,4 +160,4 @@ Plans:
 | 4. Library + Persistence | 0/TBD | Complete    | 2026-05-03 |
 | 5. Export | 0/6 | Complete    | 2026-05-03 |
 | 6. Recipes | 0/TBD | Complete    | 2026-05-03 |
-| 7. Polish + Accessibility | 0/10 | Not started | - |
+| 7. Polish + Accessibility | 0/10 | Complete    | 2026-05-03 |

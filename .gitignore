@@ -7,6 +7,9 @@ xcuserdata/
 *.xcodeproj/xcuserdata/
 *.xcodeproj/project.xcworkspace/xcuserdata/
 
+# XcodeGen — project regenerated from project.yml on every CI build
+PhotoEditor.xcodeproj/
+
 # Swift Package Manager
 .build/
 .swiftpm/

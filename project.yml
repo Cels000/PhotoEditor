@@ -1,0 +1,84 @@
+name: PhotoEditor
+options:
+  bundleIdPrefix: com.cels000
+  createIntermediateGroups: true
+  deploymentTarget:
+    iOS: "17.0"
+  developmentLanguage: en
+  generateEmptyDirectories: true
+
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+    TARGETED_DEVICE_FAMILY: "1,2"
+    MARKETING_VERSION: "1.0"
+    CURRENT_PROJECT_VERSION: "1"
+    SWIFT_STRICT_CONCURRENCY: minimal
+    GCC_TREAT_WARNINGS_AS_ERRORS: NO
+    SWIFT_TREAT_WARNINGS_AS_ERRORS: NO
+    ENABLE_USER_SCRIPT_SANDBOXING: NO
+
+targets:
+  PhotoEditor:
+    type: application
+    platform: iOS
+    deploymentTarget: "17.0"
+    sources:
+      - path: PhotoEditor
+        excludes:
+          - "Info.plist"
+          - "**/*.md"
+        type: group
+    info:
+      path: PhotoEditor/Info.plist
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.cels000.PhotoEditor
+        GENERATE_INFOPLIST_FILE: NO
+        INFOPLIST_FILE: PhotoEditor/Info.plist
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ENABLE_PREVIEWS: YES
+        SWIFT_EMIT_LOC_STRINGS: YES
+        TARGETED_DEVICE_FAMILY: "1,2"
+        SUPPORTS_MACCATALYST: NO
+    # Apple frameworks autolink under Swift; no explicit dependencies needed.
+    # Frameworks used: SwiftUI, UIKit, CoreImage, CoreImage.CIFilterBuiltins,
+    # Photos, PhotosUI, ImageIO, SwiftData, Observation, UniformTypeIdentifiers, Metal.
+
+  PhotoEditorTests:
+    type: bundle.unit-test
+    platform: iOS
+    deploymentTarget: "17.0"
+    sources:
+      - path: PhotoEditorTests
+        excludes:
+          - "**/*.md"
+        type: group
+        optional: true
+    dependencies:
+      - target: PhotoEditor
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.cels000.PhotoEditorTests
+        GENERATE_INFOPLIST_FILE: YES
+        BUNDLE_LOADER: $(TEST_HOST)
+        TEST_HOST: $(BUILT_PRODUCTS_DIR)/PhotoEditor.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/PhotoEditor
+
+schemes:
+  PhotoEditor:
+    build:
+      targets:
+        PhotoEditor: all
+        PhotoEditorTests: [test]
+    run:
+      config: Debug
+    test:
+      config: Debug
+      targets:
+        - PhotoEditorTests
+    archive:
+      config: Release
+    profile:
+      config: Release
+    analyze:
+      config: Debug
