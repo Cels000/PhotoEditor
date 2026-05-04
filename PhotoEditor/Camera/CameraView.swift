@@ -116,22 +116,26 @@ struct CameraView: View {
     // MARK: - Shutter row
 
     private var shutterRow: some View {
-        ZStack {
-            Button {
-                Task { await runCapture() }
-            } label: {
+        Button {
+            Task { await runCapture() }
+        } label: {
+            ZStack {
+                // Outer ring + inner disc both use Theme.Colors.text so the
+                // shutter has contrast against canvas in both light and dark
+                // modes (canvas is pure white / pure black).
                 Circle()
-                    .fill(Color.white)
-                    .frame(width: 64, height: 64)
-                    .overlay(
-                        Circle()
-                            .stroke(Color.white, lineWidth: 4)
-                            .frame(width: 72, height: 72)
-                    )
+                    .stroke(Theme.Colors.text, lineWidth: 3)
+                    .frame(width: 72, height: 72)
+                Circle()
+                    .fill(Theme.Colors.text)
+                    .frame(width: 60, height: 60)
             }
-            .disabled(viewModel.captureInFlight)
-            .opacity(viewModel.captureInFlight ? 0.6 : 1.0)
+            .frame(width: 80, height: 80)
+            .contentShape(Circle())
         }
+        .buttonStyle(.plain)
+        .disabled(viewModel.captureInFlight)
+        .opacity(viewModel.captureInFlight ? 0.6 : 1.0)
         .frame(height: 96)
         .padding(.bottom, Theme.Spacing.lg)
     }
