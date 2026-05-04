@@ -17,6 +17,7 @@ struct CameraView: View {
     @State private var showExposureSlider: Bool = false
     @State private var hideSliderTask: Task<Void, Never>?
     @State private var ghostsVisible: Bool = false
+    @State private var ghostHideTask: Task<Void, Never>?
     @State private var scrolledID: String?
 
     var body: some View {
@@ -256,21 +257,26 @@ struct CameraView: View {
                 proxy.scrollTo(viewModel.selectedSlotID, anchor: .center)
             }
             // Guard prevents scroll<->select feedback loop with the
-            // proxy.scrollTo below.
+            // proxy.scrollTo below. Also drives ghost label visibility:
+            // iOS 17 lacks onScrollPhaseChange, so we treat any scrolledID
+            // change as "user is scrubbing" and debounce the fade-out.
             .onChange(of: scrolledID) { _, newID in
+                withAnimation(.easeInOut(duration: 0.12)) {
+                    ghostsVisible = true
+                }
+                ghostHideTask?.cancel()
+                ghostHideTask = Task { @MainActor in
+                    try? await Task.sleep(nanoseconds: 350_000_000)
+                    if !Task.isCancelled {
+                        withAnimation(.easeInOut(duration: 0.25)) {
+                            ghostsVisible = false
+                        }
+                    }
+                }
                 guard let newID, newID != viewModel.selectedSlotID,
                       let slot = viewModel.slots.first(where: { $0.id == newID })
                 else { return }
                 viewModel.selectSlot(slot)
-            }
-            // Ghost labels are tied to scroll phase rather than centered-cell
-            // identity so they fade out only after the user releases, not on
-            // every snap during a continuous flick.
-            .onScrollPhaseChange { _, newPhase in
-                let active = (newPhase != .idle)
-                withAnimation(.easeInOut(duration: active ? 0.12 : 0.25)) {
-                    ghostsVisible = active
-                }
             }
             .onChange(of: viewModel.selectedSlotID) { _, newID in
                 withAnimation(.easeInOut(duration: 0.2)) {
