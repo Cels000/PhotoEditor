@@ -32,7 +32,7 @@ import Foundation
 
 enum BuiltInPresets {
 
-    private static let seedKey = "builtInPresetsSeeded.v6"
+    private static let seedKey = "builtInPresetsSeeded.v7"
 
     /// Insert (and update) built-in presets the first time we see this device on
     /// this seed version. Idempotent — safe to call on every launch.
@@ -69,7 +69,7 @@ enum BuiltInPresets {
                 inserted += 1
             }
         }
-        NSLog("PhotoEditor: BuiltInPresets seed v6 — inserted \(inserted), updated \(updated) of \(all.count)")
+        NSLog("PhotoEditor: BuiltInPresets seed v7 — inserted \(inserted), updated \(updated) of \(all.count)")
         defaults.set(true, forKey: seedKey)
     }
 
@@ -128,10 +128,8 @@ enum BuiltInPresets {
             s.color.tint = -0.03
             s.color.saturation = -0.12
             s.color.vibrance = 0.08
-            s.light.contrast = -0.10
             s.light.shadows = 0.18
             s.light.highlights = -0.12
-            s.light.blacks = 0.08          // lifted (Lightroom convention)
             s.hsl.orange.hue = 0.08
             s.hsl.orange.saturation = 0.15
             s.hsl.orange.luminance = 0.12
@@ -152,6 +150,13 @@ enum BuiltInPresets {
             s.grain.size = 0.30
             s.grain.intensity = 0.18
             s.softness = 0.06
+            s.curves.rgb.points = [
+                CurvePoint(x: 0.0, y: 0.04),
+                CurvePoint(x: 0.25, y: 0.21),
+                CurvePoint(x: 0.5, y: 0.50),
+                CurvePoint(x: 0.75, y: 0.78),
+                CurvePoint(x: 1.0, y: 0.95)
+            ]
             return s
         }()),
 
@@ -163,10 +168,8 @@ enum BuiltInPresets {
             s.color.tint = 0.04
             s.color.saturation = -0.04
             s.color.vibrance = 0.10
-            s.light.contrast = 0.08
             s.light.shadows = 0.10
             s.light.highlights = -0.08
-            s.light.blacks = -0.10         // crushed
             s.hsl.red.hue = -0.05
             s.hsl.red.saturation = 0.12
             s.hsl.red.luminance = -0.03
@@ -186,6 +189,13 @@ enum BuiltInPresets {
             s.grain.size = 0.55
             s.grain.intensity = 0.40
             s.softness = 0.08
+            s.curves.rgb.points = [
+                CurvePoint(x: 0.0, y: 0.02),
+                CurvePoint(x: 0.25, y: 0.18),
+                CurvePoint(x: 0.5, y: 0.50),
+                CurvePoint(x: 0.75, y: 0.81),
+                CurvePoint(x: 1.0, y: 0.97)
+            ]
             return s
         }()),
 
@@ -198,11 +208,8 @@ enum BuiltInPresets {
             s.color.tint = -0.04
             s.color.saturation = 0.18
             s.color.vibrance = 0.10
-            s.light.contrast = 0.18
             s.light.shadows = -0.05
             s.light.highlights = -0.10
-            s.light.blacks = -0.15         // deep
-            s.light.whites = 0.05
             s.hsl.red.hue = 0.05
             s.hsl.red.saturation = 0.25
             s.hsl.orange.saturation = 0.10
@@ -220,6 +227,13 @@ enum BuiltInPresets {
             s.grain.size = 0.12
             s.grain.intensity = 0.06
             s.softness = 0.04
+            s.curves.rgb.points = [
+                CurvePoint(x: 0.0, y: 0.00),
+                CurvePoint(x: 0.25, y: 0.15),
+                CurvePoint(x: 0.5, y: 0.50),
+                CurvePoint(x: 0.75, y: 0.86),
+                CurvePoint(x: 1.0, y: 1.00)
+            ]
             return s
         }()),
 
@@ -232,11 +246,8 @@ enum BuiltInPresets {
             s.color.tint = -0.06
             s.color.saturation = -0.18
             s.color.vibrance = 0.05
-            s.light.contrast = -0.18
             s.light.shadows = 0.28
             s.light.highlights = -0.18
-            s.light.blacks = 0.18          // milky shadows
-            s.light.whites = -0.05
             s.hsl.red.saturation = -0.08
             s.hsl.red.luminance = 0.05
             s.hsl.orange.hue = -0.05       // pinker skin
@@ -259,6 +270,13 @@ enum BuiltInPresets {
             s.grain.size = 0.28
             s.grain.intensity = 0.15
             s.softness = 0.1
+            s.curves.rgb.points = [
+                CurvePoint(x: 0.0, y: 0.06),
+                CurvePoint(x: 0.25, y: 0.23),
+                CurvePoint(x: 0.5, y: 0.50),
+                CurvePoint(x: 0.75, y: 0.74),
+                CurvePoint(x: 1.0, y: 0.92)
+            ]
             return s
         }()),
 
@@ -271,11 +289,8 @@ enum BuiltInPresets {
             s.color.tint = 0.03
             s.color.saturation = 0.32
             s.color.vibrance = 0.15
-            s.light.contrast = 0.30
             s.light.shadows = -0.18
             s.light.highlights = -0.05
-            s.light.blacks = -0.25         // crushed
-            s.light.whites = 0.10
             s.hsl.red.hue = -0.05
             s.hsl.red.saturation = 0.35
             s.hsl.red.luminance = -0.05
@@ -297,6 +312,13 @@ enum BuiltInPresets {
             s.grain.size = 0.05
             s.grain.intensity = 0.03
             s.softness = 0.03
+            s.curves.rgb.points = [
+                CurvePoint(x: 0.0, y: 0.00),
+                CurvePoint(x: 0.25, y: 0.10),
+                CurvePoint(x: 0.5, y: 0.50),
+                CurvePoint(x: 0.75, y: 0.92),
+                CurvePoint(x: 1.0, y: 1.00)
+            ]
             return s
         }()),
 
@@ -310,11 +332,8 @@ enum BuiltInPresets {
             s.color.tint = -0.04
             s.color.saturation = -0.05
             s.color.vibrance = 0.05
-            s.light.contrast = -0.08
             s.light.shadows = 0.20
             s.light.highlights = 0.05
-            s.light.blacks = 0.20          // lifted cinema black
-            s.light.whites = 0.05
             s.hsl.red.hue = 0.04
             s.hsl.red.saturation = 0.18
             s.hsl.red.luminance = 0.10
@@ -336,6 +355,14 @@ enum BuiltInPresets {
             s.grain.size = 0.60
             s.grain.intensity = 0.42
             s.softness = 0.12
+            s.curves.rgb.points = [
+                CurvePoint(x: 0.0, y: 0.10),
+                CurvePoint(x: 0.25, y: 0.24),
+                CurvePoint(x: 0.5, y: 0.50),
+                CurvePoint(x: 0.75, y: 0.76),
+                CurvePoint(x: 1.0, y: 0.94)
+            ]
+            s.halation = 0.65
             return s
         }()),
 
@@ -349,11 +376,8 @@ enum BuiltInPresets {
             s.color.tint = -0.02
             s.color.saturation = -0.15
             s.color.vibrance = -0.05
-            s.light.contrast = 0.15
             s.light.shadows = -0.05
             s.light.highlights = -0.05
-            s.light.blacks = -0.10
-            s.light.whites = -0.05
             s.hsl.red.saturation = -0.10
             s.hsl.red.luminance = -0.05
             s.hsl.orange.hue = -0.10
@@ -373,6 +397,13 @@ enum BuiltInPresets {
             s.splitToning.highlightHue = 40
             s.splitToning.highlightSaturation = 0.10
             s.softness = 0.05
+            s.curves.rgb.points = [
+                CurvePoint(x: 0.0, y: 0.00),
+                CurvePoint(x: 0.25, y: 0.18),
+                CurvePoint(x: 0.5, y: 0.50),
+                CurvePoint(x: 0.75, y: 0.82),
+                CurvePoint(x: 1.0, y: 0.96)
+            ]
             return s
         }()),
 
@@ -385,10 +416,8 @@ enum BuiltInPresets {
             s.color.tint = -0.05
             s.color.saturation = 0.08
             s.color.vibrance = 0.10
-            s.light.contrast = 0.20
             s.light.shadows = -0.08
             s.light.highlights = -0.05
-            s.light.blacks = -0.12         // crushed-but-rich
             s.hsl.red.hue = 0.06
             s.hsl.red.saturation = 0.10
             s.hsl.orange.hue = 0.05
@@ -412,6 +441,13 @@ enum BuiltInPresets {
             s.grain.size = 0.35
             s.grain.intensity = 0.20
             s.softness = 0.08
+            s.curves.rgb.points = [
+                CurvePoint(x: 0.0, y: 0.02),
+                CurvePoint(x: 0.25, y: 0.18),
+                CurvePoint(x: 0.5, y: 0.50),
+                CurvePoint(x: 0.75, y: 0.82),
+                CurvePoint(x: 1.0, y: 0.97)
+            ]
             return s
         }()),
 
@@ -423,11 +459,8 @@ enum BuiltInPresets {
             s.color.temperature = -0.04
             s.color.saturation = -0.25
             s.color.vibrance = -0.10
-            s.light.contrast = -0.25
             s.light.shadows = 0.25
             s.light.highlights = -0.18
-            s.light.blacks = 0.25          // milky lifted
-            s.light.whites = -0.10
             s.hsl.red.saturation = -0.08
             s.hsl.orange.saturation = -0.10
             s.hsl.yellow.saturation = -0.10
@@ -443,6 +476,13 @@ enum BuiltInPresets {
             s.grain.size = 0.20
             s.grain.intensity = 0.10
             s.softness = 0.1
+            s.curves.rgb.points = [
+                CurvePoint(x: 0.0, y: 0.12),
+                CurvePoint(x: 0.25, y: 0.30),
+                CurvePoint(x: 0.5, y: 0.50),
+                CurvePoint(x: 0.75, y: 0.70),
+                CurvePoint(x: 1.0, y: 0.88)
+            ]
             return s
         }()),
 
@@ -456,11 +496,8 @@ enum BuiltInPresets {
             s.color.tint = 0.05
             s.color.saturation = -0.10
             s.color.vibrance = 0.05
-            s.light.contrast = -0.12
             s.light.shadows = 0.18
             s.light.highlights = -0.10
-            s.light.blacks = 0.15          // soft lifted
-            s.light.whites = -0.05
             s.hsl.red.hue = 0.08
             s.hsl.red.saturation = -0.05
             s.hsl.red.luminance = -0.05
@@ -484,6 +521,13 @@ enum BuiltInPresets {
             s.grain.size = 0.30
             s.grain.intensity = 0.15
             s.softness = 0.08
+            s.curves.rgb.points = [
+                CurvePoint(x: 0.0, y: 0.10),
+                CurvePoint(x: 0.25, y: 0.26),
+                CurvePoint(x: 0.5, y: 0.50),
+                CurvePoint(x: 0.75, y: 0.74),
+                CurvePoint(x: 1.0, y: 0.92)
+            ]
             return s
         }())
     ]
@@ -501,15 +545,19 @@ enum BuiltInPresets {
         // that resists blowing out under push processing. Punchy not creamy.
         Preset(name: "Tri-X 400", category: .bwFilm, stack: {
             var s = stack(filterID: BuiltInLUTs.ID.noir, strength: 1.0)
-            s.light.contrast = 0.32
             s.light.highlights = -0.08          // firm shoulder
             s.light.shadows = -0.05
-            s.light.whites = 0.10
-            s.light.blacks = -0.22              // deep but not crushed
             s.sharpness = 0.45
             s.grain.size = 0.70
             s.grain.intensity = 0.72
             s.softness = 0.05
+            s.curves.rgb.points = [
+                CurvePoint(x: 0.0, y: 0.00),
+                CurvePoint(x: 0.25, y: 0.15),
+                CurvePoint(x: 0.5, y: 0.50),
+                CurvePoint(x: 0.75, y: 0.85),
+                CurvePoint(x: 1.0, y: 0.99)
+            ]
             return s
         }()),
 
@@ -518,15 +566,19 @@ enum BuiltInPresets {
         // Painterly, forgiving, even-distributed grain.
         Preset(name: "HP5 Plus", category: .bwFilm, stack: {
             var s = stack(filterID: BuiltInLUTs.ID.noir, strength: 1.0)
-            s.light.contrast = 0.12
             s.light.highlights = 0.08           // soft roll-off
             s.light.shadows = 0.10
-            s.light.whites = 0.04
-            s.light.blacks = 0.10               // lifted
             s.sharpness = 0.35
             s.grain.size = 0.55
             s.grain.intensity = 0.55
             s.softness = 0.1
+            s.curves.rgb.points = [
+                CurvePoint(x: 0.0, y: 0.05),
+                CurvePoint(x: 0.25, y: 0.22),
+                CurvePoint(x: 0.5, y: 0.50),
+                CurvePoint(x: 0.75, y: 0.78),
+                CurvePoint(x: 1.0, y: 0.94)
+            ]
             return s
         }()),
 
@@ -535,15 +587,19 @@ enum BuiltInPresets {
         // ~200 lp/mm resolution. Smooth, controlled, modern.
         Preset(name: "T-Max 100", category: .bwFilm, stack: {
             var s = stack(filterID: BuiltInLUTs.ID.noir, strength: 1.0)
-            s.light.contrast = 0.18
             s.light.highlights = 0.02
             s.light.shadows = 0.04
-            s.light.whites = 0.12
-            s.light.blacks = 0.15               // controlled mid-deep
             s.sharpness = 0.70                  // clinical micro-detail
             s.grain.size = 0.25
             s.grain.intensity = 0.28
             s.softness = 0.03
+            s.curves.rgb.points = [
+                CurvePoint(x: 0.0, y: 0.02),
+                CurvePoint(x: 0.25, y: 0.22),
+                CurvePoint(x: 0.5, y: 0.50),
+                CurvePoint(x: 0.75, y: 0.78),
+                CurvePoint(x: 1.0, y: 0.97)
+            ]
             return s
         }()),
 
@@ -552,15 +608,19 @@ enum BuiltInPresets {
         // dramatic but controlled highlights, architecturally crisp.
         Preset(name: "Acros", category: .bwFilm, stack: {
             var s = stack(filterID: BuiltInLUTs.ID.noir, strength: 1.0)
-            s.light.contrast = 0.24
             s.light.highlights = -0.04
             s.light.shadows = -0.08
-            s.light.whites = 0.14
-            s.light.blacks = -0.26              // deepest, Fuji density
             s.sharpness = 0.65
             s.grain.size = 0.20
             s.grain.intensity = 0.22
             s.softness = 0.04
+            s.curves.rgb.points = [
+                CurvePoint(x: 0.0, y: 0.00),
+                CurvePoint(x: 0.25, y: 0.18),
+                CurvePoint(x: 0.5, y: 0.50),
+                CurvePoint(x: 0.75, y: 0.82),
+                CurvePoint(x: 1.0, y: 0.97)
+            ]
             return s
         }())
     ]
@@ -579,11 +639,8 @@ enum BuiltInPresets {
             s.color.tint = 0.10
             s.color.saturation = -0.22
             s.color.vibrance = -0.10
-            s.light.contrast = -0.30
             s.light.shadows = 0.35
             s.light.highlights = -0.10
-            s.light.blacks = 0.55                // strong lift (dyes never reach black)
-            s.light.whites = -0.15
             s.hsl.red.hue = -0.15
             s.hsl.red.saturation = -0.15
             s.hsl.orange.saturation = -0.10
@@ -600,6 +657,13 @@ enum BuiltInPresets {
             s.grain.size = 0.55
             s.grain.intensity = 0.32
             s.softness = 0.2
+            s.curves.rgb.points = [
+                CurvePoint(x: 0.0, y: 0.22),
+                CurvePoint(x: 0.25, y: 0.34),
+                CurvePoint(x: 0.5, y: 0.50),
+                CurvePoint(x: 0.75, y: 0.66),
+                CurvePoint(x: 1.0, y: 0.82)
+            ]
             return s
         }()),
 
@@ -613,11 +677,8 @@ enum BuiltInPresets {
             s.color.tint = -0.05
             s.color.saturation = 0.18
             s.color.vibrance = 0.20
-            s.light.contrast = 0.18
             s.light.shadows = -0.15
             s.light.highlights = -0.05
-            s.light.blacks = -0.10               // contrasty
-            s.light.whites = 0.10
             s.hsl.red.saturation = 0.20
             s.hsl.orange.hue = 0.05
             s.hsl.orange.saturation = 0.25
@@ -636,6 +697,13 @@ enum BuiltInPresets {
             s.grain.size = 0.65
             s.grain.intensity = 0.55
             s.softness = 0.3
+            s.curves.rgb.points = [
+                CurvePoint(x: 0.0, y: 0.04),
+                CurvePoint(x: 0.25, y: 0.20),
+                CurvePoint(x: 0.5, y: 0.50),
+                CurvePoint(x: 0.75, y: 0.82),
+                CurvePoint(x: 1.0, y: 0.96)
+            ]
             return s
         }()),
 
@@ -649,11 +717,8 @@ enum BuiltInPresets {
             s.color.tint = 0.14
             s.color.saturation = -0.30
             s.color.vibrance = -0.05
-            s.light.contrast = -0.40            // most extreme of the 5
             s.light.shadows = 0.45
             s.light.highlights = -0.20
-            s.light.blacks = 0.60                // most lifted
-            s.light.whites = -0.20
             s.hsl.red.hue = -0.10
             s.hsl.red.saturation = -0.15
             s.hsl.orange.saturation = -0.20
@@ -672,6 +737,14 @@ enum BuiltInPresets {
             s.grain.size = 0.40
             s.grain.intensity = 0.15
             s.softness = 0.4
+            s.curves.rgb.points = [
+                CurvePoint(x: 0.0, y: 0.30),
+                CurvePoint(x: 0.25, y: 0.40),
+                CurvePoint(x: 0.5, y: 0.50),
+                CurvePoint(x: 0.75, y: 0.62),
+                CurvePoint(x: 1.0, y: 0.74)
+            ]
+            s.halation = 0.18
             return s
         }()),
 
@@ -685,11 +758,8 @@ enum BuiltInPresets {
             s.color.tint = -0.04
             s.color.saturation = -0.05
             s.color.vibrance = 0.10
-            s.light.contrast = -0.20
             s.light.shadows = 0.30
             s.light.highlights = -0.10
-            s.light.blacks = 0.40                // lifted
-            s.light.whites = -0.05
             s.hsl.red.saturation = 0.15
             s.hsl.orange.hue = -0.05
             s.hsl.orange.saturation = 0.10
@@ -709,6 +779,14 @@ enum BuiltInPresets {
             s.grain.size = 0.45
             s.grain.intensity = 0.20
             s.softness = 0.32
+            s.curves.rgb.points = [
+                CurvePoint(x: 0.0, y: 0.22),
+                CurvePoint(x: 0.25, y: 0.36),
+                CurvePoint(x: 0.5, y: 0.50),
+                CurvePoint(x: 0.75, y: 0.66),
+                CurvePoint(x: 1.0, y: 0.84)
+            ]
+            s.halation = 0.12
             return s
         }()),
 
@@ -722,10 +800,8 @@ enum BuiltInPresets {
             s.color.tint = 0.02
             s.color.saturation = -0.05
             s.color.vibrance = 0.05
-            s.light.contrast = -0.12
             s.light.shadows = 0.20
             s.light.highlights = -0.05
-            s.light.blacks = 0.25                // mildly lifted
             s.hsl.orange.saturation = 0.05
             s.hsl.yellow.hue = -0.04
             s.hsl.green.hue = -0.06
@@ -740,6 +816,13 @@ enum BuiltInPresets {
             s.grain.size = 0.35
             s.grain.intensity = 0.10
             s.softness = 0.2
+            s.curves.rgb.points = [
+                CurvePoint(x: 0.0, y: 0.14),
+                CurvePoint(x: 0.25, y: 0.30),
+                CurvePoint(x: 0.5, y: 0.50),
+                CurvePoint(x: 0.75, y: 0.72),
+                CurvePoint(x: 1.0, y: 0.92)
+            ]
             return s
         }())
     ]

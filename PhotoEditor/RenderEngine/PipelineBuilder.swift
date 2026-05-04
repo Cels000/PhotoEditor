@@ -8,10 +8,11 @@ import Foundation
 typealias CubeResolver = (String) -> ColorCubeData?
 
 /// Pure namespace that turns an `AdjustmentStack` into a CIImage filter chain.
-/// Stage order: LUT → light → color → HSL → curves → split toning → sharpness
-/// → softness → grain → vignette → crop. Sharpness runs before softness so the
-/// final MTF roll-off applies to the sharpened result; both run before grain
-/// so noise is preserved through the rest of the pipeline.
+/// Stage order: LUT → light → color → HSL → curves → split toning → halation
+/// → sharpness → softness → grain → vignette → crop. Halation lands after the
+/// color/tone work (so the red glow respects the final highlight tone) but
+/// before sharpness/softness/grain so the glow gets the same final treatment
+/// as the rest of the image.
 enum PipelineBuilder {
 
     /// Top-level entry point. Pure: same inputs always produce the same output.
@@ -26,12 +27,13 @@ enum PipelineBuilder {
         img = applyHSL(stack.hsl, to: img)                 // 4
         img = applyCurves(stack.curves, to: img)           // 5
         img = applySplitToning(stack.splitToning, to: img) // 6
-        img = applySharpness(stack.sharpness, to: img)     // 7
-        img = applySoftness(stack.softness, to: img)       // 8  MTF roll-off
-        img = applyGrain(stack.grain, to: img)             // 9
-        img = applyVignette(stack.vignette, to: img)       // 10
+        img = applyHalation(stack.halation, to: img)       // 7  red highlight bloom
+        img = applySharpness(stack.sharpness, to: img)     // 8
+        img = applySoftness(stack.softness, to: img)       // 9  MTF roll-off
+        img = applyGrain(stack.grain, to: img)             // 10
+        img = applyVignette(stack.vignette, to: img)       // 11
         if !suppressCrop {
-            img = applyCrop(stack.crop, to: img)           // 11 (skipped when masking)
+            img = applyCrop(stack.crop, to: img)           // 12 (skipped when masking)
         }
         return img
     }
@@ -566,33 +568,90 @@ enum PipelineBuilder {
         comp.backgroundImage = image
         return comp.outputImage ?? image
     }
+    /// Film grain via per-pixel kernel. Replaces uniform-noise compositing with
+    /// luma-weighted noise (peaks in midtones, fades in shadows/highlights —
+    /// real film characteristic) over a slightly-blurred random source so the
+    /// grain clumps instead of looking like uniform pixel hash.
     static func applyGrain(_ grain: GrainSettings, to image: CIImage) -> CIImage {
         guard grain.intensity > 0 else { return image }
+        guard let kernel = grainKernel else { return image }
 
-        // Generate infinite random noise; crop to source extent.
         let random = CIFilter.randomGenerator()
-        guard let randomImage = random.outputImage else { return image }
+        guard let raw = random.outputImage else { return image }
 
-        // Scale pattern by (1 + size*3) so size=1 → 4× larger blobs (coarser grain).
+        // Scale pattern: size=0 → 1× (per-pixel), size=1 → 4× (coarse blobs).
         let scale = 1.0 + grain.size * 3.0
-        let scaled = randomImage.transformed(by: CGAffineTransform(scaleX: scale, y: scale))
+        let scaled = raw.transformed(by: CGAffineTransform(scaleX: scale, y: scale))
 
-        // Convert to grayscale luminance via CIColorMatrix (Rec.709 weights, alpha = intensity*0.4).
-        let gray = CIFilter.colorMatrix()
-        gray.inputImage = scaled
-        gray.rVector = CIVector(x: 0.2126, y: 0.7152, z: 0.0722, w: 0)
-        gray.gVector = CIVector(x: 0.2126, y: 0.7152, z: 0.0722, w: 0)
-        gray.bVector = CIVector(x: 0.2126, y: 0.7152, z: 0.0722, w: 0)
-        let alpha = max(0, min(1, grain.intensity * 0.4))
-        gray.aVector = CIVector(x: 0, y: 0, z: 0, w: CGFloat(alpha))
-        guard let grainLayer = gray.outputImage else { return image }
+        // Slight Gaussian to clump grain — silver halide aggregates spatially,
+        // it doesn't look like uniform pixel noise.
+        let blur = CIFilter.gaussianBlur()
+        blur.inputImage = scaled
+        blur.radius = Float(0.4 + grain.size * 0.6)
+        let clumped = blur.outputImage?.cropped(to: image.extent)
+                      ?? scaled.cropped(to: image.extent)
 
-        let cropped = grainLayer.cropped(to: image.extent)
+        let amount = Float(max(0, min(1, grain.intensity)) * 0.5)
+        return kernel.apply(extent: image.extent,
+                            arguments: [image, clumped, amount]) ?? image
+    }
 
-        let comp = CIFilter.sourceOverCompositing()
-        comp.inputImage = cropped
-        comp.backgroundImage = image
-        return comp.outputImage ?? image
+    private static let grainKernel: CIColorKernel? = {
+        let source = """
+        kernel vec4 filmGrain(__sample src, __sample noise, float amount) {
+            float Y = dot(src.rgb, vec3(0.2126, 0.7152, 0.0722));
+            // Luma-weighted: bell curve peaking at midtones (Y=0.5), with a
+            // 0.15 floor so shadows/highlights still get *some* grain.
+            float w = 1.0 - 2.0 * abs(Y - 0.5);
+            w = clamp(w, 0.15, 1.0);
+            float n = noise.r - 0.5;
+            vec3 r = src.rgb + vec3(n * amount * w);
+            return vec4(clamp(r, 0.0, 1.0), src.a);
+        }
+        """
+        return CIColorKernel(source: source)
+    }()
+
+    /// Halation: bright highlights bloom red/orange — the Cinestill 800T
+    /// signature (Vision3 motion-picture stock with the anti-halation remjet
+    /// layer chemically removed). Pipeline: bloom the image to expand
+    /// highlights, subtract the source to isolate the bloom contribution,
+    /// tint that contribution red-orange, additively composite back over
+    /// the source. amount in 0...1 controls bloom strength + radius jointly.
+    static func applyHalation(_ halation: Double, to image: CIImage) -> CIImage {
+        let cap = max(0, min(1, halation))
+        guard cap > 0 else { return image }
+
+        let bloom = CIFilter.bloom()
+        bloom.inputImage = image
+        bloom.intensity = Float(cap * 1.4)
+        bloom.radius = Float(8.0 + cap * 28.0)   // 8...36 px
+        guard let bloomed = bloom.outputImage?.cropped(to: image.extent) else {
+            return image
+        }
+
+        // Isolate the bloom-only contribution: max(0, bloomed - source).
+        // CISubtractBlendMode result = backgroundImage - inputImage, clamped ≥ 0.
+        let sub = CIFilter.subtractBlendMode()
+        sub.backgroundImage = bloomed
+        sub.inputImage = image
+        guard let glow = sub.outputImage else { return image }
+
+        // Tint the glow red-orange. Keep R, suppress G to ~30%, suppress B more.
+        // Slightly lift R further (×1.05) to push the cast warmer than neutral red.
+        let tint = CIFilter.colorMatrix()
+        tint.inputImage = glow
+        tint.rVector = CIVector(x: 1.05, y: 0.50, z: 0.30, w: 0)
+        tint.gVector = CIVector(x: 0.30, y: 0.20, z: 0.10, w: 0)
+        tint.bVector = CIVector(x: 0.10, y: 0.06, z: 0.06, w: 0)
+        tint.aVector = CIVector(x: 0,    y: 0,    z: 0,    w: 1)
+        guard let tinted = tint.outputImage else { return image }
+
+        // Additive composite — adds the warm glow on top without dimming the source.
+        let add = CIFilter.additionCompositing()
+        add.inputImage = tinted
+        add.backgroundImage = image
+        return add.outputImage ?? image
     }
 
     static func applyVignette(_ vignette: VignetteSettings, to image: CIImage) -> CIImage {

@@ -18,8 +18,9 @@ struct EffectsPanelView: View {
 
                 // Detail
                 sectionHeader("Detail")
-                percentSlider("Sharpen", \.sharpness, defaultValue: 0)
-                percentSlider("Soften",  \.softness,  defaultValue: 0)
+                percentSlider("Sharpen",  \.sharpness, defaultValue: 0)
+                percentSlider("Soften",   \.softness,  defaultValue: 0)
+                percentSlider("Halation", \.halation,  defaultValue: 0)
 
                 // Split Toning
                 sectionHeader("Split Toning")

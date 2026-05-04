@@ -124,6 +124,8 @@ struct AdjustmentStack: Codable, Equatable {
     var sharpness: Double = 0
     var softness: Double = 0       // 0...1 → Gaussian σ 0...2px; subtle MTF roll-off
                                    // to fight modern over-sharp captures (iPhone HDR)
+    var halation: Double = 0       // 0...1 → red highlight-bleed bloom; the Cinestill
+                                   // anti-remjet signature — bright lights bloom red.
 
     static let identity = AdjustmentStack()
 }
