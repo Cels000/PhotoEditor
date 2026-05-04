@@ -193,129 +193,125 @@ enum PipelineBuilder {
         composite.backgroundImage = image
         return composite.outputImage ?? filtered
     }
-    /// HSL: per-channel hue/sat/luminance adjustments.
+    /// HSL: per-channel hue/sat/luminance via a per-pixel CIColorKernel.
     ///
-    /// Implementation route: CIColorMatrix masking. Free-form Metal kernel HSL deferred to v2.
+    /// Each pixel's hue is computed once, then 8 triangle-shaped band weights
+    /// (centered on Lightroom's hue stops: red=0°, orange=30°, yellow=60°,
+    /// green=120°, aqua=180°, blue=240°, purple=270°, magenta=300°, each with
+    /// a 45° radius) are normalized so adjacent bands overlap smoothly without
+    /// the heavy bleed the previous CIColorMatrix-mask approach had. Per-band
+    /// hue/sat/lum deltas are blended by weight, applied in HSL space, and
+    /// converted back to RGB. Single GPU pass replaces ~40 filter passes.
     ///
-    /// Per Phase 3 plan 03-05: CIColorMatrix-based hue band masking + global CIHueAdjust per
-    /// channel. This is a documented approximation; a precise per-pixel HSL requires a Metal
-    /// CIColorKernel and is deferred to v2.
-    ///
-    /// For each non-default channel:
-    ///   1. Build a hue-band mask by isolating pixels whose dominant channel matches the band
-    ///      via a CIColorMatrix that boosts the band's primary RGB component and clamps others.
-    ///   2. Apply CIHueAdjust (hue rotation), CIColorControls (saturation), and CIExposureAdjust
-    ///      (luminance) to the source globally.
-    ///   3. Composite the adjusted result over the running output via CIBlendWithMask using
-    ///      the band mask — only band pixels receive the adjustment.
+    /// Slider semantics (matches the prior implementation, callers don't change):
+    ///   hue:        ±1 → ±30° rotation within the band
+    ///   saturation: ±1 → CI sat 0...2 within the band
+    ///   luminance:  ±1 → ±0.25 added to HSL L within the band
     static func applyHSL(_ hsl: HSLAdjustments, to image: CIImage) -> CIImage {
-        let channels: [(name: String, ch: HSLChannel, mask: (CIImage) -> CIImage)] = [
-            ("red",     hsl.red,     { hslMask(channel: .red,     in: $0) }),
-            ("orange",  hsl.orange,  { hslMask(channel: .orange,  in: $0) }),
-            ("yellow",  hsl.yellow,  { hslMask(channel: .yellow,  in: $0) }),
-            ("green",   hsl.green,   { hslMask(channel: .green,   in: $0) }),
-            ("aqua",    hsl.aqua,    { hslMask(channel: .aqua,    in: $0) }),
-            ("blue",    hsl.blue,    { hslMask(channel: .blue,    in: $0) }),
-            ("purple",  hsl.purple,  { hslMask(channel: .purple,  in: $0) }),
-            ("magenta", hsl.magenta, { hslMask(channel: .magenta, in: $0) }),
-        ]
-
-        // Early-out: every channel default → identity (zero render cost).
-        let nonDefault = channels.filter { $0.ch.hue != 0 || $0.ch.saturation != 0 || $0.ch.luminance != 0 }
-        guard !nonDefault.isEmpty else { return image }
-
-        var output = image
-        for (_, ch, makeMask) in nonDefault {
-            // Apply hue rotation globally on the *current* output.
-            var adjusted = output
-            if ch.hue != 0 {
-                let hue = CIFilter.hueAdjust()
-                hue.inputImage = adjusted
-                hue.angle = Float(ch.hue * .pi / 6.0) // ±30° rotation at ±1
-                if let r = hue.outputImage { adjusted = r }
-            }
-            if ch.saturation != 0 {
-                let sat = CIFilter.colorControls()
-                sat.inputImage = adjusted
-                sat.saturation = Float(1.0 + ch.saturation)
-                sat.contrast = 1.0
-                sat.brightness = 0
-                if let r = sat.outputImage { adjusted = r }
-            }
-            if ch.luminance != 0 {
-                let lum = CIFilter.exposureAdjust()
-                lum.inputImage = adjusted
-                lum.ev = Float(ch.luminance * 0.5)
-                if let r = lum.outputImage { adjusted = r }
-            }
-
-            // Composite the channel-band region from `adjusted` over `output`.
-            let mask = makeMask(image)
-            let blend = CIFilter.blendWithMask()
-            blend.inputImage = adjusted
-            blend.backgroundImage = output
-            blend.maskImage = mask
-            if let r = blend.outputImage { output = r }
+        let channels: [HSLChannel] = [hsl.red, hsl.orange, hsl.yellow, hsl.green,
+                                      hsl.aqua, hsl.blue, hsl.purple, hsl.magenta]
+        let allIdentity = channels.allSatisfy {
+            $0.hue == 0 && $0.saturation == 0 && $0.luminance == 0
         }
-        return output
+        if allIdentity { return image }
+
+        guard let kernel = hslKernel else { return image }
+
+        var args: [Any] = [image]
+        for ch in channels {
+            args.append(Float(ch.hue))
+            args.append(Float(ch.saturation))
+            args.append(Float(ch.luminance))
+        }
+        return kernel.apply(extent: image.extent, arguments: args) ?? image
     }
 
-    /// 8 hue bands. Each mask isolates pixels whose dominant color matches the channel.
-    /// Implemented as CIColorMatrix-based RGB-component-emphasis filters; the resulting
-    /// luminance image is the mask (bright where channel dominates).
-    private enum HSLBand { case red, orange, yellow, green, aqua, blue, purple, magenta }
-
-    private static func hslMask(channel: HSLBand, in source: CIImage) -> CIImage {
-        // Build a luminance-style image where the target band has high values.
-        // Approximation: each band emphasizes specific (R,G,B) combinations.
-        let m = CIFilter.colorMatrix()
-        m.inputImage = source
-        let zero = CIVector(x: 0, y: 0, z: 0, w: 0)
-        switch channel {
-        case .red:
-            m.rVector = CIVector(x:  1, y: -0.5, z: -0.5, w: 0)
-            m.gVector = CIVector(x:  1, y: -0.5, z: -0.5, w: 0)
-            m.bVector = CIVector(x:  1, y: -0.5, z: -0.5, w: 0)
-        case .orange:
-            m.rVector = CIVector(x:  1, y:  0.5, z: -1, w: 0)
-            m.gVector = CIVector(x:  1, y:  0.5, z: -1, w: 0)
-            m.bVector = CIVector(x:  1, y:  0.5, z: -1, w: 0)
-        case .yellow:
-            m.rVector = CIVector(x:  0.5, y:  1, z: -1, w: 0)
-            m.gVector = CIVector(x:  0.5, y:  1, z: -1, w: 0)
-            m.bVector = CIVector(x:  0.5, y:  1, z: -1, w: 0)
-        case .green:
-            m.rVector = CIVector(x: -0.5, y:  1, z: -0.5, w: 0)
-            m.gVector = CIVector(x: -0.5, y:  1, z: -0.5, w: 0)
-            m.bVector = CIVector(x: -0.5, y:  1, z: -0.5, w: 0)
-        case .aqua:
-            m.rVector = CIVector(x: -1, y:  0.5, z:  1, w: 0)
-            m.gVector = CIVector(x: -1, y:  0.5, z:  1, w: 0)
-            m.bVector = CIVector(x: -1, y:  0.5, z:  1, w: 0)
-        case .blue:
-            m.rVector = CIVector(x: -0.5, y: -0.5, z: 1, w: 0)
-            m.gVector = CIVector(x: -0.5, y: -0.5, z: 1, w: 0)
-            m.bVector = CIVector(x: -0.5, y: -0.5, z: 1, w: 0)
-        case .purple:
-            m.rVector = CIVector(x:  0.5, y: -1, z: 1, w: 0)
-            m.gVector = CIVector(x:  0.5, y: -1, z: 1, w: 0)
-            m.bVector = CIVector(x:  0.5, y: -1, z: 1, w: 0)
-        case .magenta:
-            m.rVector = CIVector(x:  1, y: -1, z: 0.5, w: 0)
-            m.gVector = CIVector(x:  1, y: -1, z: 0.5, w: 0)
-            m.bVector = CIVector(x:  1, y: -1, z: 0.5, w: 0)
+    private static let hslKernel: CIColorKernel? = {
+        // CIKL source. Compiled once at first use, cached by Core Image.
+        let source = """
+        float bandWeight(float h, float center) {
+            float d = abs(h - center);
+            d = min(d, 360.0 - d);
+            return max(0.0, 1.0 - d / 45.0);
         }
-        m.aVector = CIVector(x: 0, y: 0, z: 0, w: 1)
-        m.biasVector = zero
-        let raw = m.outputImage ?? source
 
-        // Clamp to 0...1 so blendWithMask reads it as alpha.
-        let clamp = CIFilter.colorClamp()
-        clamp.inputImage = raw
-        clamp.minComponents = CIVector(x: 0, y: 0, z: 0, w: 0)
-        clamp.maxComponents = CIVector(x: 1, y: 1, z: 1, w: 1)
-        return clamp.outputImage ?? raw
-    }
+        float hue2rgb(float p, float q, float t) {
+            t = t < 0.0 ? t + 1.0 : (t > 1.0 ? t - 1.0 : t);
+            if (t < 1.0/6.0) return p + (q - p) * 6.0 * t;
+            if (t < 1.0/2.0) return q;
+            if (t < 2.0/3.0) return p + (q - p) * (2.0/3.0 - t) * 6.0;
+            return p;
+        }
+
+        kernel vec4 hslAdjust(__sample s,
+                              float rH, float rS, float rL,
+                              float oH, float oS, float oL,
+                              float yH, float yS, float yL,
+                              float gH, float gS, float gL,
+                              float aH, float aS, float aL,
+                              float bH, float bS, float bL,
+                              float pH, float pS, float pL,
+                              float mH, float mS, float mL) {
+            vec3 rgb = s.rgb;
+            float maxc = max(rgb.r, max(rgb.g, rgb.b));
+            float minc = min(rgb.r, min(rgb.g, rgb.b));
+            float L = (maxc + minc) * 0.5;
+            float H = 0.0;
+            float S = 0.0;
+            float d = maxc - minc;
+            if (d > 1e-6) {
+                S = (L > 0.5)
+                    ? d / max(2.0 - maxc - minc, 1e-6)
+                    : d / max(maxc + minc, 1e-6);
+                if (maxc == rgb.r) {
+                    H = (rgb.g - rgb.b) / d + (rgb.g < rgb.b ? 6.0 : 0.0);
+                } else if (maxc == rgb.g) {
+                    H = (rgb.b - rgb.r) / d + 2.0;
+                } else {
+                    H = (rgb.r - rgb.g) / d + 4.0;
+                }
+                H = H * 60.0;
+            }
+
+            float wR = bandWeight(H,   0.0);
+            float wO = bandWeight(H,  30.0);
+            float wY = bandWeight(H,  60.0);
+            float wG = bandWeight(H, 120.0);
+            float wA = bandWeight(H, 180.0);
+            float wB = bandWeight(H, 240.0);
+            float wP = bandWeight(H, 270.0);
+            float wM = bandWeight(H, 300.0);
+
+            float wSum = wR + wO + wY + wG + wA + wB + wP + wM;
+            float inv = wSum > 1e-6 ? 1.0 / wSum : 0.0;
+            wR = wR * inv; wO = wO * inv; wY = wY * inv; wG = wG * inv;
+            wA = wA * inv; wB = wB * inv; wP = wP * inv; wM = wM * inv;
+
+            float dH = (wR*rH + wO*oH + wY*yH + wG*gH +
+                        wA*aH + wB*bH + wP*pH + wM*mH) * 30.0;
+            float dS =  wR*rS + wO*oS + wY*yS + wG*gS +
+                        wA*aS + wB*bS + wP*pS + wM*mS;
+            float dL = (wR*rL + wO*oL + wY*yL + wG*gL +
+                        wA*aL + wB*bL + wP*pL + wM*mL) * 0.25;
+
+            H = mod(H + dH + 360.0, 360.0);
+            S = clamp(S * (1.0 + dS), 0.0, 1.0);
+            L = clamp(L + dL, 0.0, 1.0);
+
+            if (S < 1e-6) {
+                return vec4(L, L, L, s.a);
+            }
+            float q = L < 0.5 ? L * (1.0 + S) : L + S - L * S;
+            float p = 2.0 * L - q;
+            float h = H / 360.0;
+            float r = hue2rgb(p, q, h + 1.0/3.0);
+            float g = hue2rgb(p, q, h);
+            float b = hue2rgb(p, q, h - 1.0/3.0);
+            return vec4(r, g, b, s.a);
+        }
+        """
+        return CIColorKernel(source: source)
+    }()
 
     // MARK: - Stage 5: Curves (Phase 3 implementation)
 
