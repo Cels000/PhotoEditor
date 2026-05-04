@@ -78,6 +78,38 @@ final class LibraryStore {
         refresh()
     }
 
+    /// v2 insert. Persists the full EditDocument (subject + background stacks + optional mask).
+    @discardableResult
+    func save(document: EditDocument,
+              sourceAssetID: String?,
+              thumbnail: Data?) -> LibraryItem {
+        let now = Date()
+        let item = LibraryItem(
+            id: UUID(),
+            createdAt: now,
+            updatedAt: now,
+            sourceAssetID: sourceAssetID,
+            stackData: (try? JSONEncoder().encode(document.subjectStack)) ?? Data(),
+            documentData: (try? JSONEncoder().encode(document)),
+            thumbnailData: thumbnail,
+            schemaVersion: document.schemaVersion
+        )
+        context.insert(item)
+        try? context.save()
+        refresh()
+        return item
+    }
+
+    /// v2 update. Updates the persisted EditDocument (and optionally thumbnail).
+    func update(_ item: LibraryItem,
+                document: EditDocument,
+                thumbnail: Data?) {
+        item.editDocument = document  // updates documentData, stackData, schemaVersion, updatedAt
+        if let thumbnail { item.thumbnailData = thumbnail }
+        try? context.save()
+        refresh()
+    }
+
     /// Delete an item. Thumbnail data is stored inline on the item, so deleting
     /// the model row also removes the thumbnail (LIB-03).
     func delete(_ item: LibraryItem) {

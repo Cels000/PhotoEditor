@@ -316,9 +316,10 @@ final class EditorViewModel {
         errorMessage = nil
         successMessage = nil
 
-        // Use subjectStack for thumbnail and library save in this task — full document
-        // persistence (with mask) lands in Task 7 (LibraryItem schema migration).
-        let snapshotStack = document.subjectStack
+        // Snapshot for thumbnail render (uses subjectStack — thumbnails are flat
+        // single-stack renders) AND full document save below.
+        let snapshotDocument = self.document
+        let snapshotStack = snapshotDocument.subjectStack
         let assetID = imported.sourceAssetID
         let source = imported.previewCIImage
         let resolver = makeCubeResolver()
@@ -340,9 +341,9 @@ final class EditorViewModel {
         }
 
         if let existing = currentLibraryItem {
-            store.update(existing, stack: snapshotStack, thumbnail: thumb)
+            store.update(existing, document: snapshotDocument, thumbnail: thumb)
         } else {
-            let inserted = store.save(stack: snapshotStack, sourceAssetID: assetID, thumbnail: thumb)
+            let inserted = store.save(document: snapshotDocument, sourceAssetID: assetID, thumbnail: thumb)
             currentLibraryItem = inserted
         }
 
@@ -365,11 +366,9 @@ final class EditorViewModel {
         do {
             let imported = try await ImageImporter.importImage(fromAssetID: assetID)
             self.importedImage = imported
-            // Lift the legacy single-stack into a v2 document; mask is nil.
-            var doc = EditDocument()
-            doc.subjectStack = item.adjustmentStack
-            doc.backgroundStack = item.adjustmentStack
-            self.document = doc
+            // Read the full v2 document (or legacy v1 stack lifted to v2 via the
+            // editDocument getter's fallback path).
+            self.document = item.editDocument
             self.activeScope = .subject
             self.currentLibraryItem = item
             self.undoStack.clear(seed: self.document)
