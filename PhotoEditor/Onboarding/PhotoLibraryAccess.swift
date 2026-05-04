@@ -10,6 +10,16 @@ enum PhotoLibraryAccess {
 
     static var isLimited: Bool { currentStatus == .limited }
 
+    /// Request the FULL read-write permission. iOS will show its system dialog
+    /// with "Allow Access to All Photos / Select Photos / Don't Allow". We
+    /// can't pre-select an option — Apple guarantees the user always chooses
+    /// — but asking for `.readWrite` (vs just `.addOnly`) ensures the All
+    /// Photos option is on screen.
+    @discardableResult
+    static func requestFullAccess() async -> PHAuthorizationStatus {
+        await PHPhotoLibrary.requestAuthorization(for: .readWrite)
+    }
+
     /// Presents the system "manage selected photos" picker for .limited users.
     /// Must be called from a UIViewController (use the topmost via key window).
     @MainActor

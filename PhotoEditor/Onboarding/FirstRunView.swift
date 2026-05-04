@@ -14,7 +14,7 @@ struct FirstRunView: View {
                 .foregroundStyle(Theme.Colors.text)
             VStack(alignment: .leading, spacing: Theme.Spacing.md) {
                 row(icon: "photo.on.rectangle", title: "Pick a photo to edit",
-                    body: "iOS will ask for permission the first time you tap the photo picker.")
+                    body: "We'll ask iOS for full Photos access when you continue — pick \"Allow Access to All Photos\" so saved edits can be re-opened from the original.")
                 row(icon: "slider.horizontal.3", title: "Adjust with film-style filters",
                     body: "Distinctive LUTs, full light + color controls, save your favorite looks as Recipes.")
                 row(icon: "tray.and.arrow.down", title: "Save back to Photos",
@@ -22,7 +22,17 @@ struct FirstRunView: View {
             }
             .padding(.horizontal, Theme.Spacing.xl)
             Spacer()
-            Button(action: onGetStarted) {
+            Button {
+                // Request full read/write access UP FRONT so the user sees iOS's
+                // "Allow Access to All Photos" option immediately. Apple won't let
+                // us pre-select it — only the user can — but asking for .readWrite
+                // (vs the previous .addOnly-on-save flow) makes the All Photos
+                // option visible on first launch.
+                Task {
+                    _ = await PhotoLibraryAccess.requestFullAccess()
+                    onGetStarted()
+                }
+            } label: {
                 Text("Get Started")
                     .font(Theme.Typography.subtitle)
                     .frame(maxWidth: .infinity)
