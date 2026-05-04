@@ -90,7 +90,7 @@ struct CameraPresetGridView: View {
             }
         }
         .onAppear {
-            viewModel.thumbnailer?.setVisibleSlotIDs(Set(viewModel.slots.map(\.id)))
+            viewModel.thumbnailer?.refresh()
         }
     }
 
