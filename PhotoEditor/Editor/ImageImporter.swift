@@ -16,6 +16,10 @@ struct ImportedImage {
     let exportCIImage: CIImage
     let pixelSize: CGSize           // full-res oriented size
     let sourceAssetID: String?      // PHAsset localIdentifier; nil for picker-imported / no-asset paths
+    /// Stable per-import identity. Used as the mask-cache key fallback when
+    /// `sourceAssetID` is nil — distinct imports never collide, even within the
+    /// lifetime of a single EditorViewModel.
+    let sessionID: UUID = UUID()
 }
 
 enum ImageImportError: Error {

@@ -66,15 +66,31 @@ enum PipelineBuilder {
             }
         }
 
-        // Highlights / shadows
-        if light.highlights != 0 || light.shadows != 0 {
+        // Highlights / shadows. Lightroom convention: +highlights brightens, -highlights recovers.
+        // CIHighlightShadowAdjust.highlightAmount can only DARKEN (range 0...1, default 1.0),
+        // so we use it for the recovery direction only and lift highlights via a tone curve.
+        // shadowAmount range is -1...1 (negative darkens, positive lifts) so it maps directly.
+        if light.highlights < 0 || light.shadows != 0 {
             let hsFilter = CIFilter.highlightShadowAdjust()
             hsFilter.inputImage = output
-            // CIHighlightShadowAdjust: highlightAmount default 1.0, shadowAmount default 0.0.
-            // We map our -1...+1 sliders to reasonable ranges.
-            hsFilter.highlightAmount = Float(1.0 - max(0, light.highlights * 0.7))
+            hsFilter.highlightAmount = Float(1.0 + min(0, light.highlights) * 0.7)
             hsFilter.shadowAmount = Float(light.shadows * 0.7)
             if let result = hsFilter.outputImage {
+                output = result
+            }
+        }
+        if light.highlights > 0 {
+            // Lift the upper tone region — anchors at 0/0.25/0.5 stay put so
+            // mids/shadows are untouched; p3 rises toward 1.0 to brighten highlights.
+            let lift = CGFloat(min(1, light.highlights)) * 0.18
+            let curve = CIFilter.toneCurve()
+            curve.inputImage = output
+            curve.point0 = CGPoint(x: 0,    y: 0)
+            curve.point1 = CGPoint(x: 0.25, y: 0.25)
+            curve.point2 = CGPoint(x: 0.5,  y: 0.5)
+            curve.point3 = CGPoint(x: 0.75, y: min(1, 0.75 + lift))
+            curve.point4 = CGPoint(x: 1,    y: 1)
+            if let result = curve.outputImage {
                 output = result
             }
         }

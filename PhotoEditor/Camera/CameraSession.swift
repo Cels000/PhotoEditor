@@ -9,6 +9,7 @@ enum CameraError: Error {
     case noCameraAvailable
     case noPhotoOutput
     case captureFailed(Error?)
+    case captureInFlight
 }
 
 /// Wraps AVCaptureSession. Owns inputs (back/front), the video data output
@@ -144,8 +145,14 @@ final class CameraSession: NSObject {
 
     /// Capture a single HEIC photo at full sensor resolution. Resumes the
     /// returned async value from the AVCapturePhotoCaptureDelegate callback.
+    /// Rejects re-entry while a capture is already in flight — overwriting
+    /// `photoContinuation` would leak the prior continuation (CheckedContinuation
+    /// runtime crash). UI should also disable the shutter while capturing.
     func capturePhoto() async throws -> Data {
-        try await withCheckedThrowingContinuation { cont in
+        if photoContinuation != nil {
+            throw CameraError.captureInFlight
+        }
+        return try await withCheckedThrowingContinuation { cont in
             sessionQueue.async { [weak self] in
                 guard let self else {
                     cont.resume(throwing: CameraError.noPhotoOutput)
@@ -159,6 +166,14 @@ final class CameraSession: NSObject {
                 }
                 settings.photoQualityPrioritization = .quality
                 Task { @MainActor in
+                    // Guard again on MainActor — the in-flight check above ran
+                    // synchronously on the caller's actor hop, but if two awaits
+                    // race here, only the first wins; the second resumes its
+                    // continuation with .captureInFlight rather than leaking.
+                    if self.photoContinuation != nil {
+                        cont.resume(throwing: CameraError.captureInFlight)
+                        return
+                    }
                     self.photoContinuation = cont
                     self.photoOutput.capturePhoto(with: settings, delegate: self)
                 }

@@ -11,6 +11,7 @@ enum CubeParser {
         case wrongTripletCount(expected: Int, got: Int)
         case malformedNumber(String)
         case constructionFailed
+        case degenerateDomain
     }
 
     /// Returns the parsed cube, or nil if input is malformed.
@@ -70,7 +71,7 @@ enum CubeParser {
         }
 
         // Normalize domain to 0...1
-        let normalized = normalizeDomain(triplets: triplets, min: domainMin, max: domainMax)
+        let normalized = try normalizeDomain(triplets: triplets, min: domainMin, max: domainMax)
 
         // Resample to 64 if needed
         let final64: [Float]
@@ -95,10 +96,13 @@ enum CubeParser {
 
     private static func normalizeDomain(triplets: [Float],
                                         min lo: (Float, Float, Float),
-                                        max hi: (Float, Float, Float)) -> [Float] {
+                                        max hi: (Float, Float, Float)) throws -> [Float] {
         if lo == (0, 0, 0) && hi == (1, 1, 1) { return triplets }
-        var out = triplets
         let dr = hi.0 - lo.0, dg = hi.1 - lo.1, db = hi.2 - lo.2
+        // Reject degenerate domains — division by zero would silently produce
+        // inf/NaN values that propagate into the LUT and yield garbage output.
+        guard dr > 0, dg > 0, db > 0 else { throw Error.degenerateDomain }
+        var out = triplets
         var i = 0
         while i < out.count {
             out[i]     = (out[i]     - lo.0) / dr
