@@ -72,8 +72,6 @@ struct CameraRollGridView: View {
                     ForEach(0..<assets.count, id: \.self) { index in
                         let asset = assets.object(at: index)
                         AssetThumbCell(asset: asset)
-                            .aspectRatio(1, contentMode: .fill)
-                            .clipped()
                             .contentShape(Rectangle())
                             .onTapGesture { handleTap(asset) }
                     }
@@ -203,14 +201,24 @@ private struct AssetThumbCell: View {
     @State private var image: UIImage?
 
     var body: some View {
-        ZStack {
-            Theme.Colors.panel
-            if let image {
-                Image(uiImage: image)
-                    .resizable()
-                    .scaledToFill()
+        // GeometryReader gives us the grid-cell width; we then constrain the
+        // image to a perfect square of that width so cells are always exactly
+        // sized regardless of image aspect ratio. aspectRatio(1, .fit) on the
+        // outer ensures the cell only takes the square bounds (no overflow).
+        GeometryReader { proxy in
+            ZStack {
+                Theme.Colors.panel
+                if let image {
+                    Image(uiImage: image)
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: proxy.size.width, height: proxy.size.width)
+                        .clipped()
+                }
             }
+            .frame(width: proxy.size.width, height: proxy.size.width)
         }
+        .aspectRatio(1, contentMode: .fit)
         .onAppear { loadThumb() }
     }
 
