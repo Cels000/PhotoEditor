@@ -48,22 +48,40 @@ gh run download --name PhotoEditor-ipa --repo Cels000/PhotoEditor
 ideviceinstaller -i PhotoEditor.ipa
 ```
 
-### Post-push helper for Claude
+### Post-push helper for Claude (mandatory)
 
-After every successful `git push`, paste a copy-pasteable block to the user
-with the actual run id substituted in. The user runs `gh run list --repo
-Cels000/PhotoEditor --limit 1` immediately after the push to grab the id, or
-Claude can call it themselves. Format:
+**The run id changes on every push.** Never reuse a previous block. After every
+`git push`, do this exact 3-step routine:
+
+**Step 1 — fetch the actual run id Claude just triggered:**
 
 ```bash
-gh run watch <RUN_ID> --repo Cels000/PhotoEditor
-cd ~/Downloads && rm -f PhotoEditor*.ipa
-gh run download <RUN_ID> --name PhotoEditor-ipa --repo Cels000/PhotoEditor
+gh run list --repo Cels000/PhotoEditor --limit 1 --json databaseId --jq '.[0].databaseId'
+```
+
+(Claude calls this via Bash. The result is a number like `25297367461`.)
+
+**Step 2 — paste a copy-pasteable block to the user with that id substituted
+into ALL THREE spots:**
+
+```bash
+gh run watch <RUN_ID> --repo Cels000/PhotoEditor && \
+cd ~/Downloads && rm -f PhotoEditor*.ipa && \
+gh run download <RUN_ID> --name PhotoEditor-ipa --repo Cels000/PhotoEditor && \
 ideviceinstaller -i PhotoEditor.ipa
 ```
 
-Always include the run id explicitly — don't rely on `gh run download`'s
-default-to-latest behavior, since the user often has multiple runs queued.
+The `&&` chain runs the whole thing as one command — `gh run watch` blocks
+until the run completes, then download + install run only on success.
+
+**Step 3 — never substitute a stale id.** If Claude is uncertain whether the
+push triggered a fresh run (e.g., docs-only changes that the user thinks
+shouldn't trigger CI but the workflow runs on every push to main), re-run
+Step 1. Always confirm against the latest entry in `gh run list`.
+
+**Why this matters:** the user has no Mac and depends on this exact pipeline.
+A wrong run id → wrong IPA → confusing test results that look like code bugs
+but are stale-build artifacts. Always fetch fresh, always paste fresh.
 
 ### Renewal
 - **Provisioning profile**: ~1 year. Regenerate at developer.apple.com/profiles, re-base64 into `BUILD_PROVISION_PROFILE_BASE64`.
