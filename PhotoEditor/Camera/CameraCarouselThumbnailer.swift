@@ -73,7 +73,10 @@ final class CameraCarouselThumbnailer {
     }
 
     private func tick() async {
-        guard let frame = renderer?.latestSnapshot() else { return }
+        // Use the raw (pre-LUT) snapshot so each slot's LUT applies to a
+        // clean source. Reading `latestSnapshot()` would stack the carousel-
+        // selected slot's LUT under every thumbnail.
+        guard let frame = renderer?.latestRawSnapshot() else { return }
         guard !slots.isEmpty else { return }
 
         let edge = Self.thumbnailEdge

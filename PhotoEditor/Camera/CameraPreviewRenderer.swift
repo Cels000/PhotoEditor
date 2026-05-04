@@ -31,8 +31,13 @@ final class CameraPreviewRenderer: NSObject {
     /// The current camera position. Used to mirror the front-camera preview.
     var isFrontCamera: Bool = false
 
-    /// Latest cooked CIImage (ready for the MTKView and the thumbnailer).
+    /// Latest cooked CIImage (LUT applied) for the MTKView display path.
     private var _latestSnapshot: CIImage?
+    /// Latest raw CIImage (no LUT) for the carousel thumbnailer — it needs to
+    /// apply each slot's LUT to a clean source, otherwise the selected slot's
+    /// LUT bakes into every thumbnail (stacked LUTs → crushed/blown thumbs
+    /// that look "missing" the moment you pick a non-ORIGINAL preset).
+    private var _latestRawSnapshot: CIImage?
     private let snapshotLock = os_unfair_lock_t.allocate(capacity: 1)
 
     /// Dedicated CIContext — separate from the editor's contexts so per-frame
@@ -74,10 +79,17 @@ final class CameraPreviewRenderer: NSObject {
         return _filterSelection
     }
 
-    /// Read by the thumbnailer on its own queue; safe to call from anywhere.
+    /// Read by the MTKView for live display. Cooked = LUT applied.
     func latestSnapshot() -> CIImage? {
         os_unfair_lock_lock(snapshotLock); defer { os_unfair_lock_unlock(snapshotLock) }
         return _latestSnapshot
+    }
+
+    /// Read by the carousel thumbnailer. Raw = pre-LUT, so the thumbnailer
+    /// can apply each slot's own LUT against a clean source frame.
+    func latestRawSnapshot() -> CIImage? {
+        os_unfair_lock_lock(snapshotLock); defer { os_unfair_lock_unlock(snapshotLock) }
+        return _latestRawSnapshot
     }
 
     /// Pure helper — testable in isolation without an AVCapture pipeline.
@@ -124,6 +136,7 @@ extension CameraPreviewRenderer: AVCaptureVideoDataOutputSampleBufferDelegate {
         )
         os_unfair_lock_lock(snapshotLock)
         _latestSnapshot = cooked
+        _latestRawSnapshot = image
         os_unfair_lock_unlock(snapshotLock)
     }
 }
