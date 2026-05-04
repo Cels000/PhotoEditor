@@ -115,13 +115,13 @@ struct RecipesSheetView: View {
 
     // MARK: - Sectioned list
 
-    /// "My Recipes" — items with no category tag.
+    /// "My Recipes" — items not matched by the built-in name lookup.
     private var userRecipes: [RecipeItem] {
-        store.items.filter { $0.categoryRaw == nil }
+        store.items.filter { BuiltInPresets.category(forName: $0.name) == nil }
     }
 
     private func recipes(in category: RecipeCategory) -> [RecipeItem] {
-        store.items.filter { $0.categoryRaw == category.rawValue }
+        store.items.filter { BuiltInPresets.category(forName: $0.name) == category }
     }
 
     private var sectionList: some View {
@@ -223,7 +223,7 @@ struct RecipesSheetView: View {
         var users = userRecipes
         users.move(fromOffsets: source, toOffset: destination)
         // Rebuild the full ordering: presets keep their positions, user items follow.
-        let presets = store.items.filter { $0.categoryRaw != nil }
+        let presets = store.items.filter { BuiltInPresets.category(forName: $0.name) != nil }
         store.reorder(users + presets)
     }
 

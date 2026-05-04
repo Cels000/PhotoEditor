@@ -1,33 +1,57 @@
 // BuiltInPresets.swift
 // Curated starter recipes seeded into RecipeStore on first launch.
 //
-// Idempotency: a UserDefaults flag (`builtInPresetsSeeded.v1`) prevents re-seeding.
-// Bumping the suffix in `seedKey` (e.g. v2) re-seeds — but does NOT delete user
-// edits to existing built-in rows, so prefer adding new presets in a new key.
+// Idempotency: a UserDefaults flag (`builtInPresetsSeeded.v2`) prevents re-seeding.
+// Bumping the suffix forces a re-seed (existing user-renamed/deleted built-ins
+// won't be touched — only entirely-fresh names are inserted).
+//
+// Category for each preset is stored in a name → RecipeCategory lookup, NOT on
+// the SwiftData model — that keeps the persistent schema unchanged so we don't
+// risk a lightweight-migration silent failure on existing installs.
 //
 // Preset values are tuned in -1...+1 normalized space matching AdjustmentStack
 // (PipelineBuilder maps these to EV / CIFilter inputs at render time).
+// Hue values are 0-360 degrees (split toning).
 
 import Foundation
 
 enum BuiltInPresets {
 
-    private static let seedKey = "builtInPresetsSeeded.v1"
+    private static let seedKey = "builtInPresetsSeeded.v2"
 
-    /// Insert all built-in presets if they haven't been seeded yet.
-    /// Safe to call on every launch — no-op after the first successful run.
+    /// Insert built-in presets the first time we see this device on this seed
+    /// version. Idempotent — safe to call on every launch.
     @MainActor
     static func seedIfNeeded(store: RecipeStore,
                              defaults: UserDefaults = .standard) {
         guard !defaults.bool(forKey: seedKey) else { return }
-        for preset in all {
+
+        // Skip names that already exist (user might have a recipe named the
+        // same — don't clobber, just skip and let the seed proceed).
+        let existing = Set(store.items.map { $0.name })
+        var seeded = 0
+        for preset in all where !existing.contains(preset.name) {
             store.save(name: preset.name,
                        stack: preset.stack,
-                       thumbnail: nil,
-                       category: preset.category)
+                       thumbnail: nil)
+            seeded += 1
         }
+        NSLog("PhotoEditor: BuiltInPresets seeded \(seeded) of \(all.count)")
         defaults.set(true, forKey: seedKey)
     }
+
+    /// Category lookup keyed by recipe name. Returns nil for user-saved recipes
+    /// (and for built-ins the user has renamed — at which point they're
+    /// effectively the user's own).
+    static func category(forName name: String) -> RecipeCategory? {
+        nameToCategory[name]
+    }
+
+    private static let nameToCategory: [String: RecipeCategory] = {
+        var map: [String: RecipeCategory] = [:]
+        for preset in all { map[preset.name] = preset.category }
+        return map
+    }()
 
     // MARK: - Preset definitions
 
