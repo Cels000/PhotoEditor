@@ -17,6 +17,14 @@ struct StudioTabView: View {
 
     @State private var segment: StudioSegment = .cameraRoll
     @State private var showCamera: Bool = false
+    // Hoisted so they survive parent body re-evaluations. Creating these
+    // inside the .fullScreenCover content closure made every parent re-eval
+    // mint a fresh CameraViewModel — wiping the carousel thumbnailer's
+    // rendered cache and leaving every preset thumbnail grey on the next
+    // tap. State storage gives them stable identity across the cover's
+    // lifetime.
+    @State private var cameraVM: CameraViewModel?
+    @State private var cameraSession: CameraSession?
 
     var body: some View {
         ZStack(alignment: .bottomTrailing) {
@@ -58,23 +66,21 @@ struct StudioTabView: View {
                 .padding(.trailing, 16)
                 .padding(.bottom, 16)
         }
-        .fullScreenCover(isPresented: $showCamera) {
-            if let libraryStore, let recipeStore = viewModel.recipeStore {
-                let cameraVM = CameraViewModel(
-                    libraryStore: libraryStore,
-                    recipeStore: recipeStore,
-                    cubeResolver: { id in
-                        viewModel.filterLibrary.filter(withID: id)?.cube()
-                    }
-                )
-                let session = CameraSession()
-                CameraView(viewModel: cameraVM, session: session)
+        .fullScreenCover(
+            isPresented: $showCamera,
+            onDismiss: {
+                cameraVM = nil
+                cameraSession = nil
+            }
+        ) {
+            if let cameraVM, let cameraSession {
+                CameraView(viewModel: cameraVM, session: cameraSession)
             }
         }
     }
 
     private var cameraFAB: some View {
-        Button { showCamera = true } label: {
+        Button { presentCamera() } label: {
             Image(systemName: "camera.fill")
                 .font(.system(size: 22, weight: .semibold))
                 .foregroundStyle(Theme.Colors.canvas)
@@ -84,6 +90,18 @@ struct StudioTabView: View {
                 .shadow(color: .black.opacity(0.18), radius: 6, y: 2)
         }
         .accessibilityLabel("Open Camera")
+    }
+
+    private func presentCamera() {
+        guard let libraryStore, let recipeStore = viewModel.recipeStore else { return }
+        let library = viewModel.filterLibrary
+        cameraVM = CameraViewModel(
+            libraryStore: libraryStore,
+            recipeStore: recipeStore,
+            cubeResolver: { id in library.filter(withID: id)?.cube() }
+        )
+        cameraSession = CameraSession()
+        showCamera = true
     }
 
     // MARK: - EDITS segment
