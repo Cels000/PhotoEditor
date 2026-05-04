@@ -32,7 +32,24 @@ import Foundation
 
 enum BuiltInPresets {
 
-    private static let seedKey = "builtInPresetsSeeded.v8"
+    private static let seedKey = "builtInPresetsSeeded.v9"
+
+    /// Old preset name → new preset name. v9 swap renames so each preset's
+    /// title matches the underlying bundled LUT (Polaroid 600 was using a
+    /// peel-apart 669 LUT, etc. — fixing the lie). User-renamed recipes are
+    /// untouched because their name no longer matches an old built-in key.
+    private static let renameMap: [String: String] = [
+        "Fuji Pro 400H":   "Fuji 400H",
+        "Fuji Velvia 50":  "Velvia 50",
+        "Cinestill 800T":  "Kodak 2383",
+        "Eterna":          "Fuji 3513",
+        "Classic Negative": "Superia 200",
+        "Nostalgic Neg":   "Vista 200",
+        "90s Disposable":  "Elite Color 400",
+        "Polaroid SX-70":  "Polaroid 669",
+        "Polaroid 600":    "Fuji FP-100C",
+        "T-Max 100":       "Delta 3200"
+    ]
 
     /// Insert (and update) built-in presets the first time we see this device on
     /// this seed version. Idempotent — safe to call on every launch.
@@ -47,6 +64,18 @@ enum BuiltInPresets {
     static func seedIfNeeded(store: RecipeStore,
                              defaults: UserDefaults = .standard) {
         guard !defaults.bool(forKey: seedKey) else { return }
+
+        // First pass: rename items whose old built-in name maps to a new one.
+        // Skip if the new name is already taken (the user may have manually
+        // saved a same-named recipe — don't clobber it).
+        var renamed = 0
+        for item in store.items {
+            if let newName = renameMap[item.name],
+               !store.items.contains(where: { $0.name == newName }) {
+                store.rename(item, to: newName)
+                renamed += 1
+            }
+        }
 
         let knownBuiltInNames = Set(nameToCategory.keys)
         var existingByName: [String: RecipeItem] = [:]
@@ -69,7 +98,7 @@ enum BuiltInPresets {
                 inserted += 1
             }
         }
-        NSLog("PhotoEditor: BuiltInPresets seed v8 — inserted \(inserted), updated \(updated) of \(all.count)")
+        NSLog("PhotoEditor: BuiltInPresets seed v9 — renamed \(renamed), inserted \(inserted), updated \(updated) of \(all.count)")
         defaults.set(true, forKey: seedKey)
     }
 
@@ -101,18 +130,27 @@ enum BuiltInPresets {
     /// otherwise the recipe ends up referencing a missing filter and the
     /// editor strips it (EditorViewModel:455).
     private enum LUT {
+        static let portra160      = "cube.kodak_portra_160"
         static let portra400      = "cube.kodak_portra_400"
         static let portra800      = "cube.kodak_portra_800"
         static let ektar100       = "cube.kodak_ektar_100"
         static let pro400h        = "cube.fuji_400h"
         static let velvia50       = "cube.fuji_velvia_50"
+        static let provia100f     = "cube.fuji_provia_100f"
+        static let astia100f      = "cube.fuji_astia_100f"
+        static let kodachrome64   = "cube.kodak_kodachrome_64"
         static let kodak2383      = "cube.kodak_2383_cuspclip"
+        static let fuji3513       = "cube.fuji_3513_cuspclip"
         static let classicChrome  = "cube.fuji_xtrans_iii_classic_chrome"
+        static let xtransVelvia   = "cube.fuji_xtrans_iii_velvia"
+        static let xtransAstia    = "cube.fuji_xtrans_iii_astia"
+        static let xtransProNeg   = "cube.fuji_xtrans_iii_pro_neg_std"
         static let superia200     = "cube.fuji_superia_200"
         static let agfaVista      = "cube.agfa_vista_200"
         static let triX400        = "cube.kodak_tri-x_400"
         static let hp5Plus        = "cube.ilford_hp_5_plus_400"
         static let acros          = "cube.fuji_neopan_acros_100"
+        static let delta3200      = "cube.ilford_delta_3200"
         static let eliteColor400  = "cube.kodak_elite_color_400"
         static let polaroid669    = "cube.polaroid_669"
         static let fp100c         = "cube.fuji_fp-100c"
@@ -264,7 +302,7 @@ enum BuiltInPresets {
         // Fuji Pro 400H — discontinued cult wedding stock. Cool airy pastels,
         // mint-cyan greens, pinker (not orange) skin, milky shadows. Lowest
         // contrast of the color stocks here. Workflow assumed +1-2 stop overexposure.
-        Preset(name: "Fuji Pro 400H", category: .colorFilm, stack: {
+        Preset(name: "Fuji 400H", category: .colorFilm, stack: {
             var s = stack(filterID: LUT.pro400h, strength: 0.85)
             s.color.temperature = -0.06
             s.color.tint = -0.06
@@ -307,7 +345,7 @@ enum BuiltInPresets {
         // Fuji Velvia 50 — landscape slide film. Hyper-saturated everywhere,
         // crushed blacks, hard highlight clip, cyan-shifted blues, deep emerald
         // greens. Skin tones look terrible — that's by design.
-        Preset(name: "Fuji Velvia 50", category: .colorFilm, stack: {
+        Preset(name: "Velvia 50", category: .colorFilm, stack: {
             var s = stack(filterID: LUT.velvia50, strength: 0.65)
             s.color.temperature = 0.05
             s.color.tint = 0.03
@@ -350,7 +388,7 @@ enum BuiltInPresets {
         // Tungsten-balanced (cool in daylight), with red halation around
         // highlights and warm tungsten glow on light sources. True bloom needs
         // a per-pixel pass — split-tone + lifted reds get most of the way there.
-        Preset(name: "Cinestill 800T", category: .colorFilm, stack: {
+        Preset(name: "Kodak 2383", category: .colorFilm, stack: {
             var s = stack(filterID: LUT.kodak2383, strength: 0.7)
             s.color.temperature = -0.18
             s.color.tint = -0.04
@@ -434,7 +472,7 @@ enum BuiltInPresets {
         // Classic Negative (Fuji X) — Fujicolor Superia simulation. Green pull
         // in shadows, slight cyan in midtones (the "supermarket photo lab"
         // signature), more saturation and contrast than Classic Chrome.
-        Preset(name: "Classic Negative", category: .colorFilm, stack: {
+        Preset(name: "Superia 200", category: .colorFilm, stack: {
             var s = stack(filterID: LUT.superia200, strength: 0.8)
             s.color.temperature = -0.03
             s.color.tint = -0.05
@@ -478,8 +516,8 @@ enum BuiltInPresets {
         // Eterna — Fuji's cinematic flat profile (motion-picture stock 250D).
         // Lifted milky blacks, uniformly desaturated by ~30%, gentle highlight
         // roll-off. Designed as a grading base, not a finished look.
-        Preset(name: "Eterna", category: .colorFilm, stack: {
-            var s = stack(filterID: LUT.kodak2383, strength: 0.4)
+        Preset(name: "Fuji 3513", category: .colorFilm, stack: {
+            var s = stack(filterID: LUT.fuji3513, strength: 0.6)
             s.color.temperature = -0.04
             s.color.saturation = -0.25
             s.color.vibrance = -0.10
@@ -514,7 +552,7 @@ enum BuiltInPresets {
         // (Eggleston, Shore). Amber/honey highlights, brick-terracotta reds,
         // honey yellows, brown-purple shadows. The OPPOSITE of Classic Negative
         // (which is green-shadow vivid) — Nostalgic Neg is amber-shadow faded.
-        Preset(name: "Nostalgic Neg", category: .colorFilm, stack: {
+        Preset(name: "Vista 200", category: .colorFilm, stack: {
             var s = stack(filterID: LUT.agfaVista, strength: 0.8)
             s.color.temperature = 0.16
             s.color.tint = 0.05
@@ -552,6 +590,111 @@ enum BuiltInPresets {
                 CurvePoint(x: 0.75, y: 0.74),
                 CurvePoint(x: 1.0, y: 0.92)
             ]
+            return s
+        }()),
+
+        // Portra 160 — finest-grain Portra. Cleanest skin tones, lowest
+        // contrast of the family, slightly cooler than 400. Wedding /
+        // editorial portrait standard for studio-light work.
+        Preset(name: "Portra 160", category: .colorFilm, stack: {
+            var s = stack(filterID: LUT.portra160, strength: 0.85)
+            s.color.saturation = -0.08
+            s.color.vibrance = 0.05
+            s.light.shadows = 0.12
+            s.light.highlights = -0.08
+            s.hsl.orange.luminance = 0.08
+            s.hsl.green.saturation = -0.10
+            s.grain.size = 0.20
+            s.grain.intensity = 0.10
+            s.softness = 0.04
+            return s
+        }()),
+
+        // Provia 100F — Fuji's neutral slide film. Accurate color, balanced
+        // contrast, no editorial pulls. The "default reference" of the slide
+        // family. Nothing exaggerated, nothing missing.
+        Preset(name: "Provia 100F", category: .colorFilm, stack: {
+            var s = stack(filterID: LUT.provia100f, strength: 0.85)
+            s.color.vibrance = 0.05
+            s.light.highlights = -0.05
+            s.grain.size = 0.10
+            s.grain.intensity = 0.05
+            return s
+        }()),
+
+        // Astia 100F — discontinued Fuji portrait slide. Soft pastel palette,
+        // lifted blacks, lower saturation than Provia. Skin reads gentle —
+        // the slide film for portrait shooters who wouldn't touch Velvia.
+        Preset(name: "Astia 100F", category: .colorFilm, stack: {
+            var s = stack(filterID: LUT.astia100f, strength: 0.85)
+            s.color.saturation = -0.10
+            s.light.shadows = 0.18
+            s.light.highlights = -0.08
+            s.hsl.orange.luminance = 0.08
+            s.grain.size = 0.12
+            s.grain.intensity = 0.06
+            s.softness = 0.06
+            return s
+        }()),
+
+        // Kodachrome 64 — the legend. Dense saturated reds, warm-amber bias,
+        // crushed shadows, archetypal mid-century editorial. National
+        // Geographic / Steve McCurry color signature.
+        Preset(name: "Kodachrome 64", category: .colorFilm, stack: {
+            var s = stack(filterID: LUT.kodachrome64, strength: 0.85)
+            s.color.temperature = 0.06
+            s.color.saturation = 0.08
+            s.color.vibrance = 0.10
+            s.light.shadows = -0.12
+            s.light.highlights = -0.08
+            s.hsl.red.saturation = 0.18
+            s.hsl.orange.saturation = 0.12
+            s.hsl.blue.saturation = 0.15
+            s.grain.size = 0.18
+            s.grain.intensity = 0.12
+            s.curves.rgb.points = [
+                CurvePoint(x: 0.0, y: 0.00),
+                CurvePoint(x: 0.25, y: 0.16),
+                CurvePoint(x: 0.5, y: 0.50),
+                CurvePoint(x: 0.75, y: 0.84),
+                CurvePoint(x: 1.0, y: 0.98)
+            ]
+            return s
+        }()),
+
+        // X-Trans Velvia — Fuji's vivid landscape sim. Saturated greens and
+        // blues, bumped contrast, dense shadows. Don't shoot people on it.
+        Preset(name: "X-Trans Velvia", category: .colorFilm, stack: {
+            var s = stack(filterID: LUT.xtransVelvia, strength: 0.9)
+            s.color.saturation = 0.15
+            s.color.vibrance = 0.10
+            s.light.shadows = -0.10
+            s.hsl.green.saturation = 0.18
+            s.hsl.blue.saturation = 0.18
+            return s
+        }()),
+
+        // X-Trans Astia — Fuji's soft portrait sim. Reduced saturation,
+        // gentle skin, lifted shadows. Pairs well with overcast / window
+        // light.
+        Preset(name: "X-Trans Astia", category: .colorFilm, stack: {
+            var s = stack(filterID: LUT.xtransAstia, strength: 0.9)
+            s.color.saturation = -0.08
+            s.light.shadows = 0.15
+            s.light.highlights = -0.08
+            s.hsl.orange.luminance = 0.06
+            s.softness = 0.05
+            return s
+        }()),
+
+        // Pro Neg Std — Fuji's flat color-negative sim. Faithful neutral
+        // skin, low saturation, low contrast. Designed as a grading base
+        // for studio / commercial portraiture.
+        Preset(name: "Pro Neg Std", category: .colorFilm, stack: {
+            var s = stack(filterID: LUT.xtransProNeg, strength: 0.9)
+            s.color.saturation = -0.12
+            s.color.vibrance = 0.05
+            s.light.shadows = 0.10
             return s
         }())
     ]
@@ -606,23 +749,24 @@ enum BuiltInPresets {
             return s
         }()),
 
-        // T-Max 100 — Kodak T-grain (tabular) emulsion. Exceptionally fine
-        // tight grain (RMS ~8), long linear curve, near-clinical sharpness,
-        // ~200 lp/mm resolution. Smooth, controlled, modern.
-        Preset(name: "T-Max 100", category: .bwFilm, stack: {
-            var s = stack(filterID: BuiltInLUTs.ID.noir, strength: 1.0)
-            s.light.highlights = 0.02
-            s.light.shadows = 0.04
-            s.sharpness = 0.70                  // clinical micro-detail
-            s.grain.size = 0.25
-            s.grain.intensity = 0.28
-            s.softness = 0.03
+        // Delta 3200 — Ilford's iconic high-ISO B&W. Coarse cubic grain (RMS
+        // ~17 at box speed, more when pushed), assertive contrast, deep
+        // shadows, controlled but bright highlights. Reportage / available-
+        // light look — graphic, gritty, unmistakable.
+        Preset(name: "Delta 3200", category: .bwFilm, stack: {
+            var s = stack(filterID: LUT.delta3200, strength: 1.0)
+            s.light.highlights = -0.05
+            s.light.shadows = -0.10
+            s.sharpness = 0.40
+            s.grain.size = 0.85
+            s.grain.intensity = 0.85
+            s.softness = 0.06
             s.curves.rgb.points = [
-                CurvePoint(x: 0.0, y: 0.02),
-                CurvePoint(x: 0.25, y: 0.22),
+                CurvePoint(x: 0.0, y: 0.00),
+                CurvePoint(x: 0.25, y: 0.13),
                 CurvePoint(x: 0.5, y: 0.50),
-                CurvePoint(x: 0.75, y: 0.78),
-                CurvePoint(x: 1.0, y: 0.97)
+                CurvePoint(x: 0.75, y: 0.87),
+                CurvePoint(x: 1.0, y: 1.00)
             ]
             return s
         }()),
@@ -653,49 +797,11 @@ enum BuiltInPresets {
 
     private static let era: [Preset] = [
 
-        // 70s Faded — chromogenic dye-fade signature. Kodacolor-era prints
-        // lose cyan/yellow faster than magenta over decades, so old prints
-        // drift warm-pink with rusty magenta shadows; paper base yellows; black
-        // point lifts as oxidized dyes can't reach pure black.
-        Preset(name: "70s Faded", category: .era, stack: {
-            var s = stack(filterID: LUT.superia200, strength: 0.7)
-            s.color.temperature = 0.12
-            s.color.tint = 0.10
-            s.color.saturation = -0.22
-            s.color.vibrance = -0.10
-            s.light.shadows = 0.35
-            s.light.highlights = -0.10
-            s.hsl.red.hue = -0.15
-            s.hsl.red.saturation = -0.15
-            s.hsl.orange.saturation = -0.10
-            s.hsl.yellow.hue = -0.10
-            s.hsl.yellow.saturation = -0.20
-            s.hsl.aqua.saturation = -0.30
-            s.hsl.blue.saturation = -0.35       // blues fade fastest
-            s.splitToning.shadowHue = 320       // magenta-rust
-            s.splitToning.shadowSaturation = 0.55
-            s.splitToning.highlightHue = 50      // yellowed paper
-            s.splitToning.highlightSaturation = 0.30
-            s.vignette.amount = -0.18
-            s.vignette.feather = 0.75
-            s.grain.size = 0.55
-            s.grain.intensity = 0.32
-            s.softness = 0.2
-            s.curves.rgb.points = [
-                CurvePoint(x: 0.0, y: 0.22),
-                CurvePoint(x: 0.25, y: 0.34),
-                CurvePoint(x: 0.5, y: 0.50),
-                CurvePoint(x: 0.75, y: 0.66),
-                CurvePoint(x: 1.0, y: 0.82)
-            ]
-            return s
-        }()),
-
         // 90s Disposable — Funsaver/QuickSnap aesthetic. Foreground hot-warm
         // from on-camera flash, background falls off cool-blue (flash can't
         // reach + tungsten ambient interpreted as blue). Drugstore minilab
         // pushed warm-saturated. Coarse grain, hard plastic-lens vignette.
-        Preset(name: "90s Disposable", category: .era, stack: {
+        Preset(name: "Elite Color 400", category: .era, stack: {
             var s = stack(filterID: LUT.eliteColor400, strength: 0.65)
             s.color.temperature = 0.08
             s.color.tint = -0.05
@@ -735,7 +841,7 @@ enum BuiltInPresets {
         // Dreamy washed pastels, lowest contrast, magenta-pink shadow drift,
         // slight cyan in upper midtones. Print surface adds barely-visible
         // grain. Even illumination across frame.
-        Preset(name: "Polaroid SX-70", category: .era, stack: {
+        Preset(name: "Polaroid 669", category: .era, stack: {
             var s = stack(filterID: LUT.polaroid669, strength: 0.7)
             s.color.temperature = 0.06
             s.color.tint = 0.14
@@ -776,8 +882,8 @@ enum BuiltInPresets {
         // SX-70. Signature yellow-green olive shadow shift. Cream whites.
         // Greens push toward yellow (foliage looks autumnal). The "80s family
         // photo" warmth most people picture when they hear "Polaroid."
-        Preset(name: "Polaroid 600", category: .era, stack: {
-            var s = stack(filterID: LUT.polaroid669, strength: 0.85)
+        Preset(name: "Fuji FP-100C", category: .era, stack: {
+            var s = stack(filterID: LUT.fp100c, strength: 0.8)
             s.color.temperature = 0.18
             s.color.tint = -0.04
             s.color.saturation = -0.05
@@ -811,42 +917,6 @@ enum BuiltInPresets {
                 CurvePoint(x: 1.0, y: 0.84)
             ]
             s.halation = 0.12
-            return s
-        }()),
-
-        // Polaroid Now (post-2017 Impossible/Polaroid reformulation). Cleaner
-        // than vintage 600 — heavy color shifts removed, contrast moderate-low,
-        // mild warmth, soft vignette. Recognizable as Polaroid by softness and
-        // lifted blacks rather than aggressive color cast.
-        Preset(name: "Polaroid Now", category: .era, stack: {
-            var s = stack(filterID: LUT.fp100c, strength: 0.65)
-            s.color.temperature = 0.08
-            s.color.tint = 0.02
-            s.color.saturation = -0.05
-            s.color.vibrance = 0.05
-            s.light.shadows = 0.20
-            s.light.highlights = -0.05
-            s.hsl.orange.saturation = 0.05
-            s.hsl.yellow.hue = -0.04
-            s.hsl.green.hue = -0.06
-            s.hsl.aqua.saturation = -0.10
-            s.hsl.blue.saturation = -0.08
-            s.splitToning.shadowHue = 40         // soft amber, not olive
-            s.splitToning.shadowSaturation = 0.25
-            s.splitToning.highlightHue = 45
-            s.splitToning.highlightSaturation = 0.20
-            s.vignette.amount = -0.12
-            s.vignette.feather = 0.85
-            s.grain.size = 0.35
-            s.grain.intensity = 0.10
-            s.softness = 0.2
-            s.curves.rgb.points = [
-                CurvePoint(x: 0.0, y: 0.14),
-                CurvePoint(x: 0.25, y: 0.30),
-                CurvePoint(x: 0.5, y: 0.50),
-                CurvePoint(x: 0.75, y: 0.72),
-                CurvePoint(x: 1.0, y: 0.92)
-            ]
             return s
         }())
     ]
