@@ -18,7 +18,7 @@ struct PanelContainerView: View {
             ZStack {
                 Group {
                     switch selectedTab {
-                    case .filters: FilterStripView(viewModel: viewModel)
+                    case .looks:   EditorPresetPickerView(viewModel: viewModel)
                     case .light:   LightPanelView(viewModel: viewModel)
                     case .color:   ColorPanelView(viewModel: viewModel)
                     case .hsl:     HSLPanelView(viewModel: viewModel)

@@ -9,7 +9,7 @@ struct EditorTabView: View {
     @Bindable var viewModel: EditorViewModel
     @Binding var showLimitedBanner: Bool
 
-    @State private var selectedPanel: EditorPanelTab = .filters
+    @State private var selectedPanel: EditorPanelTab = .looks
     @State private var showOriginal: Bool = false
     @State private var originalPreviewImage: UIImage?
     @State private var originalContext: CIContext = CIContext(options: [.useSoftwareRenderer: false])

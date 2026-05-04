@@ -67,7 +67,7 @@ struct PhotoEditorApp: App {
             let thumb: Data? = doc.thumbnailJPEGBase64.flatMap { Data(base64Encoded: $0) }
             store.save(name: doc.name, stack: doc.stack, thumbnail: thumb)
 
-            // Notify any open ContentView/RecipesSheetView so its observed RecipeStore refreshes.
+            // Notify the editor's preset picker so its observed RecipeStore refreshes.
             NotificationCenter.default.post(name: .recipeImported, object: nil)
         } catch {
             // Silent failure — Phase 7 polish can add a user-facing toast.

@@ -4,13 +4,12 @@ import SwiftUI
 enum RootTab: Hashable {
     case studio
     case edit
-    case recipes
 }
 
-/// App root: 3-tab navigation. Replaces the previous single-screen ContentView
-/// that crammed picker, library, recipes, and editor into one toolbar with
-/// cryptic icons. Each tab is its own focused destination; the editor is no
-/// longer fighting for nav-bar real estate.
+/// App root: 2-tab navigation. STUDIO is the entry point (camera roll +
+/// saved edits); EDIT is the active editing surface. Recipes used to be a
+/// third tab, but now live inline as the LOOKS panel inside the editor —
+/// users apply presets directly while editing instead of bouncing tabs.
 struct RootTabView: View {
     @Environment(\.modelContext) private var modelContext
 
@@ -48,22 +47,6 @@ struct RootTabView: View {
                     }
                 }
                 .tag(RootTab.edit)
-
-            RecipesTabView(
-                store: recipeStore,
-                onApply: { recipe in
-                    viewModel.applyRecipe(recipe)
-                    withAnimation { selectedTab = .edit }
-                }
-            )
-            .tabItem {
-                Label {
-                    Text("RECIPES").tracking(1.5)
-                } icon: {
-                    Image(systemName: "wand.and.stars")
-                }
-            }
-            .tag(RootTab.recipes)
         }
         .tint(Theme.Colors.text)
         .task {
@@ -74,13 +57,10 @@ struct RootTabView: View {
                 viewModel.libraryStore = store
             }
             if recipeStore == nil {
-                NSLog("PhotoEditor: RootTabView .task — creating RecipeStore")
                 let rstore = RecipeStore(context: modelContext)
-                NSLog("PhotoEditor: RootTabView .task — RecipeStore ready, deferring preset seed to first Recipes tab visit")
+                BuiltInPresets.seedIfNeeded(store: rstore)
                 recipeStore = rstore
                 viewModel.recipeStore = rstore
-                // Deliberately NOT seeding presets here — defer to RecipesTabView.task
-                // so a misbehaving seed cannot kill the app launch path.
             }
             showLimitedBanner = PhotoLibraryAccess.isLimited
         }

@@ -1,11 +1,11 @@
 import Foundation
 
 enum EditorPanelTab: String, CaseIterable, Identifiable {
-    case filters, light, color, hsl, curves, effects, crop
+    case looks, light, color, hsl, curves, effects, crop
     var id: String { rawValue }
     var displayName: String {
         switch self {
-        case .filters: return "Filters"
+        case .looks:   return "Looks"
         case .light:   return "Light"
         case .color:   return "Color"
         case .hsl:     return "HSL"
@@ -16,7 +16,7 @@ enum EditorPanelTab: String, CaseIterable, Identifiable {
     }
     var systemImage: String {
         switch self {
-        case .filters: return "camera.filters"
+        case .looks:   return "wand.and.stars"
         case .light:   return "sun.max"
         case .color:   return "paintpalette"
         case .hsl:     return "circle.hexagongrid.fill"
