@@ -16,7 +16,8 @@ extension RecipeItem: Identifiable {}
 struct RecipesSheetView: View {
     let store: RecipeStore
     let onApply: (RecipeItem) -> Void
-    let onDismiss: () -> Void
+    /// Optional — `nil` when used as a tab destination (no Done button needed).
+    let onDismiss: (() -> Void)?
 
     @State private var editMode: EditMode = .inactive
     @State private var renameTarget: RecipeItem?
@@ -36,8 +37,10 @@ struct RecipesSheetView: View {
             .navigationTitle("Recipes")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Done") { onDismiss() }
+                if let onDismiss {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button("Done") { onDismiss() }
+                    }
                 }
                 if !store.items.isEmpty {
                     ToolbarItem(placement: .primaryAction) {
@@ -118,7 +121,7 @@ struct RecipesSheetView: View {
                     .onTapGesture {
                         guard editMode == .inactive else { return }
                         onApply(recipe)
-                        onDismiss()
+                        onDismiss?()
                     }
                     .contextMenu {
                         Button { renameTarget = recipe } label: {

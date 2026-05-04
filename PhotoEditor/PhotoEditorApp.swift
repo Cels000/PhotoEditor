@@ -32,7 +32,7 @@ struct PhotoEditorApp: App {
 
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            RootTabView()
                 .onOpenURL { url in
                     handleIncomingURL(url)
                 }
