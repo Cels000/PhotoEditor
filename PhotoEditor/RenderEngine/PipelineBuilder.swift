@@ -8,9 +8,9 @@ import Foundation
 typealias CubeResolver = (String) -> ColorCubeData?
 
 /// Pure namespace that turns an `AdjustmentStack` into a CIImage filter chain.
-/// Stage order is locked per ADJUST-10:
-/// LUT → light → color → HSL → curves → split toning → grain → vignette → sharpness → crop.
-/// Phase 1 implements light + color; every other stage returns its input unchanged.
+/// Stage order: LUT → light → color → HSL → curves → split toning → sharpness
+/// → grain → vignette → crop. Sharpness runs BEFORE grain so we don't sharpen
+/// the noise we just added (which would exaggerate grain into crunch).
 enum PipelineBuilder {
 
     /// Top-level entry point. Pure: same inputs always produce the same output.
@@ -19,17 +19,17 @@ enum PipelineBuilder {
                       cubeResolver: CubeResolver? = nil,
                       suppressCrop: Bool = false) -> CIImage {
         var img = source
-        img = applyLUT(stack.filter, to: img, cubeResolver: cubeResolver)  // 1. Phase 2
-        img = applyLight(stack.light, to: img)            // 2. Phase 1
-        img = applyColor(stack.color, to: img)            // 3. Phase 1
-        img = applyHSL(stack.hsl, to: img)                // 4. Phase 3
-        img = applyCurves(stack.curves, to: img)          // 5. Phase 3
-        img = applySplitToning(stack.splitToning, to: img)// 6. Phase 3
-        img = applyGrain(stack.grain, to: img)            // 7. Phase 3
-        img = applyVignette(stack.vignette, to: img)      // 8. Phase 3
-        img = applySharpness(stack.sharpness, to: img)    // 9. Phase 3
+        img = applyLUT(stack.filter, to: img, cubeResolver: cubeResolver)  // 1
+        img = applyLight(stack.light, to: img)            // 2
+        img = applyColor(stack.color, to: img)            // 3
+        img = applyHSL(stack.hsl, to: img)                // 4
+        img = applyCurves(stack.curves, to: img)          // 5
+        img = applySplitToning(stack.splitToning, to: img)// 6
+        img = applySharpness(stack.sharpness, to: img)    // 7  (before grain — see header)
+        img = applyGrain(stack.grain, to: img)            // 8
+        img = applyVignette(stack.vignette, to: img)      // 9
         if !suppressCrop {
-            img = applyCrop(stack.crop, to: img)          // 10. Phase 3 (skipped when masking)
+            img = applyCrop(stack.crop, to: img)          // 10 (skipped when masking)
         }
         return img
     }
@@ -522,11 +522,14 @@ enum PipelineBuilder {
                                   mask: CIImage,
                                   hueDegrees: Double,
                                   amount: Double) -> CIImage {
-        // Hue → RGB. Use simple HSV-to-RGB at full saturation, value = 0.5.
+        // Hue → RGB. HSV-to-RGB at full saturation. We previously used value = 0.5,
+        // which double-attenuated the tint (dim color × small alpha) and made
+        // split-toning feel weak even at high `amount`. v = 0.9 keeps the tint
+        // bright enough that the alpha cap below is the only attenuation.
         let h = (hueDegrees.truncatingRemainder(dividingBy: 360) + 360).truncatingRemainder(dividingBy: 360) / 60.0
         let sector = Int(h) % 6
         let f = h - Double(Int(h))
-        let v = 0.5
+        let v = 0.9
         let p = 0.0
         let q = v * (1 - f)
         let t = v * f

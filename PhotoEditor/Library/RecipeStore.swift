@@ -62,6 +62,17 @@ final class RecipeStore {
         return item
     }
 
+    /// Replace an existing recipe's stack in place. Used by BuiltInPresets
+    /// during a seed-version bump to refresh built-in stacks while preserving
+    /// the recipe's id, sortOrder, and (importantly) any thumbnail.
+    func updateStack(_ item: RecipeItem, to newStack: AdjustmentStack) {
+        item.stack = newStack
+        item.schemaVersion = newStack.schemaVersion
+        item.updatedAt = Date()
+        try? context.save()
+        refresh()
+    }
+
     /// Rename a recipe. Trims whitespace; ignores empty names.
     func rename(_ item: RecipeItem, to newName: String) {
         let trimmed = newName.trimmingCharacters(in: .whitespacesAndNewlines)
