@@ -36,7 +36,7 @@ struct CameraView: View {
             permissionStatus = await CameraPermissions.request()
             guard permissionStatus == .authorized else { return }
             let r = CameraPreviewRenderer(cubeResolver: viewModel.cubeResolver)
-            r.setFilterSelection(viewModel.selectedSlot.filterSelection)
+            r.setStack(viewModel.selectedSlot.stack)
             r.isFrontCamera = (session.position == .front)
             session.sampleBufferDelegate = r
             renderer = r
@@ -46,7 +46,7 @@ struct CameraView: View {
             session.start()
         }
         .onChange(of: viewModel.selectedSlotID) { _, _ in
-            renderer?.setFilterSelection(viewModel.selectedSlot.filterSelection)
+            renderer?.setStack(viewModel.selectedSlot.stack)
         }
         .onDisappear {
             session.stop()

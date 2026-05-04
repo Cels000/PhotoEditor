@@ -22,11 +22,14 @@ final class CameraPreviewRenderer: NSObject {
     /// filterLibrary.filter(withID: id)?.loadCube() }`).
     let cubeResolver: CubeResolver
 
-    /// The current carousel-selected slot's filter, or nil for ORIGINAL.
+    /// The current carousel-selected slot's full adjustment stack, or nil for
+    /// ORIGINAL. Live preview applies `PipelineBuilder.buildLive` against this
+    /// — full color/tone signature minus the per-pixel-expensive grain and
+    /// halation stages, which only land on capture.
     /// Mutated from MainActor (CameraViewModel) — atomic-set is sufficient
     /// since reads on the capture queue tolerate one-frame staleness.
-    private var _filterSelection: FilterSelection?
-    private let filterLock = os_unfair_lock_t.allocate(capacity: 1)
+    private var _currentStack: AdjustmentStack?
+    private let stackLock = os_unfair_lock_t.allocate(capacity: 1)
 
     /// The current camera position. Used to mirror the front-camera preview.
     var isFrontCamera: Bool = false
@@ -58,25 +61,25 @@ final class CameraPreviewRenderer: NSObject {
         } else {
             self.ciContext = CIContext(options: options)
         }
-        filterLock.initialize(to: os_unfair_lock())
+        stackLock.initialize(to: os_unfair_lock())
         snapshotLock.initialize(to: os_unfair_lock())
         super.init()
     }
 
     deinit {
-        filterLock.deinitialize(count: 1); filterLock.deallocate()
+        stackLock.deinitialize(count: 1); stackLock.deallocate()
         snapshotLock.deinitialize(count: 1); snapshotLock.deallocate()
     }
 
-    func setFilterSelection(_ sel: FilterSelection?) {
-        os_unfair_lock_lock(filterLock)
-        _filterSelection = sel
-        os_unfair_lock_unlock(filterLock)
+    func setStack(_ stack: AdjustmentStack?) {
+        os_unfair_lock_lock(stackLock)
+        _currentStack = stack
+        os_unfair_lock_unlock(stackLock)
     }
 
-    func currentFilterSelection() -> FilterSelection? {
-        os_unfair_lock_lock(filterLock); defer { os_unfair_lock_unlock(filterLock) }
-        return _filterSelection
+    func currentStack() -> AdjustmentStack? {
+        os_unfair_lock_lock(stackLock); defer { os_unfair_lock_unlock(stackLock) }
+        return _currentStack
     }
 
     /// Read by the MTKView for live display. Cooked = LUT applied.
@@ -92,8 +95,19 @@ final class CameraPreviewRenderer: NSObject {
         return _latestRawSnapshot
     }
 
-    /// Pure helper — testable in isolation without an AVCapture pipeline.
-    /// Public-static so tests can call it directly.
+    /// Full live-preview pipeline (LUT + light + color + HSL + curves +
+    /// splitToning + sharpness + softness + vignette). Skips grain and halation
+    /// so 30 fps stays achievable. Used by `captureOutput` and the thumbnailer.
+    static func applyLive(stack: AdjustmentStack?,
+                          to image: CIImage,
+                          cubeResolver: @escaping CubeResolver) -> CIImage {
+        guard let stack, stack != .identity else { return image }
+        return PipelineBuilder.buildLive(stack: stack, source: image,
+                                         cubeResolver: cubeResolver)
+    }
+
+    /// LUT-only helper kept for tests that exercise identity-passthrough
+    /// semantics on the filter slot in isolation.
     static func applyLUT(filterSelection: FilterSelection?,
                          to image: CIImage,
                          cubeResolver: @escaping CubeResolver) -> CIImage {
@@ -129,8 +143,8 @@ extension CameraPreviewRenderer: AVCaptureVideoDataOutputSampleBufferDelegate {
                 .translatedBy(x: -image.extent.width, y: 0))
         }
 
-        let cooked = Self.applyLUT(
-            filterSelection: currentFilterSelection(),
+        let cooked = Self.applyLive(
+            stack: currentStack(),
             to: image,
             cubeResolver: cubeResolver
         )

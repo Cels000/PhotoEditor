@@ -109,8 +109,8 @@ final class CameraCarouselThumbnailer {
         var produced = thumbnails
         var changed = false
         for slot in slots where produced[slot.id] == nil {
-            let cooked = CameraPreviewRenderer.applyLUT(
-                filterSelection: slot.filterSelection,
+            let cooked = CameraPreviewRenderer.applyLive(
+                stack: slot.stack,
                 to: source,
                 cubeResolver: cubeResolver
             )

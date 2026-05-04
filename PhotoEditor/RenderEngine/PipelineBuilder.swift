@@ -15,6 +15,22 @@ typealias CubeResolver = (String) -> ColorCubeData?
 /// as the rest of the image.
 enum PipelineBuilder {
 
+    /// Camera-viewfinder variant. Skips the two stages that dominate per-frame
+    /// cost — grain (per-pixel noise) and halation (Gaussian blur + composite)
+    /// — and forces suppressCrop. Everything else (LUT, light, color, HSL,
+    /// curves, split toning, sharpness, softness, vignette) runs as in the
+    /// editor pipeline so the live preview shows the recipe's true color
+    /// signature, not just the LUT. Grain/halation only land on capture.
+    static func buildLive(stack: AdjustmentStack,
+                          source: CIImage,
+                          cubeResolver: CubeResolver? = nil) -> CIImage {
+        var live = stack
+        live.grain = GrainSettings()
+        live.halation = 0
+        return build(stack: live, source: source,
+                     cubeResolver: cubeResolver, suppressCrop: true)
+    }
+
     /// Top-level entry point. Pure: same inputs always produce the same output.
     static func build(stack: AdjustmentStack,
                       source: CIImage,
