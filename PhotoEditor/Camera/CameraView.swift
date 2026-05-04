@@ -17,7 +17,7 @@ struct CameraView: View {
     @State private var showExposureSlider: Bool = false
     @State private var hideSliderTask: Task<Void, Never>?
     @State private var scrolledID: String?
-    @State private var stripScrolledID: String?
+    @State private var showPresetGrid: Bool = false
 
     var body: some View {
         ZStack {
@@ -62,6 +62,11 @@ struct CameraView: View {
         } message: {
             Text("Enable camera access in Settings to shoot through your presets.")
         }
+        .sheet(isPresented: $showPresetGrid) {
+            CameraPresetGridView(viewModel: viewModel)
+                .presentationDetents([.large])
+                .presentationDragIndicator(.visible)
+        }
     }
 
     // MARK: - Top bar
@@ -78,6 +83,10 @@ struct CameraView: View {
                     Image(systemName: flashIconName)
                         .font(.system(size: 18, weight: .medium))
                 }
+            }
+            Button { showPresetGrid = true } label: {
+                Image(systemName: "square.grid.2x2")
+                    .font(.system(size: 18, weight: .medium))
             }
             Button { viewModel.gridEnabled.toggle() } label: {
                 Image(systemName: viewModel.gridEnabled ? "grid" : "grid")
@@ -153,8 +162,7 @@ struct CameraView: View {
     private var bottomDeck: some View {
         VStack(spacing: Theme.Spacing.sm) {
             categoryLine
-            nameStrip
-            carousel
+            presetStrip
             shutterRow
         }
     }
@@ -184,78 +192,53 @@ struct CameraView: View {
         }
     }
 
-    private var nameStrip: some View {
-        let nameCellWidth: CGFloat = 140
+    private var presetStrip: some View {
+        let cellWidth: CGFloat = 80
+        let edge: CGFloat = 72
         let selectedIdx = viewModel.slots.firstIndex(where: { $0.id == viewModel.selectedSlotID })
         return ScrollViewReader { proxy in
             ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 0) {
-                    ForEach(Array(viewModel.slots.enumerated()), id: \.element.id) { idx, slot in
-                        let distance: Int = {
-                            guard let selectedIdx else { return 0 }
-                            return abs(idx - selectedIdx)
-                        }()
-                        let (color, opacity, scale): (Color, Double, CGFloat) = {
-                            switch distance {
-                            case 0: return (Theme.Colors.text, 1.0, 1.0)
-                            case 1: return (Theme.Colors.secondary, 0.7, 0.9)
-                            case 2: return (Theme.Colors.secondary, 0.35, 0.8)
-                            default: return (Theme.Colors.secondary, 0.0, 0.8)
-                            }
-                        }()
-                        Text(slot.displayName.uppercased())
-                            .font(Theme.Typography.label)
-                            .tracking(2)
-                            .foregroundStyle(color)
-                            .opacity(opacity)
-                            .scaleEffect(scale)
-                            .lineLimit(1)
-                            .frame(width: nameCellWidth)
-                            .id(slot.id)
+                VStack(spacing: Theme.Spacing.xs) {
+                    HStack(spacing: 0) {
+                        ForEach(Array(viewModel.slots.enumerated()), id: \.element.id) { idx, slot in
+                            let distance: Int = {
+                                guard let selectedIdx else { return 0 }
+                                return abs(idx - selectedIdx)
+                            }()
+                            let (color, opacity, scale): (Color, Double, CGFloat) = {
+                                switch distance {
+                                case 0: return (Theme.Colors.text, 1.0, 1.0)
+                                case 1: return (Theme.Colors.secondary, 0.7, 0.9)
+                                case 2: return (Theme.Colors.secondary, 0.35, 0.85)
+                                default: return (Theme.Colors.secondary, 0.0, 0.85)
+                                }
+                            }()
+                            Text(slot.displayName.uppercased())
+                                .font(Theme.Typography.label)
+                                .tracking(2)
+                                .foregroundStyle(color)
+                                .opacity(opacity)
+                                .scaleEffect(scale)
+                                .lineLimit(1)
+                                .truncationMode(.tail)
+                                .frame(width: cellWidth)
+                        }
                     }
-                }
-                .scrollTargetLayout()
-            }
-            .scrollTargetBehavior(.viewAligned)
-            .scrollPosition(id: $stripScrolledID, anchor: .center)
-            .frame(height: 24)
-            .onAppear {
-                stripScrolledID = viewModel.selectedSlotID
-                proxy.scrollTo(viewModel.selectedSlotID, anchor: .center)
-            }
-            .onChange(of: stripScrolledID) { _, newID in
-                guard let newID, newID != viewModel.selectedSlotID,
-                      let slot = viewModel.slots.first(where: { $0.id == newID })
-                else { return }
-                viewModel.selectSlot(slot)
-            }
-            .onChange(of: viewModel.selectedSlotID) { _, newID in
-                withAnimation(.easeInOut(duration: 0.2)) {
-                    proxy.scrollTo(newID, anchor: .center)
-                }
-            }
-        }
-    }
-
-    @ViewBuilder
-    private var carousel: some View {
-        let edge: CGFloat = 72
-        ScrollViewReader { proxy in
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 8) {
-                    ForEach(Array(viewModel.slots.enumerated()), id: \.element.id) { idx, slot in
-                        carouselCell(for: slot, edge: edge, index: idx)
-                            .id(slot.id)
-                            .onAppear { addVisible(slot.id) }
-                            .onDisappear { removeVisible(slot.id) }
+                    HStack(spacing: 0) {
+                        ForEach(Array(viewModel.slots.enumerated()), id: \.element.id) { idx, slot in
+                            thumbnailCell(for: slot, edge: edge, index: idx)
+                                .frame(width: cellWidth)
+                                .id(slot.id)
+                                .onAppear { addVisible(slot.id) }
+                                .onDisappear { removeVisible(slot.id) }
+                        }
                     }
+                    .scrollTargetLayout()
                 }
-                .padding(.horizontal, Theme.Spacing.lg)
-                .scrollTargetLayout()
             }
             .scrollTargetBehavior(.viewAligned)
             .scrollPosition(id: $scrolledID, anchor: .center)
-            .frame(height: edge + 8)
+            .frame(height: 22 + Theme.Spacing.xs + edge + 8)
             .onAppear {
                 scrolledID = viewModel.selectedSlotID
                 proxy.scrollTo(viewModel.selectedSlotID, anchor: .center)
@@ -274,8 +257,7 @@ struct CameraView: View {
         }
     }
 
-
-    private func carouselCell(for slot: CameraSlot, edge: CGFloat, index: Int) -> some View {
+    private func thumbnailCell(for slot: CameraSlot, edge: CGFloat, index: Int) -> some View {
         let isSelected = slot.id == viewModel.selectedSlotID
         let cg = viewModel.thumbnailer?.thumbnails[slot.id]
         let showsCategoryBoundary: Bool = {
