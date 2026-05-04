@@ -53,7 +53,7 @@ struct HSLPanelView: View {
                             .fill(key.swatch)
                             .frame(width: 28, height: 28)
                             .overlay(
-                                Circle().stroke(selected == key ? Color.primary : .clear, lineWidth: 2)
+                                Circle().stroke(selected == key ? Theme.Colors.accent : .clear, lineWidth: 2.5)
                             )
                     }
                     .accessibilityLabel("\(key.displayName) channel")

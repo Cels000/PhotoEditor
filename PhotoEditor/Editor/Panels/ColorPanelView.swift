@@ -4,8 +4,8 @@ struct ColorPanelView: View {
     @Bindable var viewModel: EditorViewModel
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
+        ScrollView(showsIndicators: false) {
+            VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
                 slider("Saturation",  \.color.saturation)
                 slider("Vibrance",    \.color.vibrance)
                 slider("Temperature", \.color.temperature)

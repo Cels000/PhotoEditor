@@ -4,8 +4,8 @@ struct EffectsPanelView: View {
     @Bindable var viewModel: EditorViewModel
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
+        ScrollView(showsIndicators: false) {
+            VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
                 // Grain
                 sectionHeader("Grain")
                 percentSlider("Grain Size",      \.grain.size,      defaultValue: 0)

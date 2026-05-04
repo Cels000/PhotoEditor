@@ -9,7 +9,8 @@ struct PanelContainerView: View {
     @Binding var selectedTab: EditorPanelTab
 
     // Fixed panel height — prevents canvas layout shift (Pitfall #19, UX-03).
-    private let panelHeight: CGFloat = 280
+    // Tightened from 280 → 200 to give the canvas back screen real estate.
+    private let panelHeight: CGFloat = 200
 
     var body: some View {
         VStack(spacing: 0) {
@@ -26,8 +27,8 @@ struct PanelContainerView: View {
                     case .crop:    CropPanelView(viewModel: viewModel) // 03-09
                     }
                 }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 12)
+                .padding(.horizontal, Theme.Spacing.lg)
+                .padding(.vertical, Theme.Spacing.sm)
             }
             .frame(height: panelHeight)
             .frame(maxWidth: .infinity)
@@ -37,13 +38,13 @@ struct PanelContainerView: View {
 
             // Tab bar.
             tabBar
-                .padding(.vertical, 8)
+                .padding(.vertical, Theme.Spacing.xs)
         }
     }
 
     private var tabBar: some View {
         ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 16) {
+            HStack(spacing: Theme.Spacing.sm) {
                 ForEach(EditorPanelTab.allCases) { tab in
                     Button {
                         guard selectedTab != tab else { return }
@@ -52,20 +53,27 @@ struct PanelContainerView: View {
                             selectedTab = tab
                         }
                     } label: {
-                        VStack(spacing: 4) {
+                        HStack(spacing: 6) {
                             Image(systemName: tab.systemImage)
-                                .font(.system(size: 18, weight: .semibold))
-                            Text(tab.displayName)
-                                .font(Theme.Typography.caption)
+                                .font(.system(size: 14, weight: .semibold))
+                            if selectedTab == tab {
+                                Text(tab.displayName)
+                                    .font(Theme.Typography.caption)
+                            }
                         }
-                        .foregroundStyle(selectedTab == tab ? Theme.Colors.accent : Theme.Colors.secondary)
-                        .frame(width: 64)
+                        .foregroundStyle(selectedTab == tab ? Theme.Colors.canvas : Theme.Colors.secondary)
+                        .padding(.horizontal, Theme.Spacing.md)
+                        .padding(.vertical, 6)
+                        .background(
+                            Capsule()
+                                .fill(selectedTab == tab ? Theme.Colors.accent : Color.clear)
+                        )
                     }
                     .accessibilityLabel("\(tab.displayName) panel")
                     .accessibilityAddTraits(selectedTab == tab ? .isSelected : [])
                 }
             }
-            .padding(.horizontal, 16)
+            .padding(.horizontal, Theme.Spacing.lg)
         }
     }
 }

@@ -20,6 +20,7 @@ struct ContentView: View {
     @State private var isNamePromptPresented: Bool = false
     @State private var showLimitedBanner: Bool = false
     @State private var didDismissLimitedBanner: Bool = false
+    @State private var isChromeHidden: Bool = false
 
     var body: some View {
         NavigationStack {
@@ -51,15 +52,22 @@ struct ContentView: View {
                     .accessibilityElement(children: .combine)
                     .accessibilityHint("Opens the system picker to manage which photos this app can access.")
                 }
-                UndoToolbar(viewModel: viewModel)
+                if !isChromeHidden {
+                    UndoToolbar(viewModel: viewModel)
+                        .transition(.move(edge: .top).combined(with: .opacity))
+                }
                 editorPreview
-                    .padding(.horizontal, 16)
-                    .padding(.bottom, 8)
-                PanelContainerView(viewModel: viewModel, selectedTab: $selectedTab)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .padding(.horizontal, isChromeHidden ? 0 : Theme.Spacing.sm)
+                    .padding(.bottom, isChromeHidden ? 0 : Theme.Spacing.xs)
+                if !isChromeHidden {
+                    PanelContainerView(viewModel: viewModel, selectedTab: $selectedTab)
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
+                }
             }
-            .navigationTitle("Photo Editor")
             .navigationBarTitleDisplayMode(.inline)
             .tint(Theme.Colors.accent)
+            .toolbar(isChromeHidden ? .hidden : .visible, for: .navigationBar)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Button {
@@ -189,47 +197,60 @@ struct ContentView: View {
             }
         }
         .alert("Error", isPresented: Binding(present: $viewModel.errorMessage), presenting: viewModel.errorMessage) { _ in
-            Button("OK", role: .cancel) { viewModel.errorMessage = nil }
+            Button("Dismiss", role: .cancel) { viewModel.errorMessage = nil }
         } message: { Text($0) }
-        .alert("Saved", isPresented: Binding(present: $viewModel.successMessage), presenting: viewModel.successMessage) { _ in
-            Button("OK", role: .cancel) { viewModel.successMessage = nil }
-        } message: { Text($0) }
+        .successToast(message: $viewModel.successMessage)
+        // Editor is a tool, not reading content — clamp Dynamic Type so sliders
+        // and panel chrome don't blow out the canvas at high settings.
+        .dynamicTypeSize(.xSmall ... .large)
     }
 
     private var editorPreview: some View {
         ZStack {
-            RoundedRectangle(cornerRadius: 24, style: .continuous)
-                .fill(Theme.Colors.panel)
-                .aspectRatio(3 / 4, contentMode: .fit)
+            // Canvas background fills the full available space — no decorative
+            // rounded-rect frame stealing pixels from the photo.
+            Theme.Colors.canvas
 
             if let image = displayedImage {
                 Image(uiImage: image)
                     .resizable()
                     .scaledToFit()
-                    .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
-                    .padding(8)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .overlay(alignment: .topLeading) {
                         if showOriginal {
                             Text("Original")
-                                .font(.caption.weight(.semibold))
-                                .padding(.horizontal, 8).padding(.vertical, 4)
+                                .font(Theme.Typography.caption)
+                                .padding(.horizontal, Theme.Spacing.sm)
+                                .padding(.vertical, Theme.Spacing.xs)
                                 .background(.thinMaterial, in: Capsule())
-                                .padding(12)
+                                .padding(Theme.Spacing.md)
                         }
                     }
+            } else if viewModel.importedImage != nil {
+                // Mid-render placeholder (avoids the "looks broken" gap between
+                // photo import and first preview render).
+                ProgressView().controlSize(.large)
             } else {
-                VStack(spacing: 12) {
+                VStack(spacing: Theme.Spacing.md) {
                     Image(systemName: "photo.badge.plus")
                         .font(.system(size: 44, weight: .semibold))
                         .foregroundStyle(Theme.Colors.accent)
                     Text("Pick a photo to start editing")
                         .font(Theme.Typography.subtitle)
+                        .foregroundStyle(Theme.Colors.secondary)
                 }
             }
         }
+        .contentShape(Rectangle())
+        .onTapGesture {
+            // Tap the canvas to maximize the photo (hide chrome). Tap again to restore.
+            // Only meaningful once a photo is loaded.
+            guard viewModel.importedImage != nil else { return }
+            withAnimation(Motion.adaptive(Motion.panel)) { isChromeHidden.toggle() }
+        }
         .compareOnLongPress(showOriginal: $showOriginal)
         .accessibilityLabel("Photo canvas")
-        .accessibilityHint("Press and hold to compare with the original.")
+        .accessibilityHint("Tap to toggle full-screen. Press and hold to compare with the original.")
     }
 
     private var displayedImage: UIImage? {

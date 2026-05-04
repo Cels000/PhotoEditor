@@ -80,12 +80,30 @@ struct CurvesPanelView: View {
                     path.addLine(to: CGPoint(x: CGFloat(i) * step, y: size))
                     ctx.stroke(path, with: .color(.gray.opacity(0.2)), lineWidth: 0.5)
                 }
-                // Curve through pts (linear interp).
+                // Smooth curve through points using Catmull-Rom → cubic Bezier.
+                // Replaces the prior piecewise-linear polyline that read as a
+                // placeholder.
+                let cgPoints: [CGPoint] = pts.map { p in
+                    CGPoint(x: CGFloat(p.x) * size, y: (1 - CGFloat(p.y)) * size)
+                }
                 var curve = Path()
-                for i in 0..<pts.count {
-                    let p = pts[i]
-                    let cgp = CGPoint(x: CGFloat(p.x) * size, y: (1 - CGFloat(p.y)) * size)
-                    if i == 0 { curve.move(to: cgp) } else { curve.addLine(to: cgp) }
+                if let first = cgPoints.first { curve.move(to: first) }
+                let n = cgPoints.count
+                for i in 0..<(n - 1) {
+                    let p0 = cgPoints[max(i - 1, 0)]
+                    let p1 = cgPoints[i]
+                    let p2 = cgPoints[i + 1]
+                    let p3 = cgPoints[min(i + 2, n - 1)]
+                    // Catmull-Rom → Bezier control points (tension 0.5).
+                    let c1 = CGPoint(
+                        x: p1.x + (p2.x - p0.x) / 6,
+                        y: p1.y + (p2.y - p0.y) / 6
+                    )
+                    let c2 = CGPoint(
+                        x: p2.x - (p3.x - p1.x) / 6,
+                        y: p2.y - (p3.y - p1.y) / 6
+                    )
+                    curve.addCurve(to: p2, control1: c1, control2: c2)
                 }
                 ctx.stroke(curve, with: .color(tab.tint), lineWidth: 2)
             }

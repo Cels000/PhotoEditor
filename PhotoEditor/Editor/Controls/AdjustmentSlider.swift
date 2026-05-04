@@ -13,15 +13,16 @@ struct AdjustmentSlider: View {
     @State private var isEditing: Bool = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 2) {
             HStack {
                 Text(title)
-                    .font(Theme.Typography.subtitle)
+                    .font(Theme.Typography.caption)
+                    .foregroundStyle(Theme.Colors.secondary)
                 Spacer()
                 Text(format.format(value))
                     .font(Theme.Typography.valueBubble)
-                    .foregroundStyle(isEditing ? .primary : .secondary)
-                    .opacity(isEditing ? 1.0 : 0.7)
+                    .foregroundStyle(isEditing ? Theme.Colors.text : Theme.Colors.secondary)
+                    .opacity(isEditing ? 1.0 : 0.8)
                     .animation(Motion.adaptive(Motion.smooth), value: isEditing)
             }
 

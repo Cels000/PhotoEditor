@@ -15,16 +15,14 @@ struct FilterStripView: View {
     private var orderedFilters: [Filter] { viewModel.filterLibrary.orderedFilters }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Filters").font(Theme.Typography.subtitle)
-
+        VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
             ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 12) {
+                HStack(spacing: Theme.Spacing.sm) {
                     ForEach(orderedFilters) { filter in
                         thumbCell(for: filter)
                     }
                 }
-                .padding(.vertical, 4)
+                .padding(.vertical, Theme.Spacing.xs)
             }
 
             if let selID = selectedFilterID, selID != BuiltInLUTs.ID.identity {
@@ -45,7 +43,7 @@ struct FilterStripView: View {
                          (selectedFilterID == nil && filter.id == BuiltInLUTs.ID.identity)
         let isFavorite = viewModel.filterLibrary.isFavorite(filter.id)
 
-        VStack(spacing: 6) {
+        VStack(spacing: 4) {
             ZStack(alignment: .topTrailing) {
                 Group {
                     if let img = thumbnails[filter.id] {
@@ -53,31 +51,39 @@ struct FilterStripView: View {
                             .resizable()
                             .aspectRatio(contentMode: .fill)
                     } else {
-                        RoundedRectangle(cornerRadius: 12)
+                        RoundedRectangle(cornerRadius: 10)
                             .fill(Theme.Colors.panel)
+                            .redacted(reason: .placeholder)
                     }
                 }
-                .frame(width: 72, height: 72)
-                .clipShape(RoundedRectangle(cornerRadius: 12))
+                .frame(width: 56, height: 56)
+                .clipShape(RoundedRectangle(cornerRadius: 10))
                 .overlay(
-                    RoundedRectangle(cornerRadius: 12)
-                        .stroke(isSelected ? Theme.Colors.accent : Color.clear, lineWidth: 3)
+                    RoundedRectangle(cornerRadius: 10)
+                        .stroke(isSelected ? Theme.Colors.accent : Color.clear, lineWidth: 2.5)
                         .animation(Motion.adaptive(Motion.snappy), value: isSelected)
                 )
 
                 if isFavorite {
                     Image(systemName: "star.fill")
-                        .font(.caption2)
-                        .foregroundStyle(.yellow)
-                        .padding(4)
+                        .font(.system(size: 9))
+                        .foregroundStyle(Theme.Colors.accent)
+                        .padding(3)
                 }
             }
-            Text(filter.displayName)
-                .font(Theme.Typography.caption)
-                .lineLimit(1)
-                .foregroundStyle(isSelected ? Theme.Colors.text : Theme.Colors.secondary)
+            // Show the name only on the selected cell — keeps the strip compact.
+            if isSelected {
+                Text(filter.displayName)
+                    .font(.system(size: 10, weight: .semibold))
+                    .lineLimit(1)
+                    .foregroundStyle(Theme.Colors.accent)
+            } else {
+                Text(" ")
+                    .font(.system(size: 10))
+                    .hidden()
+            }
         }
-        .frame(width: 80)
+        .frame(width: 60)
         .contentShape(Rectangle())
         .onTapGesture {
             if selectedFilterID != filter.id { Haptic.play(.filterSelect) }

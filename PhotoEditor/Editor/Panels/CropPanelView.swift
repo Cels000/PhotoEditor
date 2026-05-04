@@ -27,8 +27,9 @@ struct CropPanelView: View {
                         } label: {
                             Text(preset.displayName)
                                 .font(Theme.Typography.caption)
-                                .padding(.horizontal, 12).padding(.vertical, 8)
-                                .background(selectedPreset == preset ? Color.accentColor.opacity(0.2) : Color(.tertiarySystemBackground))
+                                .foregroundStyle(selectedPreset == preset ? Theme.Colors.canvas : Theme.Colors.text)
+                                .padding(.horizontal, Theme.Spacing.md).padding(.vertical, Theme.Spacing.xs)
+                                .background(selectedPreset == preset ? Theme.Colors.accent : Theme.Colors.panel)
                                 .clipShape(Capsule())
                         }
                         .accessibilityLabel("\(preset.displayName) aspect ratio")
@@ -98,7 +99,10 @@ struct CropPanelView: View {
 
     @ViewBuilder
     private var mantisButton: some View {
-        VStack(alignment: .leading, spacing: 4) {
+        // Hidden entirely when the SPM dep isn't linked — a perpetually-disabled
+        // primary CTA reads as broken. Aspect presets + rotate/flip cover crop
+        // needs without Mantis.
+        if mantisAvailable {
             Button {
                 // Wire to a sheet presentation in 03-10. For now, button stub records intent.
             } label: {
@@ -106,12 +110,6 @@ struct CropPanelView: View {
                     .frame(maxWidth: .infinity)
             }
             .buttonStyle(.borderedProminent)
-            .disabled(!mantisAvailable)
-            if !mantisAvailable {
-                Text("Add the Mantis SPM dependency on Mac to enable the interactive crop tool. Aspect presets, rotation, and flip remain available without it.")
-                    .font(Theme.Typography.caption)
-                    .foregroundStyle(.secondary)
-            }
         }
     }
 

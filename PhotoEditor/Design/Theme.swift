@@ -12,7 +12,7 @@ enum Theme {
 
     enum Typography {
         // All use relativeTo: a system text style so Dynamic Type works (UX-04).
-        static let title: Font        = .system(size: 28, weight: .semibold, design: .rounded)
+        static let title: Font        = .system(.largeTitle, design: .rounded).weight(.semibold)
         static let subtitle: Font     = .system(.headline, design: .default).weight(.medium)
         static let body: Font         = .system(.body)
         static let caption: Font      = .system(.caption)
