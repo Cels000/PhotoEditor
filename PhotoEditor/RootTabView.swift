@@ -74,10 +74,13 @@ struct RootTabView: View {
                 viewModel.libraryStore = store
             }
             if recipeStore == nil {
+                NSLog("PhotoEditor: RootTabView .task — creating RecipeStore")
                 let rstore = RecipeStore(context: modelContext)
-                BuiltInPresets.seedIfNeeded(store: rstore)
+                NSLog("PhotoEditor: RootTabView .task — RecipeStore ready, deferring preset seed to first Recipes tab visit")
                 recipeStore = rstore
                 viewModel.recipeStore = rstore
+                // Deliberately NOT seeding presets here — defer to RecipesTabView.task
+                // so a misbehaving seed cannot kill the app launch path.
             }
             showLimitedBanner = PhotoLibraryAccess.isLimited
         }

@@ -16,6 +16,12 @@ struct RecipesTabView: View {
                     onApply: onApply,
                     onDismiss: nil
                 )
+                .task {
+                    // Deferred preset seeding — runs the first time the Recipes
+                    // tab is shown, never at app launch. This isolates any
+                    // potential seed failure from the app startup path.
+                    BuiltInPresets.seedIfNeeded(store: store)
+                }
             } else {
                 VStack {
                     ProgressView()
