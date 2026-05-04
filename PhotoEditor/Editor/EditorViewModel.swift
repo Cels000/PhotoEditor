@@ -494,7 +494,9 @@ final class EditorViewModel {
             lastDetectedInstanceCount = result.instanceCount
 
             if result.instanceCount == 0 {
-                errorMessage = "No subject detected."
+                // Informational, not an error: surface via toast (successMessage),
+                // not via alert (errorMessage). User can re-tap on a different photo.
+                successMessage = "No subject detected."
                 return
             }
 
