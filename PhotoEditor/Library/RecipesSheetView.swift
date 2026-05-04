@@ -1,11 +1,10 @@
 // RecipesSheetView.swift
 // User-facing recipe management surface.
 // - Tap row: apply (calls onApply, closes sheet)
-// - Context menu / swipe: Rename, Share, Delete (works on built-in presets too —
-//   if a user removes one, it's gone unless they bump the seed key)
+// - Context menu: Rename, Share, Delete (works on built-in presets too —
+//   if a user removes one, it's gone unless the seed key is bumped)
 // - Sections: "My Recipes" (uncategorized) + one per RecipeCategory.
 //   All collapsible, all collapsed by default to keep the surface compact.
-// - User-recipe section supports reorder; preset sections do not.
 // - Visuals tuned to the app's VSCO-style monochrome palette: pure canvas
 //   background, square thumbnails, ALL-CAPS tracked-out section labels, no
 //   grouped boxing, no system shadows. Driven entirely by Theme.
@@ -131,129 +130,95 @@ struct RecipesSheetView: View {
     }
 
     private var sectionList: some View {
-        List {
-            if !userRecipes.isEmpty {
-                section(
-                    key: "user",
-                    title: "My Recipes",
-                    count: userRecipes.count
-                ) {
-                    ForEach(userRecipes, id: \.id) { recipe in
-                        recipeRow(recipe)
-                    }
-                    .onMove(perform: moveUserItems)
-                    .onDelete(perform: deleteUserItems)
+        // Flat list of expandable groups — no SwiftUI Section primitives
+        // (those interact poorly with custom headers + collapsible content
+        // on .plain listStyle and were the source of a runtime crash).
+        ScrollView {
+            LazyVStack(spacing: 0) {
+                if !userRecipes.isEmpty {
+                    expandable(
+                        key: "user",
+                        title: "My Recipes",
+                        items: userRecipes
+                    )
                 }
-            }
-            ForEach(RecipeCategory.allCases) { category in
-                let items = recipes(in: category)
-                if !items.isEmpty {
-                    section(
-                        key: category.rawValue,
-                        title: category.displayName,
-                        count: items.count
-                    ) {
-                        ForEach(items, id: \.id) { recipe in
-                            recipeRow(recipe)
-                        }
+                ForEach(RecipeCategory.allCases) { category in
+                    let items = recipes(in: category)
+                    if !items.isEmpty {
+                        expandable(
+                            key: category.rawValue,
+                            title: category.displayName,
+                            items: items
+                        )
                     }
                 }
+                Spacer(minLength: Theme.Spacing.xl)
             }
         }
-        .listStyle(.plain)
-        .scrollContentBackground(.hidden)
         .background(Theme.Colors.canvas)
     }
 
     @ViewBuilder
-    private func section<Content: View>(
-        key: String,
-        title: String,
-        count: Int,
-        @ViewBuilder content: @escaping () -> Content
-    ) -> some View {
+    private func expandable(key: String, title: String, items: [RecipeItem]) -> some View {
         let isExpanded = expandedSections.contains(key)
-        Section {
-            if isExpanded {
-                content()
-            }
-        } header: {
+        VStack(spacing: 0) {
             Button {
-                withAnimation(.easeInOut(duration: 0.18)) {
-                    if isExpanded { expandedSections.remove(key) }
-                    else { expandedSections.insert(key) }
-                }
+                if isExpanded { expandedSections.remove(key) }
+                else { expandedSections.insert(key) }
             } label: {
                 HStack(spacing: Theme.Spacing.sm) {
                     Text(title.uppercased())
                         .font(Theme.Typography.label)
                         .tracking(1.5)
                         .foregroundStyle(Theme.Colors.text)
-                    Text("\(count)")
+                    Text("\(items.count)")
                         .font(Theme.Typography.label)
                         .tracking(1.0)
                         .foregroundStyle(Theme.Colors.secondary)
                     Spacer()
                     Image(systemName: "chevron.down")
-                        .font(.system(size: 10, weight: .semibold))
+                        .font(.system(size: 9, weight: .semibold))
                         .foregroundStyle(Theme.Colors.secondary)
                         .rotationEffect(.degrees(isExpanded ? 0 : -90))
                 }
-                .padding(.vertical, Theme.Spacing.sm)
                 .padding(.horizontal, Theme.Spacing.lg)
+                .padding(.vertical, Theme.Spacing.md)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .background(Theme.Colors.canvas)
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            .listRowInsets(EdgeInsets())
-            .listRowBackground(Theme.Colors.canvas)
-            .textCase(nil)
+
+            if isExpanded {
+                ForEach(items, id: \.id) { recipe in
+                    recipeRow(recipe)
+                    Divider()
+                        .background(Theme.Colors.separator)
+                        .padding(.leading, Theme.Spacing.lg)
+                }
+            }
+            Divider().background(Theme.Colors.separator)
         }
     }
 
     @ViewBuilder
     private func recipeRow(_ recipe: RecipeItem) -> some View {
-        RecipeRow(recipe: recipe)
-            .contentShape(Rectangle())
-            .onTapGesture {
-                onApply(recipe)
-                onDismiss?()
+        Button {
+            onApply(recipe)
+            onDismiss?()
+        } label: {
+            RecipeRow(recipe: recipe)
+        }
+        .buttonStyle(.plain)
+        .contextMenu {
+            Button { renameTarget = recipe } label: {
+                Label("Rename", systemImage: "pencil")
             }
-            .listRowBackground(Theme.Colors.canvas)
-            .listRowSeparatorTint(Theme.Colors.separator)
-            .contextMenu {
-                Button { renameTarget = recipe } label: {
-                    Label("Rename", systemImage: "pencil")
-                }
-                Button { shareRecipe(recipe) } label: {
-                    Label("Share", systemImage: "square.and.arrow.up")
-                }
-                Button(role: .destructive) { deleteTarget = recipe } label: {
-                    Label("Delete", systemImage: "trash")
-                }
+            Button { shareRecipe(recipe) } label: {
+                Label("Share", systemImage: "square.and.arrow.up")
             }
-            .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                Button(role: .destructive) { deleteTarget = recipe } label: {
-                    Label("Delete", systemImage: "trash")
-                }
+            Button(role: .destructive) { deleteTarget = recipe } label: {
+                Label("Delete", systemImage: "trash")
             }
-    }
-
-    // MARK: - Mutations (user section only)
-
-    private func moveUserItems(from source: IndexSet, to destination: Int) {
-        var users = userRecipes
-        users.move(fromOffsets: source, toOffset: destination)
-        // Rebuild the full ordering: presets keep their positions, user items follow.
-        let presets = store.items.filter { BuiltInPresets.category(forName: $0.name) != nil }
-        store.reorder(users + presets)
-    }
-
-    private func deleteUserItems(at offsets: IndexSet) {
-        let snapshot = userRecipes
-        for index in offsets where index < snapshot.count {
-            store.delete(snapshot[index])
         }
     }
 
@@ -278,15 +243,17 @@ private struct RecipeRow: View {
     var body: some View {
         HStack(spacing: Theme.Spacing.md) {
             thumbnail
-                .frame(width: 40, height: 40)
-                .clipShape(RoundedRectangle(cornerRadius: Theme.Radii.medium, style: .continuous))
+                .frame(width: 32, height: 32)
+                .clipShape(RoundedRectangle(cornerRadius: Theme.Radii.small, style: .continuous))
             Text(recipe.name)
-                .font(Theme.Typography.body)
+                .font(.system(size: 13))
                 .foregroundStyle(Theme.Colors.text)
             Spacer()
         }
-        .padding(.vertical, Theme.Spacing.xs)
         .padding(.horizontal, Theme.Spacing.lg)
+        .padding(.vertical, Theme.Spacing.sm)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .contentShape(Rectangle())
     }
 
     @ViewBuilder
