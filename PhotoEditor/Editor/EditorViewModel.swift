@@ -18,7 +18,47 @@ enum ExportPipelineError: Error {
 final class EditorViewModel {
 
     // MARK: - Observable state
-    var stack: AdjustmentStack = .identity
+
+    /// Top-level edit state. Wraps subject + background AdjustmentStacks and an optional mask.
+    var document: EditDocument = .identity
+
+    /// Active sub-segment for slider writes. Ignored when `document.mask == nil`.
+    var activeScope: MaskScope = .subject
+
+    /// Backward-compatible computed view of the active stack. Panel views read
+    /// and write `viewModel.stack[keyPath:]`; the setter routes per scope and
+    /// enforces the crop mirror invariant (subject.crop == background.crop).
+    var stack: AdjustmentStack {
+        get {
+            guard document.mask != nil else { return document.subjectStack }
+            switch activeScope {
+            case .subject, .full: return document.subjectStack
+            case .background:     return document.backgroundStack
+            }
+        }
+        set {
+            if document.mask == nil {
+                // Single-stack mode: write to subjectStack and mirror to backgroundStack
+                // so they stay identical (clean mask-enable later).
+                document.subjectStack = newValue
+                document.backgroundStack = newValue
+                return
+            }
+            switch activeScope {
+            case .subject:
+                document.subjectStack = newValue
+            case .background:
+                document.backgroundStack = newValue
+            case .full:
+                document.subjectStack = newValue
+                document.backgroundStack = newValue
+            }
+            // Crop mirror invariant: regardless of scope, both crops must equal newValue.crop.
+            document.subjectStack.crop = newValue.crop
+            document.backgroundStack.crop = newValue.crop
+        }
+    }
+
     var previewImage: UIImage?
     var importedImage: ImportedImage?
     var isSaving: Bool = false
@@ -51,7 +91,7 @@ final class EditorViewModel {
 
     // MARK: - Undo / Redo
     private var undoStack = UndoStack()
-    private var pendingDragSnapshot: AdjustmentStack?
+    private var pendingDragSnapshot: EditDocument?
 
     var canUndo: Bool { undoStack.canUndo }
     var canRedo: Bool { undoStack.canRedo }
@@ -61,7 +101,7 @@ final class EditorViewModel {
     func beginInteractiveEdit() {
         // Only capture if we're not already tracking a drag (re-entrancy guard).
         if pendingDragSnapshot == nil {
-            pendingDragSnapshot = stack
+            pendingDragSnapshot = document
         }
     }
 
@@ -69,25 +109,25 @@ final class EditorViewModel {
     /// stack iff it differs from the pre-drag snapshot.
     func endInteractiveEdit() {
         defer { pendingDragSnapshot = nil }
-        guard let pre = pendingDragSnapshot, pre != stack else { return }
-        undoStack.push(stack)
+        guard let pre = pendingDragSnapshot, pre != document else { return }
+        undoStack.push(document)
     }
 
     /// For discrete (non-drag) mutations: filter selection, crop apply, recipe apply.
     /// Caller must have already mutated `stack` before calling this.
     func commitDiscreteChange() {
-        undoStack.push(stack)
+        undoStack.push(document)
     }
 
     func undo() {
         guard let restored = undoStack.undo() else { return }
-        stack = restored
+        document = restored
         stackDidChange()
     }
 
     func redo() {
         guard let restored = undoStack.redo() else { return }
-        stack = restored
+        document = restored
         stackDidChange()
     }
 
@@ -116,7 +156,8 @@ final class EditorViewModel {
                 sourceAssetID: sourceAssetID
             )
             // Reset to identity so the new photo starts unedited.
-            self.stack = .identity
+            self.document = .identity
+            self.activeScope = .subject
             self.currentLibraryItem = nil
             self.undoStack.clear(seed: .identity)
             // Render initial preview synchronously (no debounce on first frame).
@@ -129,15 +170,22 @@ final class EditorViewModel {
     /// Called from every slider's binding set closure — debounces the preview render.
     func stackDidChange() {
         renderTask?.cancel()
-        let snapshotStack = stack
+        let snapshotDoc = document
         guard let engine, let source = importedImage?.previewCIImage else { return }
         let resolver = makeCubeResolver()
+        // Mask result threading deferred to Task 8; pass nil for now (legacy unmasked path).
+        let maskResult: SubjectMaskResult? = nil
 
         renderTask = Task { [weak self] in
             try? await Task.sleep(nanoseconds: Self.debounceNanos)
             guard !Task.isCancelled, let self else { return }
             do {
-                let cg = try await engine.renderPreview(stack: snapshotStack, source: source, cubeResolver: resolver)
+                let cg = try await engine.renderPreview(
+                    document: snapshotDoc,
+                    source: source,
+                    cubeResolver: resolver,
+                    maskResult: maskResult
+                )
                 guard !Task.isCancelled else { return }
                 self.previewImage = UIImage(cgImage: cg)
             } catch {
@@ -165,8 +213,9 @@ final class EditorViewModel {
     }
 
     func resetAdjustments() {
-        guard stack != .identity else { return }
-        stack = .identity
+        guard document != .identity else { return }
+        document = .identity
+        activeScope = .subject
         undoStack.push(.identity)
         stackDidChange()
         errorMessage = nil
@@ -187,9 +236,10 @@ final class EditorViewModel {
 
         // Full-res render on the engine actor.
         let cg = try await engine.renderExport(
-            stack: stack,
+            document: document,
             source: imported.exportCIImage,
-            cubeResolver: makeCubeResolver()
+            cubeResolver: makeCubeResolver(),
+            maskResult: nil  // Mask result threading deferred to Task 8
         )
 
         // Read source metadata + color space from the raw bytes (preserves EXIF dictionaries).
@@ -266,12 +316,13 @@ final class EditorViewModel {
         errorMessage = nil
         successMessage = nil
 
-        let snapshotStack = stack
+        // Use subjectStack for thumbnail and library save in this task — full document
+        // persistence (with mask) lands in Task 7 (LibraryItem schema migration).
+        let snapshotStack = document.subjectStack
         let assetID = imported.sourceAssetID
         let source = imported.previewCIImage
         let resolver = makeCubeResolver()
 
-        // Render thumbnail off-main. ThumbnailGenerator is non-isolated; engine is an actor.
         let thumb: Data?
         do {
             thumb = try await Task.detached(priority: .background) {
@@ -314,9 +365,14 @@ final class EditorViewModel {
         do {
             let imported = try await ImageImporter.importImage(fromAssetID: assetID)
             self.importedImage = imported
-            self.stack = item.adjustmentStack
+            // Lift the legacy single-stack into a v2 document; mask is nil.
+            var doc = EditDocument()
+            doc.subjectStack = item.adjustmentStack
+            doc.backgroundStack = item.adjustmentStack
+            self.document = doc
+            self.activeScope = .subject
             self.currentLibraryItem = item
-            self.undoStack.clear(seed: self.stack)
+            self.undoStack.clear(seed: self.document)
             await renderPreviewNow()
         } catch ImageImportError.phAssetUnavailable {
             errorMessage = "This photo's source is no longer in your Photos library."
@@ -340,7 +396,12 @@ final class EditorViewModel {
             newStack.filter = nil
         }
 
+        // Recipes apply to the entire document (both stacks). Save and restore scope
+        // so the user's active sub-segment isn't disturbed.
+        let savedScope = activeScope
+        activeScope = .full
         stack = newStack
+        activeScope = savedScope
         commitDiscreteChange()  // single undo entry for the whole apply
         stackDidChange()         // debounced re-render of preview
         successMessage = "Applied \"\(recipe.name)\"."
@@ -360,7 +421,8 @@ final class EditorViewModel {
             return
         }
 
-        let snapshotStack = stack
+        // Recipes save just the subjectStack (mask state is not persisted in recipes).
+        let snapshotStack = document.subjectStack
         var thumbnailData: Data? = nil
 
         // If a photo is loaded, render a thumbnail. If not, save without one
@@ -392,7 +454,12 @@ final class EditorViewModel {
     private func renderPreviewNow() async {
         guard let engine, let source = importedImage?.previewCIImage else { return }
         do {
-            let cg = try await engine.renderPreview(stack: stack, source: source, cubeResolver: self.makeCubeResolver())
+            let cg = try await engine.renderPreview(
+                document: document,
+                source: source,
+                cubeResolver: self.makeCubeResolver(),
+                maskResult: nil  // Mask result threading deferred to Task 8
+            )
             self.previewImage = UIImage(cgImage: cg)
         } catch {
             self.errorMessage = "Could not render preview."
