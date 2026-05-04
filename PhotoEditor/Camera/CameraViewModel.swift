@@ -133,4 +133,20 @@ final class CameraViewModel {
             thumbnail: nil
         )
     }
+
+    // MARK: - Carousel thumbnailer
+
+    var thumbnailer: CameraCarouselThumbnailer?
+
+    func attachThumbnailer(renderer: CameraPreviewRenderer) {
+        let t = CameraCarouselThumbnailer(renderer: renderer, cubeResolver: cubeResolver)
+        t.setSlots(slots)
+        thumbnailer = t
+        t.start()
+    }
+
+    func detachThumbnailer() {
+        thumbnailer?.stop()
+        thumbnailer = nil
+    }
 }

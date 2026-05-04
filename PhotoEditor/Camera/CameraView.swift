@@ -29,7 +29,7 @@ struct CameraView: View {
                         .aspectRatio(3/4, contentMode: .fit)
                 }
                 Spacer(minLength: 0)
-                shutterRow
+                bottomDeck
             }
         }
         .task {
@@ -40,6 +40,7 @@ struct CameraView: View {
             r.isFrontCamera = (session.position == .front)
             session.sampleBufferDelegate = r
             renderer = r
+            viewModel.attachThumbnailer(renderer: r)
             viewModel.bindHEIC(provider: { try await session.capturePhoto() })
             viewModel.bindFront(isFront: { session.position == .front })
             session.start()
@@ -47,7 +48,10 @@ struct CameraView: View {
         .onChange(of: viewModel.selectedSlotID) { _, _ in
             renderer?.setFilterSelection(viewModel.selectedSlot.filterSelection)
         }
-        .onDisappear { session.stop() }
+        .onDisappear {
+            session.stop()
+            viewModel.detachThumbnailer()
+        }
         .alert("Camera access needed", isPresented: Binding(
             get: { permissionStatus == .denied || permissionStatus == .restricted },
             set: { _ in })) {
@@ -136,6 +140,85 @@ struct CameraView: View {
         UIImpactFeedbackGenerator(style: .medium).impactOccurred()
         do { try await viewModel.capture() }
         catch { viewModel.errorMessage = "Couldn't save photo." }
+    }
+
+    // MARK: - Bottom deck (carousel + label + shutter)
+
+    private var bottomDeck: some View {
+        VStack(spacing: Theme.Spacing.sm) {
+            carousel
+            Text(viewModel.selectedSlot.displayName.uppercased())
+                .font(Theme.Typography.label)
+                .tracking(2)
+                .foregroundStyle(Theme.Colors.text)
+                .frame(height: 16)
+            shutterRow
+        }
+    }
+
+    @ViewBuilder
+    private var carousel: some View {
+        let edge: CGFloat = 72
+        ScrollViewReader { proxy in
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    ForEach(viewModel.slots) { slot in
+                        carouselCell(for: slot, edge: edge)
+                            .id(slot.id)
+                            .onAppear { addVisible(slot.id) }
+                            .onDisappear { removeVisible(slot.id) }
+                    }
+                }
+                .padding(.horizontal, Theme.Spacing.lg)
+                .scrollTargetLayout()
+            }
+            .scrollTargetBehavior(.viewAligned)
+            .frame(height: edge + 8)
+            .onAppear {
+                proxy.scrollTo(viewModel.selectedSlotID, anchor: .center)
+            }
+        }
+    }
+
+    private func carouselCell(for slot: CameraSlot, edge: CGFloat) -> some View {
+        let isSelected = slot.id == viewModel.selectedSlotID
+        let cg = viewModel.thumbnailer?.thumbnails[slot.id]
+        return Button {
+            viewModel.selectSlot(slot)
+        } label: {
+            ZStack {
+                if let cg {
+                    Image(cg, scale: 1, label: Text(slot.displayName))
+                        .resizable()
+                        .aspectRatio(contentMode: .fill)
+                        .frame(width: edge, height: edge)
+                        .clipped()
+                } else {
+                    Rectangle()
+                        .fill(Theme.Colors.secondary.opacity(0.2))
+                        .frame(width: edge, height: edge)
+                }
+            }
+            .overlay(
+                Rectangle()
+                    .stroke(Color.white,
+                            lineWidth: isSelected ? 2 : 0)
+            )
+            .scaleEffect(isSelected ? 1.05 : 1.0)
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func addVisible(_ id: String) {
+        var s = viewModel.thumbnailer?.visibleSlotIDs ?? []
+        s.insert(id)
+        viewModel.thumbnailer?.setVisibleSlotIDs(s)
+    }
+
+    private func removeVisible(_ id: String) {
+        var s = viewModel.thumbnailer?.visibleSlotIDs ?? []
+        s.remove(id)
+        viewModel.thumbnailer?.setVisibleSlotIDs(s)
     }
 
     // MARK: - Preview area
