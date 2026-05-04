@@ -44,6 +44,7 @@ final class CameraViewModel {
     static let lastSlotKey = "camera.lastRecipeID"
     static let flashKey    = "camera.flashMode"
     static let gridKey     = "camera.gridEnabled"
+    static let intensitiesKey = "camera.slotIntensities"
 
     // MARK: - Dependencies
     let libraryStore: LibraryStore
@@ -67,6 +68,7 @@ final class CameraViewModel {
     }
     var errorMessage: String?
     var captureInFlight: Bool = false
+    private(set) var slotIntensities: [String: Double] = [:]
 
     // MARK: - Override hooks (wired in Task 9)
     private var heicProviderOverride: (() async throws -> Data)?
@@ -101,6 +103,27 @@ final class CameraViewModel {
         if !slots.contains(where: { $0.id == selectedSlotID }) {
             selectedSlotID = CameraSlot.originalID
         }
+
+        if let data = userDefaults.data(forKey: Self.intensitiesKey),
+           let decoded = try? JSONDecoder().decode([String: Double].self, from: data) {
+            slotIntensities = decoded
+        }
+    }
+
+    func intensity(for slotID: String) -> Double {
+        slotIntensities[slotID] ?? 1.0
+    }
+
+    func setIntensity(_ value: Double, for slotID: String) {
+        let clamped = max(0, min(1, value))
+        slotIntensities[slotID] = clamped
+        if let encoded = try? JSONEncoder().encode(slotIntensities) {
+            userDefaults.set(encoded, forKey: Self.intensitiesKey)
+        }
+    }
+
+    var effectiveStack: AdjustmentStack {
+        selectedSlot.stack.scaled(by: intensity(for: selectedSlotID))
     }
 
     // MARK: - Public API
@@ -129,7 +152,7 @@ final class CameraViewModel {
         defer { captureInFlight = false }
 
         let rawBytes = try await (heicProviderOverride ?? heicProvider)()
-        let slot = selectedSlot
+        let cookedStack = effectiveStack
         let isFront = isFrontProvider?() ?? false
         // Save the cooked HEIC (filter baked in) so Photos shows what the user
         // saw through the preset. Library row stores `.identity` because the
@@ -138,11 +161,11 @@ final class CameraViewModel {
         // camera, skip the round-trip; front-cam always cooks so the preview
         // mirror flip can be baked in.
         let bytesToSave: Data
-        if slot.stack == .identity && !isFront {
+        if cookedStack == .identity && !isFront {
             bytesToSave = rawBytes
         } else {
             do {
-                bytesToSave = try await heicCooker(rawBytes, slot.stack, isFront)
+                bytesToSave = try await heicCooker(rawBytes, cookedStack, isFront)
             } catch {
                 errorMessage = "Couldn't apply preset to photo."
                 throw error

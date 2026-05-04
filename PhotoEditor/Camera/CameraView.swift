@@ -46,7 +46,7 @@ struct CameraView: View {
             permissionStatus = await CameraPermissions.request()
             guard permissionStatus == .authorized else { return }
             let r = CameraPreviewRenderer(cubeResolver: viewModel.cubeResolver)
-            r.setStack(viewModel.selectedSlot.stack)
+            r.setStack(viewModel.effectiveStack)
             r.isFrontCamera = (session.position == .front)
             session.sampleBufferDelegate = r
             renderer = r
@@ -56,7 +56,10 @@ struct CameraView: View {
             session.start()
         }
         .onChange(of: viewModel.selectedSlotID) { _, _ in
-            renderer?.setStack(viewModel.selectedSlot.stack)
+            renderer?.setStack(viewModel.effectiveStack)
+        }
+        .onChange(of: viewModel.slotIntensities) { _, _ in
+            renderer?.setStack(viewModel.effectiveStack)
         }
         .onDisappear {
             session.stop()
@@ -224,7 +227,43 @@ struct CameraView: View {
         VStack(spacing: Theme.Spacing.sm) {
             categoryLine
             presetStrip
+            intensityControl
             shutterRow
+        }
+    }
+
+    @ViewBuilder
+    private var intensityControl: some View {
+        let slot = viewModel.selectedSlot
+        if case .original = slot {
+            // Reserve the height so the deck doesn't jitter when switching to/from
+            // the original slot.
+            Color.clear.frame(height: 28)
+        } else {
+            let current = viewModel.intensity(for: viewModel.selectedSlotID)
+            HStack(spacing: Theme.Spacing.sm) {
+                Text("INTENSITY")
+                    .font(Theme.Typography.label)
+                    .tracking(2)
+                    .foregroundStyle(Theme.Colors.secondary)
+                    .frame(width: 90, alignment: .leading)
+                Slider(
+                    value: Binding(
+                        get: { current },
+                        set: { viewModel.setIntensity($0, for: viewModel.selectedSlotID) }
+                    ),
+                    in: 0...1
+                )
+                .tint(Theme.Colors.text)
+                Text("\(Int(current * 100))%")
+                    .font(Theme.Typography.label)
+                    .tracking(1)
+                    .foregroundStyle(Theme.Colors.secondary)
+                    .frame(width: 44, alignment: .trailing)
+                    .monospacedDigit()
+            }
+            .padding(.horizontal, Theme.Spacing.lg)
+            .frame(height: 28)
         }
     }
 

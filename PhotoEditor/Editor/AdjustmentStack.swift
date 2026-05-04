@@ -130,6 +130,64 @@ struct AdjustmentStack: Codable, Equatable {
     static let identity = AdjustmentStack()
 }
 
+// MARK: - Intensity scaling
+
+extension AdjustmentStack {
+    /// Lerp every "look" parameter toward identity by `t` (0...1, clamped).
+    /// 1 = full preset, 0 = identity. Grain and halation deliberately do NOT
+    /// scale — they're textures with their own perceptual character; halving
+    /// "grain intensity 0.7" looks like washed-out grain, not less grain.
+    /// Crop is structural and never scaled.
+    func scaled(by t: Double) -> AdjustmentStack {
+        let t = max(0, min(1, t))
+        var s = self
+        if let f = s.filter {
+            s.filter = FilterSelection(filterID: f.filterID, strength: f.strength * t)
+        }
+        s.color.saturation *= t
+        s.color.vibrance *= t
+        s.color.temperature *= t
+        s.color.tint *= t
+        s.light.exposure *= t
+        s.light.contrast *= t
+        s.light.highlights *= t
+        s.light.shadows *= t
+        s.light.whites *= t
+        s.light.blacks *= t
+        s.hsl.red.hue *= t;       s.hsl.red.saturation *= t;       s.hsl.red.luminance *= t
+        s.hsl.orange.hue *= t;    s.hsl.orange.saturation *= t;    s.hsl.orange.luminance *= t
+        s.hsl.yellow.hue *= t;    s.hsl.yellow.saturation *= t;    s.hsl.yellow.luminance *= t
+        s.hsl.green.hue *= t;     s.hsl.green.saturation *= t;     s.hsl.green.luminance *= t
+        s.hsl.aqua.hue *= t;      s.hsl.aqua.saturation *= t;      s.hsl.aqua.luminance *= t
+        s.hsl.blue.hue *= t;      s.hsl.blue.saturation *= t;      s.hsl.blue.luminance *= t
+        s.hsl.purple.hue *= t;    s.hsl.purple.saturation *= t;    s.hsl.purple.luminance *= t
+        s.hsl.magenta.hue *= t;   s.hsl.magenta.saturation *= t;   s.hsl.magenta.luminance *= t
+        // SplitToning — saturations scale; hues are angles (no identity to
+        // lerp toward) so they stay put — sat=0 already nullifies them.
+        s.splitToning.highlightSaturation *= t
+        s.splitToning.shadowSaturation *= t
+        s.splitToning.balance *= t
+        s.curves.rgb = lerpCurve(s.curves.rgb, t: t)
+        s.curves.red = lerpCurve(s.curves.red, t: t)
+        s.curves.green = lerpCurve(s.curves.green, t: t)
+        s.curves.blue = lerpCurve(s.curves.blue, t: t)
+        s.vignette.amount *= t
+        s.sharpness *= t
+        s.softness *= t
+        // Grain and halation deliberately untouched (textures).
+        return s
+    }
+}
+
+private func lerpCurve(_ c: CurveChannel, t: Double) -> CurveChannel {
+    var out = c
+    out.points = c.points.map { p in
+        // identity: y = x. Lerp p.y toward p.x by (1-t).
+        CurvePoint(x: p.x, y: p.x + (p.y - p.x) * t)
+    }
+    return out
+}
+
 // MARK: - Validation marker structs
 // Note: a previous validation pass added file-scope marker structs named
 // `Color`, `Light`, `HSL`, `Curves`, `Effects` here purely to satisfy a literal
