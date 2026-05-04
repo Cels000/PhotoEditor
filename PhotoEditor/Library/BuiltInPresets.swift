@@ -32,7 +32,7 @@ import Foundation
 
 enum BuiltInPresets {
 
-    private static let seedKey = "builtInPresetsSeeded.v7"
+    private static let seedKey = "builtInPresetsSeeded.v8"
 
     /// Insert (and update) built-in presets the first time we see this device on
     /// this seed version. Idempotent — safe to call on every launch.
@@ -69,7 +69,7 @@ enum BuiltInPresets {
                 inserted += 1
             }
         }
-        NSLog("PhotoEditor: BuiltInPresets seed v7 — inserted \(inserted), updated \(updated) of \(all.count)")
+        NSLog("PhotoEditor: BuiltInPresets seed v8 — inserted \(inserted), updated \(updated) of \(all.count)")
         defaults.set(true, forKey: seedKey)
     }
 
@@ -92,6 +92,30 @@ enum BuiltInPresets {
         let name: String
         let category: RecipeCategory
         let stack: AdjustmentStack
+    }
+
+    /// Stable filter IDs for the bundled .cube LUTs. Mirrors the synthesis in
+    /// `FilterLibrary.loadFilters` (`"cube.\(name.lowercased())"`) — bundled
+    /// filename stems lowercase, no extension. If a filename in
+    /// `Resources/LUTs/` changes, the matching constant here must change too,
+    /// otherwise the recipe ends up referencing a missing filter and the
+    /// editor strips it (EditorViewModel:455).
+    private enum LUT {
+        static let portra400      = "cube.kodak_portra_400"
+        static let portra800      = "cube.kodak_portra_800"
+        static let ektar100       = "cube.kodak_ektar_100"
+        static let pro400h        = "cube.fuji_400h"
+        static let velvia50       = "cube.fuji_velvia_50"
+        static let kodak2383      = "cube.kodak_2383_cuspclip"
+        static let classicChrome  = "cube.fuji_xtrans_iii_classic_chrome"
+        static let superia200     = "cube.fuji_superia_200"
+        static let agfaVista      = "cube.agfa_vista_200"
+        static let triX400        = "cube.kodak_tri-x_400"
+        static let hp5Plus        = "cube.ilford_hp_5_plus_400"
+        static let acros          = "cube.fuji_neopan_acros_100"
+        static let eliteColor400  = "cube.kodak_elite_color_400"
+        static let polaroid669    = "cube.polaroid_669"
+        static let fp100c         = "cube.fuji_fp-100c"
     }
 
     private static var all: [Preset] {
@@ -123,7 +147,7 @@ enum BuiltInPresets {
         // palette with luminance-lifted oranges (skin) and pulled-cool greens so
         // foliage doesn't compete. Soft contrast, wide latitude, fine T-grain.
         Preset(name: "Portra 400", category: .colorFilm, stack: {
-            var s = stack(filterID: BuiltInLUTs.ID.warmFade, strength: 0.35)
+            var s = stack(filterID: LUT.portra400, strength: 0.85)
             s.color.temperature = 0.10
             s.color.tint = -0.03
             s.color.saturation = -0.12
@@ -163,7 +187,7 @@ enum BuiltInPresets {
         // Portra 800 — pushed sibling. More contrast, more red push, deeper
         // blacks, coarser grain, push-process magenta in shadows.
         Preset(name: "Portra 800", category: .colorFilm, stack: {
-            var s = stack(filterID: BuiltInLUTs.ID.warmFade, strength: 0.30)
+            var s = stack(filterID: LUT.portra800, strength: 0.85)
             s.color.temperature = 0.14
             s.color.tint = 0.04
             s.color.saturation = -0.04
@@ -203,7 +227,7 @@ enum BuiltInPresets {
         // substrate. Vivid blues, saturated cool-leaning greens, warm-shifted
         // reds. Skin tones go ruddy (which is why portrait shooters avoid it).
         Preset(name: "Ektar 100", category: .colorFilm, stack: {
-            var s = stack()
+            var s = stack(filterID: LUT.ektar100, strength: 0.75)
             s.color.temperature = 0.04
             s.color.tint = -0.04
             s.color.saturation = 0.18
@@ -241,7 +265,7 @@ enum BuiltInPresets {
         // mint-cyan greens, pinker (not orange) skin, milky shadows. Lowest
         // contrast of the color stocks here. Workflow assumed +1-2 stop overexposure.
         Preset(name: "Fuji Pro 400H", category: .colorFilm, stack: {
-            var s = stack(filterID: BuiltInLUTs.ID.warmFade, strength: 0.25)
+            var s = stack(filterID: LUT.pro400h, strength: 0.85)
             s.color.temperature = -0.06
             s.color.tint = -0.06
             s.color.saturation = -0.18
@@ -284,7 +308,7 @@ enum BuiltInPresets {
         // crushed blacks, hard highlight clip, cyan-shifted blues, deep emerald
         // greens. Skin tones look terrible — that's by design.
         Preset(name: "Fuji Velvia 50", category: .colorFilm, stack: {
-            var s = stack()
+            var s = stack(filterID: LUT.velvia50, strength: 0.65)
             s.color.temperature = 0.05
             s.color.tint = 0.03
             s.color.saturation = 0.32
@@ -327,7 +351,7 @@ enum BuiltInPresets {
         // highlights and warm tungsten glow on light sources. True bloom needs
         // a per-pixel pass — split-tone + lifted reds get most of the way there.
         Preset(name: "Cinestill 800T", category: .colorFilm, stack: {
-            var s = stack(filterID: BuiltInLUTs.ID.cinematicCool, strength: 0.55)
+            var s = stack(filterID: LUT.kodak2383, strength: 0.7)
             s.color.temperature = -0.18
             s.color.tint = -0.04
             s.color.saturation = -0.05
@@ -371,7 +395,7 @@ enum BuiltInPresets {
         // blue shadows, flat midtones, contrasty extremes. Skin reads reportage,
         // not flattering.
         Preset(name: "Classic Chrome", category: .colorFilm, stack: {
-            var s = stack()
+            var s = stack(filterID: LUT.classicChrome, strength: 0.9)
             s.color.temperature = -0.04
             s.color.tint = -0.02
             s.color.saturation = -0.15
@@ -411,7 +435,7 @@ enum BuiltInPresets {
         // in shadows, slight cyan in midtones (the "supermarket photo lab"
         // signature), more saturation and contrast than Classic Chrome.
         Preset(name: "Classic Negative", category: .colorFilm, stack: {
-            var s = stack()
+            var s = stack(filterID: LUT.superia200, strength: 0.8)
             s.color.temperature = -0.03
             s.color.tint = -0.05
             s.color.saturation = 0.08
@@ -455,7 +479,7 @@ enum BuiltInPresets {
         // Lifted milky blacks, uniformly desaturated by ~30%, gentle highlight
         // roll-off. Designed as a grading base, not a finished look.
         Preset(name: "Eterna", category: .colorFilm, stack: {
-            var s = stack(filterID: BuiltInLUTs.ID.cinematicCool, strength: 0.30)
+            var s = stack(filterID: LUT.kodak2383, strength: 0.4)
             s.color.temperature = -0.04
             s.color.saturation = -0.25
             s.color.vibrance = -0.10
@@ -491,7 +515,7 @@ enum BuiltInPresets {
         // honey yellows, brown-purple shadows. The OPPOSITE of Classic Negative
         // (which is green-shadow vivid) — Nostalgic Neg is amber-shadow faded.
         Preset(name: "Nostalgic Neg", category: .colorFilm, stack: {
-            var s = stack(filterID: BuiltInLUTs.ID.warmFade, strength: 0.55)
+            var s = stack(filterID: LUT.agfaVista, strength: 0.8)
             s.color.temperature = 0.16
             s.color.tint = 0.05
             s.color.saturation = -0.10
@@ -544,7 +568,7 @@ enum BuiltInPresets {
         // irregular cubic-grain (RMS ~17), assertive contrast, firm shoulder
         // that resists blowing out under push processing. Punchy not creamy.
         Preset(name: "Tri-X 400", category: .bwFilm, stack: {
-            var s = stack(filterID: BuiltInLUTs.ID.noir, strength: 1.0)
+            var s = stack(filterID: LUT.triX400, strength: 1.0)
             s.light.highlights = -0.08          // firm shoulder
             s.light.shadows = -0.05
             s.sharpness = 0.45
@@ -565,7 +589,7 @@ enum BuiltInPresets {
         // lifted shadows that retain detail, very soft highlight roll-off.
         // Painterly, forgiving, even-distributed grain.
         Preset(name: "HP5 Plus", category: .bwFilm, stack: {
-            var s = stack(filterID: BuiltInLUTs.ID.noir, strength: 1.0)
+            var s = stack(filterID: LUT.hp5Plus, strength: 1.0)
             s.light.highlights = 0.08           // soft roll-off
             s.light.shadows = 0.10
             s.sharpness = 0.35
@@ -607,7 +631,7 @@ enum BuiltInPresets {
         // legendary reciprocity for long exposures. Deep Fuji-density blacks,
         // dramatic but controlled highlights, architecturally crisp.
         Preset(name: "Acros", category: .bwFilm, stack: {
-            var s = stack(filterID: BuiltInLUTs.ID.noir, strength: 1.0)
+            var s = stack(filterID: LUT.acros, strength: 1.0)
             s.light.highlights = -0.04
             s.light.shadows = -0.08
             s.sharpness = 0.65
@@ -634,7 +658,7 @@ enum BuiltInPresets {
         // drift warm-pink with rusty magenta shadows; paper base yellows; black
         // point lifts as oxidized dyes can't reach pure black.
         Preset(name: "70s Faded", category: .era, stack: {
-            var s = stack(filterID: BuiltInLUTs.ID.warmFade, strength: 0.80)
+            var s = stack(filterID: LUT.superia200, strength: 0.7)
             s.color.temperature = 0.12
             s.color.tint = 0.10
             s.color.saturation = -0.22
@@ -672,7 +696,7 @@ enum BuiltInPresets {
         // reach + tungsten ambient interpreted as blue). Drugstore minilab
         // pushed warm-saturated. Coarse grain, hard plastic-lens vignette.
         Preset(name: "90s Disposable", category: .era, stack: {
-            var s = stack(filterID: BuiltInLUTs.ID.warmFade, strength: 0.30)
+            var s = stack(filterID: LUT.eliteColor400, strength: 0.65)
             s.color.temperature = 0.08
             s.color.tint = -0.05
             s.color.saturation = 0.18
@@ -712,7 +736,7 @@ enum BuiltInPresets {
         // slight cyan in upper midtones. Print surface adds barely-visible
         // grain. Even illumination across frame.
         Preset(name: "Polaroid SX-70", category: .era, stack: {
-            var s = stack(filterID: BuiltInLUTs.ID.warmFade, strength: 0.55)
+            var s = stack(filterID: LUT.polaroid669, strength: 0.7)
             s.color.temperature = 0.06
             s.color.tint = 0.14
             s.color.saturation = -0.30
@@ -753,7 +777,7 @@ enum BuiltInPresets {
         // Greens push toward yellow (foliage looks autumnal). The "80s family
         // photo" warmth most people picture when they hear "Polaroid."
         Preset(name: "Polaroid 600", category: .era, stack: {
-            var s = stack(filterID: BuiltInLUTs.ID.warmFade, strength: 0.65)
+            var s = stack(filterID: LUT.polaroid669, strength: 0.85)
             s.color.temperature = 0.18
             s.color.tint = -0.04
             s.color.saturation = -0.05
@@ -795,7 +819,7 @@ enum BuiltInPresets {
         // mild warmth, soft vignette. Recognizable as Polaroid by softness and
         // lifted blacks rather than aggressive color cast.
         Preset(name: "Polaroid Now", category: .era, stack: {
-            var s = stack(filterID: BuiltInLUTs.ID.warmFade, strength: 0.35)
+            var s = stack(filterID: LUT.fp100c, strength: 0.65)
             s.color.temperature = 0.08
             s.color.tint = 0.02
             s.color.saturation = -0.05
