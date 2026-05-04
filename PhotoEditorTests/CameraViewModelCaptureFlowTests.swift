@@ -13,7 +13,7 @@ final class CameraViewModelCaptureFlowTests: XCTestCase {
         return (LibraryStore(context: ctx), RecipeStore(context: ctx))
     }
 
-    func testCaptureWithRecipeSlotPersistsFullStack() async throws {
+    func testCaptureWithRecipeSlotCooksAndPersistsIdentity() async throws {
         let (libraryStore, recipeStore) = try makeStores()
 
         var stack = AdjustmentStack.identity
@@ -21,12 +21,16 @@ final class CameraViewModelCaptureFlowTests: XCTestCase {
         stack.grain.intensity = 0.5
         let recipe = recipeStore.save(name: "Portra 400", stack: stack, thumbnail: nil)
 
+        // Passthrough cooker so the test doesn't require a real HEIC payload.
+        // Camera flow now cooks the HEIC in-process and stores `.identity` on
+        // the library row (the look is baked into the pixels).
         let vm = CameraViewModel(
             libraryStore: libraryStore,
             recipeStore: recipeStore,
             cubeResolver: { _ in nil },
             photosWriter: StubPhotosWriter(returning: "ASSET-A"),
-            heicProvider: { Data([0x00]) }
+            heicProvider: { Data([0x00]) },
+            heicCooker: { data, _ in data }
         )
         vm.selectSlot(.recipe(recipe))
 
@@ -35,8 +39,8 @@ final class CameraViewModelCaptureFlowTests: XCTestCase {
         XCTAssertEqual(libraryStore.items.count, 1)
         let item = libraryStore.items[0]
         XCTAssertEqual(item.sourceAssetID, "ASSET-A")
-        XCTAssertEqual(item.adjustmentStack.filter?.filterID, "cube.portra-400")
-        XCTAssertEqual(item.adjustmentStack.grain.intensity, 0.5, accuracy: 1e-9)
+        XCTAssertNil(item.adjustmentStack.filter)
+        XCTAssertEqual(item.adjustmentStack.grain.intensity, 0, accuracy: 1e-9)
     }
 
     func testCaptureWithOriginalSlotPersistsIdentityStack() async throws {

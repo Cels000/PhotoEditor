@@ -50,6 +50,9 @@ final class CameraViewModel {
     let cubeResolver: CubeResolver
     let photosWriter: PhotosWriter
     let heicProvider: () async throws -> Data
+    /// Test seam — applies a stack to raw HEIC bytes and returns cooked HEIC
+    /// bytes. Default uses RenderEngine + ExportService; tests pass a passthrough.
+    let heicCooker: (Data, AdjustmentStack) async throws -> Data
     private let userDefaults: UserDefaults
 
     // MARK: - State
@@ -74,12 +77,14 @@ final class CameraViewModel {
          cubeResolver: @escaping CubeResolver,
          photosWriter: PhotosWriter = DefaultPhotosWriter(),
          heicProvider: (@escaping () async throws -> Data) = { throw CameraError.noPhotoOutput },
+         heicCooker: (@escaping (Data, AdjustmentStack) async throws -> Data) = CameraViewModel.defaultCookHEIC,
          userDefaults: UserDefaults = .standard) {
         self.libraryStore = libraryStore
         self.recipeStore = recipeStore
         self.cubeResolver = cubeResolver
         self.photosWriter = photosWriter
         self.heicProvider = heicProvider
+        self.heicCooker = heicCooker
         self.userDefaults = userDefaults
 
         self.slots = CameraSlot.build(from: recipeStore.items)
@@ -122,15 +127,52 @@ final class CameraViewModel {
         captureInFlight = true
         defer { captureInFlight = false }
 
-        let bytes = try await (heicProviderOverride ?? heicProvider)()
-        let assetID = try await photosWriter.writeHEIC(bytes)
+        let rawBytes = try await (heicProviderOverride ?? heicProvider)()
         let slot = selectedSlot
-        // Library insert + thumbnail bytes (nil for now — wired in Task 11
-        // when the cooked preview frame is available to the view-model).
+        // Save the cooked HEIC (filter baked in) so Photos shows what the user
+        // saw through the preset. Library row stores `.identity` because the
+        // look is already in the pixels — re-applying the stack on open would
+        // double-process. If the slot is identity, skip the round-trip.
+        let bytesToSave: Data
+        if slot.stack == .identity {
+            bytesToSave = rawBytes
+        } else {
+            do {
+                bytesToSave = try await heicCooker(rawBytes, slot.stack)
+            } catch {
+                errorMessage = "Couldn't apply preset to photo."
+                throw error
+            }
+        }
+        let assetID = try await photosWriter.writeHEIC(bytesToSave)
         _ = libraryStore.importFromCamera(
             assetID: assetID,
-            stack: slot.stack,
+            stack: .identity,
             thumbnail: nil
+        )
+    }
+
+    /// Default cooker: decodes the raw HEIC, runs it through the export render
+    /// pipeline with the slot's stack, and re-encodes as HEIC at q=0.95.
+    nonisolated static func defaultCookHEIC(_ rawData: Data, stack: AdjustmentStack) async throws -> Data {
+        guard let source = CIImage(data: rawData, options: [.applyOrientationProperty: true]) else {
+            throw CameraError.captureFailed(nil)
+        }
+        let engine = try RenderEngine()
+        let cookedCG = try await engine.renderExport(stack: stack, source: source, cubeResolver: nil)
+
+        let props: [CFString: Any] = {
+            guard let imgSource = CGImageSourceCreateWithData(rawData as CFData, nil),
+                  let p = CGImageSourceCopyPropertiesAtIndex(imgSource, 0, nil) as? [CFString: Any]
+            else { return [:] }
+            return p
+        }()
+
+        return try ExportService.encode(
+            cgImage: cookedCG,
+            sourceProperties: props,
+            colorSpace: cookedCG.colorSpace,
+            options: ExportOptions(format: .heic, size: .full, quality: 0.95)
         )
     }
 

@@ -93,12 +93,6 @@ struct CameraView: View {
                     .font(.system(size: 18, weight: .medium))
                     .opacity(viewModel.gridEnabled ? 1.0 : 0.5)
             }
-            if session.hasFrontCamera {
-                Button { session.flipCamera() } label: {
-                    Image(systemName: "arrow.triangle.2.circlepath.camera")
-                        .font(.system(size: 18, weight: .medium))
-                }
-            }
         }
         .frame(height: 44)
         .padding(.horizontal, Theme.Spacing.lg)
@@ -127,27 +121,50 @@ struct CameraView: View {
     // MARK: - Shutter row
 
     private var shutterRow: some View {
-        Button {
-            Task { await runCapture() }
-        } label: {
-            ZStack {
-                // Outer ring + inner disc both use Theme.Colors.text so the
-                // shutter has contrast against canvas in both light and dark
-                // modes (canvas is pure white / pure black).
-                Circle()
-                    .stroke(Theme.Colors.text, lineWidth: 3)
-                    .frame(width: 72, height: 72)
-                Circle()
-                    .fill(Theme.Colors.text)
-                    .frame(width: 60, height: 60)
+        HStack {
+            // Leading invisible 44×44 slot — balances the trailing flip button
+            // so the shutter stays in the geometric center regardless of
+            // whether the front camera is available.
+            Color.clear.frame(width: 44, height: 44)
+            Spacer()
+            Button {
+                Task { await runCapture() }
+            } label: {
+                ZStack {
+                    // Outer ring + inner disc both use Theme.Colors.text so the
+                    // shutter has contrast against canvas in both light and dark
+                    // modes (canvas is pure white / pure black).
+                    Circle()
+                        .stroke(Theme.Colors.text, lineWidth: 3)
+                        .frame(width: 72, height: 72)
+                    Circle()
+                        .fill(Theme.Colors.text)
+                        .frame(width: 60, height: 60)
+                }
+                .frame(width: 80, height: 80)
+                .contentShape(Circle())
             }
-            .frame(width: 80, height: 80)
-            .contentShape(Circle())
+            .buttonStyle(.plain)
+            .disabled(viewModel.captureInFlight)
+            .opacity(viewModel.captureInFlight ? 0.6 : 1.0)
+            Spacer()
+            if session.hasFrontCamera {
+                Button {
+                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                    session.flipCamera()
+                } label: {
+                    Image(systemName: "arrow.triangle.2.circlepath.camera")
+                        .font(.system(size: 22, weight: .medium))
+                        .foregroundStyle(Theme.Colors.text)
+                        .frame(width: 44, height: 44)
+                }
+                .buttonStyle(.plain)
+            } else {
+                Color.clear.frame(width: 44, height: 44)
+            }
         }
-        .buttonStyle(.plain)
-        .disabled(viewModel.captureInFlight)
-        .opacity(viewModel.captureInFlight ? 0.6 : 1.0)
         .frame(height: 96)
+        .padding(.horizontal, Theme.Spacing.lg)
         .padding(.bottom, Theme.Spacing.lg)
     }
 
