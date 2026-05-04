@@ -1,6 +1,7 @@
 import AVFoundation
 import CoreImage
 import Foundation
+import ImageIO
 import Observation
 import Photos
 import UIKit
@@ -52,7 +53,7 @@ final class CameraViewModel {
     let heicProvider: () async throws -> Data
     /// Test seam — applies a stack to raw HEIC bytes and returns cooked HEIC
     /// bytes. Default uses RenderEngine + ExportService; tests pass a passthrough.
-    let heicCooker: (Data, AdjustmentStack) async throws -> Data
+    let heicCooker: (Data, AdjustmentStack, Bool) async throws -> Data
     private let userDefaults: UserDefaults
 
     // MARK: - State
@@ -77,7 +78,7 @@ final class CameraViewModel {
          cubeResolver: @escaping CubeResolver,
          photosWriter: PhotosWriter = DefaultPhotosWriter(),
          heicProvider: (@escaping () async throws -> Data) = { throw CameraError.noPhotoOutput },
-         heicCooker: (@escaping (Data, AdjustmentStack) async throws -> Data) = CameraViewModel.defaultCookHEIC,
+         heicCooker: (@escaping (Data, AdjustmentStack, Bool) async throws -> Data) = CameraViewModel.defaultCookHEIC,
          userDefaults: UserDefaults = .standard) {
         self.libraryStore = libraryStore
         self.recipeStore = recipeStore
@@ -129,37 +130,61 @@ final class CameraViewModel {
 
         let rawBytes = try await (heicProviderOverride ?? heicProvider)()
         let slot = selectedSlot
+        let isFront = isFrontProvider?() ?? false
         // Save the cooked HEIC (filter baked in) so Photos shows what the user
         // saw through the preset. Library row stores `.identity` because the
         // look is already in the pixels — re-applying the stack on open would
-        // double-process. If the slot is identity, skip the round-trip.
+        // double-process. If the slot is identity AND we're not on the front
+        // camera, skip the round-trip; front-cam always cooks so the preview
+        // mirror flip can be baked in.
         let bytesToSave: Data
-        if slot.stack == .identity {
+        if slot.stack == .identity && !isFront {
             bytesToSave = rawBytes
         } else {
             do {
-                bytesToSave = try await heicCooker(rawBytes, slot.stack)
+                bytesToSave = try await heicCooker(rawBytes, slot.stack, isFront)
             } catch {
                 errorMessage = "Couldn't apply preset to photo."
                 throw error
             }
         }
         let assetID = try await photosWriter.writeHEIC(bytesToSave)
+        // Derive a 400px thumbnail from the saved bytes so the recent-shot
+        // tile in the camera + the library grid have something to show
+        // immediately, before any async PHAsset thumbnail backfill.
+        let thumb = Self.makeThumbnail(from: bytesToSave)
         _ = libraryStore.importFromCamera(
             assetID: assetID,
             stack: .identity,
-            thumbnail: nil
+            thumbnail: thumb
         )
+    }
+
+    private static func makeThumbnail(from heic: Data) -> Data? {
+        guard let src = CGImageSourceCreateWithData(heic as CFData, nil) else { return nil }
+        let opts: [CFString: Any] = [
+            kCGImageSourceCreateThumbnailFromImageAlways: true,
+            kCGImageSourceThumbnailMaxPixelSize: 400,
+            kCGImageSourceCreateThumbnailWithTransform: true
+        ]
+        guard let cg = CGImageSourceCreateThumbnailAtIndex(src, 0, opts as CFDictionary) else { return nil }
+        return UIImage(cgImage: cg).jpegData(compressionQuality: 0.85)
     }
 
     /// Default cooker: decodes the raw HEIC, runs it through the export render
     /// pipeline with the slot's stack, and re-encodes as HEIC at q=0.95.
-    nonisolated static func defaultCookHEIC(_ rawData: Data, stack: AdjustmentStack) async throws -> Data {
+    nonisolated static func defaultCookHEIC(_ rawData: Data, stack: AdjustmentStack, isFront: Bool) async throws -> Data {
         guard let source = CIImage(data: rawData, options: [.applyOrientationProperty: true]) else {
             throw CameraError.captureFailed(nil)
         }
+        // Mirror front-cam captures so the saved photo matches the mirrored
+        // live preview the user composed against (matches Apple Camera in iOS 14+).
+        let oriented: CIImage = isFront
+            ? source.transformed(by: CGAffineTransform(scaleX: -1, y: 1)
+                .translatedBy(x: -source.extent.width, y: 0))
+            : source
         let engine = try RenderEngine()
-        let cookedCG = try await engine.renderExport(stack: stack, source: source, cubeResolver: nil)
+        let cookedCG = try await engine.renderExport(stack: stack, source: oriented, cubeResolver: nil)
 
         let props: [CFString: Any] = {
             guard let imgSource = CGImageSourceCreateWithData(rawData as CFData, nil),

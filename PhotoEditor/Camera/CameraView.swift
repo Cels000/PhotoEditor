@@ -122,10 +122,9 @@ struct CameraView: View {
 
     private var shutterRow: some View {
         HStack {
-            // Leading invisible 44×44 slot — balances the trailing flip button
-            // so the shutter stays in the geometric center regardless of
-            // whether the front camera is available.
-            Color.clear.frame(width: 44, height: 44)
+            // Leading 44×44 slot — recent-shot thumbnail (Apple Camera convention)
+            // or invisible placeholder so the shutter stays geometrically centered.
+            recentShotTile
             Spacer()
             Button {
                 Task { await runCapture() }
@@ -166,6 +165,31 @@ struct CameraView: View {
         .frame(height: 96)
         .padding(.horizontal, Theme.Spacing.lg)
         .padding(.bottom, Theme.Spacing.lg)
+    }
+
+    @ViewBuilder
+    private var recentShotTile: some View {
+        if let item = viewModel.libraryStore.items.first,
+           let data = item.thumbnailData,
+           let ui = UIImage(data: data) {
+            Button {
+                UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                dismiss()
+            } label: {
+                Image(uiImage: ui)
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+                    .frame(width: 44, height: 44)
+                    .clipShape(RoundedRectangle(cornerRadius: 6))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 6)
+                            .strokeBorder(Theme.Colors.text.opacity(0.4), lineWidth: 1)
+                    )
+            }
+            .buttonStyle(.plain)
+        } else {
+            Color.clear.frame(width: 44, height: 44)
+        }
     }
 
     private func runCapture() async {

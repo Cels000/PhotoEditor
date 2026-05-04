@@ -30,7 +30,7 @@ final class CameraViewModelCaptureFlowTests: XCTestCase {
             cubeResolver: { _ in nil },
             photosWriter: StubPhotosWriter(returning: "ASSET-A"),
             heicProvider: { Data([0x00]) },
-            heicCooker: { data, _ in data }
+            heicCooker: { data, _, _ in data }
         )
         vm.selectSlot(.recipe(recipe))
 
