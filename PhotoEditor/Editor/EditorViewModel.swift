@@ -89,6 +89,22 @@ final class EditorViewModel {
     private var renderTask: Task<Void, Never>?
     private static let debounceNanos: UInt64 = 40_000_000   // 40 ms
 
+    // MARK: - Mask state
+
+    /// In-process Vision compute + cache for foreground masks.
+    private let maskStore: SubjectMaskStore = SubjectMaskStore()
+
+    /// The current mask result (combined + per-instance) for the loaded asset.
+    /// Read by render path; nil means no mask data available (single-stack render).
+    private(set) var currentMaskResult: SubjectMaskResult?
+
+    /// Number of detected foreground instances in the loaded asset. 0 means
+    /// the toolbar Mask button is disabled.
+    private(set) var lastDetectedInstanceCount: Int = 0
+
+    /// True while a Vision compute is in flight for the current asset.
+    private(set) var maskComputeInFlight: Bool = false
+
     // MARK: - Undo / Redo
     private var undoStack = UndoStack()
     private var pendingDragSnapshot: EditDocument?
@@ -157,11 +173,14 @@ final class EditorViewModel {
             )
             // Reset to identity so the new photo starts unedited.
             self.document = .identity
+            self.currentMaskResult = nil
+            self.lastDetectedInstanceCount = 0
             self.activeScope = .subject
             self.currentLibraryItem = nil
             self.undoStack.clear(seed: .identity)
             // Render initial preview synchronously (no debounce on first frame).
             await renderPreviewNow()
+            prefetchMaskForCurrentPhoto()
         } catch {
             self.errorMessage = "The selected photo could not be loaded."
         }
@@ -173,8 +192,7 @@ final class EditorViewModel {
         let snapshotDoc = document
         guard let engine, let source = importedImage?.previewCIImage else { return }
         let resolver = makeCubeResolver()
-        // Mask result threading deferred to Task 8; pass nil for now (legacy unmasked path).
-        let maskResult: SubjectMaskResult? = nil
+        let maskResult: SubjectMaskResult? = currentMaskResult
 
         renderTask = Task { [weak self] in
             try? await Task.sleep(nanoseconds: Self.debounceNanos)
@@ -215,6 +233,8 @@ final class EditorViewModel {
     func resetAdjustments() {
         guard document != .identity else { return }
         document = .identity
+        currentMaskResult = nil
+        lastDetectedInstanceCount = 0
         activeScope = .subject
         undoStack.push(.identity)
         stackDidChange()
@@ -239,7 +259,7 @@ final class EditorViewModel {
             document: document,
             source: imported.exportCIImage,
             cubeResolver: makeCubeResolver(),
-            maskResult: nil  // Mask result threading deferred to Task 8
+            maskResult: currentMaskResult
         )
 
         // Read source metadata + color space from the raw bytes (preserves EXIF dictionaries).
@@ -369,10 +389,13 @@ final class EditorViewModel {
             // Read the full v2 document (or legacy v1 stack lifted to v2 via the
             // editDocument getter's fallback path).
             self.document = item.editDocument
+            self.currentMaskResult = nil
+            self.lastDetectedInstanceCount = 0
             self.activeScope = .subject
             self.currentLibraryItem = item
             self.undoStack.clear(seed: self.document)
             await renderPreviewNow()
+            prefetchMaskForCurrentPhoto()
         } catch ImageImportError.phAssetUnavailable {
             errorMessage = "This photo's source is no longer in your Photos library."
         } catch {
@@ -443,6 +466,94 @@ final class EditorViewModel {
         successMessage = "Saved Recipe \"\(trimmed)\"."
     }
 
+    // MARK: - Mask lifecycle (Task 8)
+
+    /// True when the mask toolbar button should accept taps.
+    /// False if no photo is loaded, or if a previous compute returned 0 instances.
+    var canApplyMask: Bool {
+        importedImage != nil
+    }
+
+    /// Triggered by the toolbar tap. Computes (or fetches cached) mask, then enables
+    /// the mask in the document with default settings. On 0 instances, surfaces a
+    /// "No subject detected" message and leaves the mask disabled.
+    func enterMaskMode() async {
+        guard let imported = importedImage else {
+            errorMessage = "Mask requires an imported photo."
+            return
+        }
+        let assetID: AssetID = imported.sourceAssetID ?? "unattached-\(ObjectIdentifier(self).hashValue)"
+
+        maskComputeInFlight = true
+        errorMessage = nil
+        defer { maskComputeInFlight = false }
+
+        do {
+            let result = try await maskStore.mask(for: assetID, source: imported.previewCIImage)
+            currentMaskResult = result
+            lastDetectedInstanceCount = result.instanceCount
+
+            if result.instanceCount == 0 {
+                errorMessage = "No subject detected."
+                return
+            }
+
+            // Enable mask in document, scope defaults to .subject. Snapshot subject
+            // into background so they start identical (clean divergence point).
+            document.mask = SubjectMask()
+            document.backgroundStack = document.subjectStack
+            activeScope = .subject
+            commitDiscreteChange()
+            stackDidChange()
+        } catch {
+            errorMessage = "Couldn't compute subject mask. Try again."
+        }
+    }
+
+    /// Fire-and-forget prefetch on photo import / library open. The next time the
+    /// user taps the mask button, the result will already be cached.
+    func prefetchMaskForCurrentPhoto() {
+        guard let imported = importedImage else { return }
+        let assetID: AssetID = imported.sourceAssetID ?? "unattached-\(ObjectIdentifier(self).hashValue)"
+        maskStore.prefetch(for: assetID, source: imported.previewCIImage)
+    }
+
+    /// Refinement: feather slider (0–1).
+    func updateMaskFeather(_ value: Double) {
+        guard document.mask != nil else { return }
+        document.mask?.feather = max(0, min(1, value))
+        stackDidChange()
+    }
+
+    /// Refinement: invert toggle.
+    func setMaskInvert(_ inverted: Bool) {
+        guard document.mask != nil else { return }
+        document.mask?.invert = inverted
+        stackDidChange()
+    }
+
+    /// Refinement: tap-to-toggle a detected instance's inclusion.
+    func toggleInstanceExcluded(_ index: Int) {
+        guard document.mask != nil else { return }
+        if document.mask!.excludedInstances.contains(index) {
+            document.mask!.excludedInstances.remove(index)
+        } else {
+            document.mask!.excludedInstances.insert(index)
+        }
+        stackDidChange()
+    }
+
+    /// Removes the mask from the document. Background stack is reset to match
+    /// subject stack, scope reverts to .subject. Single undo entry.
+    func removeMask() {
+        guard document.mask != nil else { return }
+        document.mask = nil
+        document.backgroundStack = document.subjectStack
+        activeScope = .subject
+        commitDiscreteChange()
+        stackDidChange()
+    }
+
     // MARK: - Private helpers
 
     private func makeCubeResolver() -> CubeResolver {
@@ -457,7 +568,7 @@ final class EditorViewModel {
                 document: document,
                 source: source,
                 cubeResolver: self.makeCubeResolver(),
-                maskResult: nil  // Mask result threading deferred to Task 8
+                maskResult: currentMaskResult
             )
             self.previewImage = UIImage(cgImage: cg)
         } catch {

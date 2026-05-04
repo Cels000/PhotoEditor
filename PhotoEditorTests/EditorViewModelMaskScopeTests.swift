@@ -70,4 +70,67 @@ final class EditorViewModelMaskScopeTests: XCTestCase {
         vm.stack = s
         XCTAssertEqual(vm.document.subjectStack.crop, vm.document.backgroundStack.crop)
     }
+
+    // MARK: - Lifecycle
+
+    func testRemoveMask_collapsesToSubjectStack() {
+        let vm = EditorViewModel()
+        vm.document.mask = SubjectMask(feather: 0.5)
+        vm.document.subjectStack.light.exposure = 0.4
+        vm.document.backgroundStack.light.exposure = -0.4
+
+        vm.removeMask()
+
+        XCTAssertNil(vm.document.mask)
+        XCTAssertEqual(vm.document.backgroundStack, vm.document.subjectStack)
+        XCTAssertEqual(vm.activeScope, .subject)
+    }
+
+    func testRemoveMask_whenNoMask_isNoop() {
+        let vm = EditorViewModel()
+        vm.document.mask = nil
+        vm.removeMask()
+        XCTAssertNil(vm.document.mask)
+    }
+
+    func testToggleInstanceExcluded_addsAndRemoves() {
+        let vm = EditorViewModel()
+        vm.document.mask = SubjectMask()
+        vm.toggleInstanceExcluded(0)
+        XCTAssertTrue(vm.document.mask!.excludedInstances.contains(0))
+        vm.toggleInstanceExcluded(0)
+        XCTAssertFalse(vm.document.mask!.excludedInstances.contains(0))
+    }
+
+    func testFeatherClamped_to0to1() {
+        let vm = EditorViewModel()
+        vm.document.mask = SubjectMask()
+        vm.updateMaskFeather(2.0)
+        XCTAssertEqual(vm.document.mask?.feather, 1.0)
+        vm.updateMaskFeather(-0.3)
+        XCTAssertEqual(vm.document.mask?.feather, 0.0)
+        vm.updateMaskFeather(0.7)
+        XCTAssertEqual(vm.document.mask?.feather, 0.7)
+    }
+
+    func testFeather_whenNoMask_isNoop() {
+        let vm = EditorViewModel()
+        vm.document.mask = nil
+        vm.updateMaskFeather(0.5)
+        XCTAssertNil(vm.document.mask)
+    }
+
+    func testInvertToggle_setsField() {
+        let vm = EditorViewModel()
+        vm.document.mask = SubjectMask()
+        vm.setMaskInvert(true)
+        XCTAssertEqual(vm.document.mask?.invert, true)
+        vm.setMaskInvert(false)
+        XCTAssertEqual(vm.document.mask?.invert, false)
+    }
+
+    func testCanApplyMask_falseWithoutPhoto() {
+        let vm = EditorViewModel()
+        XCTAssertFalse(vm.canApplyMask)
+    }
 }
