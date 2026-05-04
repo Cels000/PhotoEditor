@@ -39,7 +39,7 @@ final class CameraCarouselThumbnailer {
     /// reused for every slot's LUT application.
     private var sourceFrame: CIImage?
 
-    static let thumbnailEdge: CGFloat = 96
+    static let thumbnailEdge: CGFloat = 240
 
     init(renderer: CameraPreviewRenderer?, cubeResolver: @escaping CubeResolver) {
         self.renderer = renderer

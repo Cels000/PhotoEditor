@@ -236,9 +236,9 @@ struct CameraView: View {
                                 .foregroundStyle(color)
                                 .opacity(opacity)
                                 .scaleEffect(scale)
-                                .lineLimit(1)
-                                .truncationMode(.tail)
-                                .frame(width: cellWidth)
+                                .lineLimit(2)
+                                .multilineTextAlignment(.center)
+                                .frame(width: cellWidth, height: 36, alignment: .bottom)
                         }
                     }
                     HStack(spacing: 0) {
@@ -255,7 +255,7 @@ struct CameraView: View {
             }
             .scrollTargetBehavior(.viewAligned)
             .scrollPosition(id: $scrolledID, anchor: .center)
-            .frame(height: 22 + Theme.Spacing.xs + edge + 8)
+            .frame(height: 36 + Theme.Spacing.xs + edge + 8)
             .onAppear {
                 scrolledID = viewModel.selectedSlotID
                 proxy.scrollTo(viewModel.selectedSlotID, anchor: .center)
