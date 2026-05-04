@@ -58,4 +58,41 @@ actor RenderEngine {
         }
         return cg
     }
+
+    /// Preview render for the dual-stack EditDocument with optional mask result.
+    /// When `document.mask == nil` or `maskResult == nil`, this is identical to
+    /// renderPreview(stack: document.subjectStack, ...). Otherwise PipelineBuilder
+    /// composites subject + background passes via CIBlendWithMask.
+    func renderPreview(document: EditDocument,
+                       source: CIImage,
+                       cubeResolver: CubeResolver? = nil,
+                       maskResult: SubjectMaskResult? = nil) throws -> CGImage {
+        let chain = PipelineBuilder.build(
+            document: document,
+            source: source,
+            cubeResolver: cubeResolver,
+            maskResult: maskResult
+        )
+        guard let cg = previewContext.createCGImage(chain, from: chain.extent) else {
+            throw RenderError.outputEmpty
+        }
+        return cg
+    }
+
+    /// Full-resolution export render for the EditDocument.
+    func renderExport(document: EditDocument,
+                      source: CIImage,
+                      cubeResolver: CubeResolver? = nil,
+                      maskResult: SubjectMaskResult? = nil) throws -> CGImage {
+        let chain = PipelineBuilder.build(
+            document: document,
+            source: source,
+            cubeResolver: cubeResolver,
+            maskResult: maskResult
+        )
+        guard let cg = exportContext.createCGImage(chain, from: chain.extent) else {
+            throw RenderError.outputEmpty
+        }
+        return cg
+    }
 }
