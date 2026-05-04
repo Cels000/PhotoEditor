@@ -86,6 +86,10 @@ struct EditorTabView: View {
                 onCancel: { isNamePromptPresented = false }
             )
         }
+        .sheet(isPresented: $showingMaskRefinement) {
+            MaskRefinementSheet(viewModel: viewModel)
+                .presentationDetents([.medium, .large])
+        }
     }
 
     // MARK: - Top bar

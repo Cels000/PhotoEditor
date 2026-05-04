@@ -14,6 +14,8 @@ struct PanelContainerView: View {
 
     var body: some View {
         VStack(spacing: 0) {
+            MaskScopeHeaderView(viewModel: viewModel)
+
             // Slide-up panel content (fixed height regardless of which tab).
             ZStack {
                 Group {
