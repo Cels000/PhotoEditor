@@ -42,6 +42,12 @@ struct EditorTabView: View {
         .background(Theme.Colors.canvas.ignoresSafeArea())
         .statusBarHidden(isChromeHidden)
         .persistentSystemOverlays(isChromeHidden ? .hidden : .automatic)
+        // Make the system tab bar disappear into the canvas — no system
+        // material strip at the bottom of the screen. When the user taps the
+        // canvas to hide chrome, the tab bar hides too for true full-screen.
+        .toolbarBackground(Theme.Colors.canvas, for: .tabBar)
+        .toolbarBackground(.visible, for: .tabBar)
+        .toolbar(isChromeHidden ? .hidden : .visible, for: .tabBar)
         // Tool, not reading content — clamp Dynamic Type so chrome doesn't
         // overwhelm the canvas at high settings.
         .dynamicTypeSize(.xSmall ... .large)

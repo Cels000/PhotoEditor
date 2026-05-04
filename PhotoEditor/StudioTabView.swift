@@ -50,6 +50,8 @@ struct StudioTabView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .background(Theme.Colors.canvas.ignoresSafeArea())
+        .toolbarBackground(Theme.Colors.canvas, for: .tabBar)
+        .toolbarBackground(.visible, for: .tabBar)
         .task(id: pickerSelection) { await loadPickedPhoto() }
     }
 

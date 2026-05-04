@@ -9,18 +9,22 @@ struct RecipesTabView: View {
     var onApply: (RecipeItem) -> Void
 
     var body: some View {
-        if let store {
-            RecipesSheetView(
-                store: store,
-                onApply: onApply,
-                onDismiss: nil
-            )
-        } else {
-            VStack {
-                ProgressView()
+        Group {
+            if let store {
+                RecipesSheetView(
+                    store: store,
+                    onApply: onApply,
+                    onDismiss: nil
+                )
+            } else {
+                VStack {
+                    ProgressView()
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(Theme.Colors.canvas.ignoresSafeArea())
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(Theme.Colors.canvas.ignoresSafeArea())
         }
+        .toolbarBackground(Theme.Colors.canvas, for: .tabBar)
+        .toolbarBackground(.visible, for: .tabBar)
     }
 }
