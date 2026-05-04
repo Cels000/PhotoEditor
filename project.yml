@@ -29,8 +29,11 @@ targets:
           - "Info.plist"
           - "**/*.md"
         type: group
-    info:
-      path: PhotoEditor/Info.plist
+    # Deliberately NO `info:` block — XcodeGen's info directive *generates* the
+    # Info.plist at the specified path, overwriting our hand-crafted file and
+    # stripping privacy keys (NSPhotoLibraryUsageDescription, etc.). Causes a
+    # TCC privacy-violation crash on first Photos request. INFOPLIST_FILE
+    # below tells xcodebuild where to find our checked-in file directly.
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.cels000.PhotoEditor
