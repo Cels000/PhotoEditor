@@ -77,7 +77,7 @@ struct StudioTabView: View {
         Button { showCamera = true } label: {
             Image(systemName: "camera.fill")
                 .font(.system(size: 22, weight: .semibold))
-                .foregroundStyle(Theme.Colors.background)
+                .foregroundStyle(Theme.Colors.canvas)
                 .frame(width: 56, height: 56)
                 .background(Theme.Colors.text)
                 .clipShape(Circle())
