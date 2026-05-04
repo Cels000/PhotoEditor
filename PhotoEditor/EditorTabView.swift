@@ -18,6 +18,7 @@ struct EditorTabView: View {
 
     @State private var isExportSheetPresented: Bool = false
     @State private var isNamePromptPresented: Bool = false
+    @State private var showingMaskRefinement: Bool = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -111,6 +112,11 @@ struct EditorTabView: View {
             }
             .disabled(!viewModel.canRedo)
             .accessibilityLabel("Redo")
+
+            // Mask button: enter masked mode (Vision compute) or open refinement.
+            MaskToolbarButton(viewModel: viewModel, onTapRefine: {
+                showingMaskRefinement = true
+            })
 
             Spacer()
 
