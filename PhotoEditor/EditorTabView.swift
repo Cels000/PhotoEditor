@@ -122,6 +122,18 @@ struct EditorTabView: View {
                 showingMaskRefinement = true
             })
 
+            // Histogram overlay toggle. Disabled until a photo is loaded.
+            Button {
+                Haptic.play(.undoRedo)
+                viewModel.toggleHistogram()
+            } label: {
+                Image(systemName: viewModel.isHistogramVisible ? "chart.bar.fill" : "chart.bar")
+                    .font(.system(size: 15, weight: .semibold))
+            }
+            .disabled(viewModel.importedImage == nil)
+            .accessibilityLabel("Histogram")
+            .accessibilityValue(viewModel.isHistogramVisible ? "On" : "Off")
+
             Spacer()
 
             // Single labeled "save" affordance. Replaces the previous 4-icon
@@ -217,6 +229,13 @@ struct EditorTabView: View {
                                 .padding(.vertical, Theme.Spacing.xs)
                                 .background(.thinMaterial, in: Capsule())
                                 .padding(Theme.Spacing.md)
+                        }
+                    }
+                    .overlay(alignment: .bottomLeading) {
+                        if viewModel.isHistogramVisible, viewModel.importedImage != nil {
+                            HistogramOverlayView(image: viewModel.histogramImage)
+                                .padding(Theme.Spacing.md)
+                                .transition(.opacity)
                         }
                     }
             } else if viewModel.importedImage != nil {
