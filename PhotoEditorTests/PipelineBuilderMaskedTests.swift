@@ -16,13 +16,22 @@ final class PipelineBuilderMaskedTests: XCTestCase {
             .cropped(to: CGRect(origin: .zero, size: size))
     }
 
+    private func makeStubResult(combined: CIImage, perInstance: [CIImage] = [], instanceCount: Int? = nil) -> SubjectMaskResult {
+        SubjectMaskResult(
+            combined: combined,
+            perInstance: perInstance,
+            instanceCount: instanceCount ?? max(1, perInstance.count),
+            detectedAt: Date()
+        )
+    }
+
     func testBuildDocument_unmasked_matchesLegacyBuild() {
         let s = source()
         var stack = AdjustmentStack.identity
         stack.light.exposure = 0.3
         let doc = EditDocument(schemaVersion: 2, subjectStack: stack, backgroundStack: stack, mask: nil)
         let legacy = PipelineBuilder.build(stack: stack, source: s, cubeResolver: nil)
-        let viaDoc = PipelineBuilder.build(document: doc, source: s, cubeResolver: nil, maskProvider: nil)
+        let viaDoc = PipelineBuilder.build(document: doc, source: s, cubeResolver: nil, maskResult: nil)
         XCTAssertEqual(legacy.extent, viaDoc.extent)
     }
 
@@ -37,9 +46,8 @@ final class PipelineBuilderMaskedTests: XCTestCase {
             mask: SubjectMask()
         )
 
-        let provider = StubMaskProvider(combined: solidMask(value: 1, size: CGSize(width: 100, height: 100)))
-        let composite = PipelineBuilder.build(document: doc, source: s, cubeResolver: nil,
-                                              maskProvider: provider, assetID: "x")
+        let result = makeStubResult(combined: solidMask(value: 1, size: CGSize(width: 100, height: 100)))
+        let composite = PipelineBuilder.build(document: doc, source: s, cubeResolver: nil, maskResult: result)
 
         let ctx = CIContext(options: [.useSoftwareRenderer: true])
         let cg = ctx.createCGImage(composite, from: composite.extent)!
@@ -57,9 +65,8 @@ final class PipelineBuilderMaskedTests: XCTestCase {
             mask: SubjectMask()
         )
 
-        let provider = StubMaskProvider(combined: solidMask(value: 0, size: CGSize(width: 100, height: 100)))
-        let composite = PipelineBuilder.build(document: doc, source: s, cubeResolver: nil,
-                                              maskProvider: provider, assetID: "x")
+        let result = makeStubResult(combined: solidMask(value: 0, size: CGSize(width: 100, height: 100)))
+        let composite = PipelineBuilder.build(document: doc, source: s, cubeResolver: nil, maskResult: result)
 
         let ctx = CIContext(options: [.useSoftwareRenderer: true])
         let cg = ctx.createCGImage(composite, from: composite.extent)!
@@ -73,16 +80,14 @@ final class PipelineBuilderMaskedTests: XCTestCase {
         var bg = AdjustmentStack.identity
         bg.light.exposure = -0.8
 
-        let provider = StubMaskProvider(combined: solidMask(value: 1, size: CGSize(width: 100, height: 100)))
+        let result = makeStubResult(combined: solidMask(value: 1, size: CGSize(width: 100, height: 100)))
 
         let docNormal = EditDocument(schemaVersion: 2, subjectStack: subj, backgroundStack: bg, mask: SubjectMask())
         var docInverted = docNormal
         docInverted.mask?.invert = true
 
-        let normal = PipelineBuilder.build(document: docNormal, source: s, cubeResolver: nil,
-                                           maskProvider: provider, assetID: "x")
-        let inverted = PipelineBuilder.build(document: docInverted, source: s, cubeResolver: nil,
-                                             maskProvider: provider, assetID: "x")
+        let normal = PipelineBuilder.build(document: docNormal, source: s, cubeResolver: nil, maskResult: result)
+        let inverted = PipelineBuilder.build(document: docInverted, source: s, cubeResolver: nil, maskResult: result)
 
         let ctx = CIContext(options: [.useSoftwareRenderer: true])
         let nCG = ctx.createCGImage(normal, from: normal.extent)!
@@ -101,29 +106,32 @@ final class PipelineBuilderMaskedTests: XCTestCase {
             schemaVersion: 2, subjectStack: subj, backgroundStack: bg,
             mask: SubjectMask()
         )
-        let provider = StubMaskProvider(combined: solidMask(value: 0.5, size: CGSize(width: 200, height: 200)))
-        let composite = PipelineBuilder.build(document: doc, source: s, cubeResolver: nil,
-                                              maskProvider: provider, assetID: "x")
+        let result = makeStubResult(combined: solidMask(value: 0.5, size: CGSize(width: 200, height: 200)))
+        let composite = PipelineBuilder.build(document: doc, source: s, cubeResolver: nil, maskResult: result)
 
         XCTAssertEqual(composite.extent.width, 100, accuracy: 0.5,
                        "crop must come from subjectStack (200 * 0.5 = 100)")
     }
 
-    // MARK: - Stub provider
-
-    final class StubMaskProvider: SubjectMaskProvider {
-        let combined: CIImage
-        let perInstance: [CIImage]
-        init(combined: CIImage, perInstance: [CIImage] = []) {
-            self.combined = combined
-            self.perInstance = perInstance
-        }
-        func currentMask(for assetID: AssetID) -> SubjectMaskResult? {
-            SubjectMaskResult(combined: combined,
-                              perInstance: perInstance,
-                              instanceCount: max(1, perInstance.count),
-                              detectedAt: Date())
-        }
+    func testBuildDocument_zeroInstanceMask_yieldsBackgroundOnly() {
+        let s = source()
+        var subj = AdjustmentStack.identity
+        subj.light.exposure = 0.8
+        var bg = AdjustmentStack.identity
+        bg.light.exposure = -0.8
+        let doc = EditDocument(
+            schemaVersion: 2, subjectStack: subj, backgroundStack: bg,
+            mask: SubjectMask()
+        )
+        let result = makeStubResult(
+            combined: solidMask(value: 0, size: CGSize(width: 100, height: 100)),
+            perInstance: [],
+            instanceCount: 0
+        )
+        let composite = PipelineBuilder.build(document: doc, source: s, cubeResolver: nil, maskResult: result)
+        let ctx = CIContext(options: [.useSoftwareRenderer: true])
+        let cg = ctx.createCGImage(composite, from: composite.extent)!
+        XCTAssertLessThan(averagePixel(cg), 0.4, "0-instance mask must composite to background-only")
     }
 
     private func averagePixel(_ cg: CGImage) -> Double {

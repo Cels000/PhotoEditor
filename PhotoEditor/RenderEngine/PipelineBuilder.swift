@@ -678,24 +678,25 @@ enum PipelineBuilder {
 
 // MARK: - Masked compositing (Task 3)
 //
-// Renders an EditDocument: when document.mask is set and a SubjectMaskProvider
-// returns a mask for the given assetID, the subject and background stacks are
-// rendered uncropped, composited via CIBlendWithMask, then cropped using
-// subjectStack.crop. When mask is nil OR no provider/result is available, the
-// path falls back to a single-stack render of subjectStack (legacy behavior).
+// Renders an EditDocument: when document.mask is set and a SubjectMaskResult is
+// supplied, the subject and background stacks are rendered uncropped, composited
+// via CIBlendWithMask, then cropped using subjectStack.crop. When mask is nil OR
+// no maskResult is provided, the path falls back to a single-stack render of
+// subjectStack (legacy behavior).
+//
+// The mask result is passed in by the caller (typically EditorViewModel via
+// SubjectMaskStore.cachedMask(for:)). PipelineBuilder is pure and never reaches
+// back into the store — this avoids cross-actor coupling at render time.
 
 extension PipelineBuilder {
 
     static func build(document: EditDocument,
                       source: CIImage,
                       cubeResolver: CubeResolver?,
-                      maskProvider: SubjectMaskProvider?,
-                      assetID: AssetID? = nil) -> CIImage {
+                      maskResult: SubjectMaskResult?) -> CIImage {
 
         guard let mask = document.mask,
-              let assetID = assetID,
-              let provider = maskProvider,
-              let maskResult = provider.currentMask(for: assetID) else {
+              let maskResult = maskResult else {
             return build(stack: document.subjectStack, source: source, cubeResolver: cubeResolver)
         }
 
@@ -723,6 +724,7 @@ extension PipelineBuilder {
         var mask = maskResult.combined
 
         // Subtract excluded per-instance masks from the combined.
+        // CISubtractBlendMode: max(0, background - input) = max(0, mask - exclude).
         if !settings.excludedInstances.isEmpty {
             for index in settings.excludedInstances {
                 guard index >= 0, index < maskResult.perInstance.count else { continue }

@@ -16,14 +16,14 @@ final class SubjectMaskStoreTests: XCTestCase {
 
     func testInitialState_noCachedMask() {
         let store = SubjectMaskStore.makeForTesting()
-        XCTAssertNil(store.currentMask(for: testAssetID))
+        XCTAssertNil(store.cachedMask(for: testAssetID))
     }
 
     func testCacheHit_afterFirstCompute_returnsCachedResult() async throws {
         let store = SubjectMaskStore.makeForTesting()
         let img = solidImage(0.5)
         _ = try await store.mask(for: testAssetID, source: img)
-        XCTAssertNotNil(store.currentMask(for: testAssetID))
+        XCTAssertNotNil(store.cachedMask(for: testAssetID))
     }
 
     func testClear_removesCachedEntry() async throws {
@@ -31,7 +31,7 @@ final class SubjectMaskStoreTests: XCTestCase {
         let img = solidImage(0.5)
         _ = try await store.mask(for: testAssetID, source: img)
         store.clear(for: testAssetID)
-        XCTAssertNil(store.currentMask(for: testAssetID))
+        XCTAssertNil(store.cachedMask(for: testAssetID))
     }
 
     func testConcurrentRequests_coalesceIntoSingleCompute() async throws {

@@ -1,8 +1,12 @@
-// SubjectMaskStore.swift
-// PhotoEditor
+// PhotoEditor/Editor/SubjectMaskStore.swift
 //
 // Vision-backed subject mask compute with in-memory caching.
-// One actor instance per app session; injected into RenderEngine + EditorViewModel.
+// One instance per app session, owned by EditorViewModel.
+//
+// Note on concurrency: this class is @MainActor-isolated. Callers obtain a
+// SubjectMaskResult synchronously via cachedMask(for:) and pass it through
+// to the render engine as data. PipelineBuilder never reaches back into the
+// store, so there's no cross-actor coupling at render time.
 
 import CoreImage
 import Foundation
@@ -16,13 +20,12 @@ struct SubjectMaskResult: Equatable {
     let instanceCount: Int
     let detectedAt: Date
 
+    /// Equality compares only metadata (when computed, how many instances).
+    /// Two masks with different pixels but same instanceCount/detectedAt are equal.
+    /// Intended for cache identity, not pixel-equality.
     static func == (lhs: SubjectMaskResult, rhs: SubjectMaskResult) -> Bool {
         lhs.detectedAt == rhs.detectedAt && lhs.instanceCount == rhs.instanceCount
     }
-}
-
-protocol SubjectMaskProvider: AnyObject {
-    func currentMask(for assetID: AssetID) -> SubjectMaskResult?
 }
 
 enum SubjectMaskError: Error {
@@ -31,7 +34,7 @@ enum SubjectMaskError: Error {
 }
 
 @MainActor
-final class SubjectMaskStore: SubjectMaskProvider {
+final class SubjectMaskStore {
 
     private struct CacheEntry {
         let result: SubjectMaskResult
@@ -40,25 +43,20 @@ final class SubjectMaskStore: SubjectMaskProvider {
     private var cache: [AssetID: CacheEntry] = [:]
     private var inflight: [AssetID: Task<SubjectMaskResult, Error>] = [:]
 
-    private let visionContext: CIContext
+    init() {}
 
-    init() {
-        self.visionContext = CIContext(options: [.useSoftwareRenderer: false])
-    }
-
-    /// Test-only constructor; identical for now but reserved for stubbing.
+    /// Test-only constructor; reserved for stubbing.
     static func makeForTesting() -> SubjectMaskStore {
         SubjectMaskStore()
     }
 
-    /// Synchronous read of the most recently cached mask. Called from PipelineBuilder
-    /// (potentially off-main during rendering); reads from main-actor-isolated cache.
-    nonisolated func currentMask(for assetID: AssetID) -> SubjectMaskResult? {
-        return MainActor.assumeIsolated {
-            cache[assetID]?.result
-        }
+    /// Synchronous read of the most recently cached mask. Safe because the store
+    /// is @MainActor-isolated and callers (view models) are also @MainActor.
+    func cachedMask(for assetID: AssetID) -> SubjectMaskResult? {
+        cache[assetID]?.result
     }
 
+    /// Compute or return cached mask for an asset.
     func mask(for assetID: AssetID, source: CIImage) async throws -> SubjectMaskResult {
         if let cached = cache[assetID]?.result {
             return cached
@@ -67,9 +65,8 @@ final class SubjectMaskStore: SubjectMaskProvider {
             return try await task.value
         }
 
-        let task = Task<SubjectMaskResult, Error> { [weak self] in
-            guard let self else { throw SubjectMaskError.noObservations }
-            return try await self.compute(source: source)
+        let task = Task<SubjectMaskResult, Error> {
+            try await Self.compute(source: source, priority: .userInitiated)
         }
         inflight[assetID] = task
         defer { inflight[assetID] = nil }
@@ -79,10 +76,21 @@ final class SubjectMaskStore: SubjectMaskProvider {
         return result
     }
 
+    /// Fire-and-forget prefetch (utility QoS).
     func prefetch(for assetID: AssetID, source: CIImage) {
         guard cache[assetID] == nil, inflight[assetID] == nil else { return }
+        let task = Task<SubjectMaskResult, Error> {
+            try await Self.compute(source: source, priority: .utility)
+        }
+        inflight[assetID] = task
         Task { [weak self] in
-            _ = try? await self?.mask(for: assetID, source: source)
+            do {
+                let result = try await task.value
+                self?.cache[assetID] = CacheEntry(result: result)
+            } catch {
+                // Prefetch failures are silent; user-initiated path will retry.
+            }
+            self?.inflight[assetID] = nil
         }
     }
 
@@ -92,10 +100,10 @@ final class SubjectMaskStore: SubjectMaskProvider {
         inflight[assetID] = nil
     }
 
-    // MARK: - Vision compute
+    // MARK: - Vision compute (off-actor, side-effect-free)
 
-    private func compute(source: CIImage) async throws -> SubjectMaskResult {
-        let detached: Task<SubjectMaskResult, Error> = Task.detached(priority: .userInitiated) {
+    private static func compute(source: CIImage, priority: TaskPriority) async throws -> SubjectMaskResult {
+        let detached: Task<SubjectMaskResult, Error> = Task.detached(priority: priority) {
             let request = VNGenerateForegroundInstanceMaskRequest()
             let handler = VNImageRequestHandler(ciImage: source, options: [:])
             do {
@@ -105,6 +113,8 @@ final class SubjectMaskStore: SubjectMaskProvider {
             }
 
             guard let observation = request.results?.first as? VNInstanceMaskObservation else {
+                // No foreground detected: black mask (will composite to background only).
+                // EditorViewModel surfaces a "No subject detected" toast and prevents enabling the mask in this case.
                 let empty = CIImage(color: CIColor(red: 0, green: 0, blue: 0, alpha: 1))
                     .cropped(to: source.extent)
                 return SubjectMaskResult(combined: empty, perInstance: [],
