@@ -1,3 +1,4 @@
+import AudioToolbox
 import AVFoundation
 import SwiftUI
 
@@ -18,6 +19,8 @@ struct CameraView: View {
     @State private var hideSliderTask: Task<Void, Never>?
     @State private var scrolledID: String?
     @State private var showPresetGrid: Bool = false
+    @State private var shutterFlash: Bool = false
+    @State private var shutterPress: Bool = false
 
     var body: some View {
         ZStack {
@@ -33,6 +36,11 @@ struct CameraView: View {
                 Spacer(minLength: 0)
                 bottomDeck
             }
+
+            Color.black
+                .ignoresSafeArea()
+                .opacity(shutterFlash ? 1 : 0)
+                .allowsHitTesting(false)
         }
         .task {
             permissionStatus = await CameraPermissions.request()
@@ -127,7 +135,11 @@ struct CameraView: View {
             recentShotTile
             Spacer()
             Button {
-                Task { await runCapture() }
+                Task {
+                    withAnimation(.easeOut(duration: 0.08)) { shutterPress = true }
+                    await runCapture()
+                    withAnimation(.spring(response: 0.25, dampingFraction: 0.55)) { shutterPress = false }
+                }
             } label: {
                 ZStack {
                     // Outer ring + inner disc both use Theme.Colors.text so the
@@ -139,13 +151,14 @@ struct CameraView: View {
                     Circle()
                         .fill(Theme.Colors.text)
                         .frame(width: 60, height: 60)
+                        .scaleEffect(shutterPress ? 0.78 : 1.0)
                 }
                 .frame(width: 80, height: 80)
                 .contentShape(Circle())
             }
             .buttonStyle(.plain)
             .disabled(viewModel.captureInFlight)
-            .opacity(viewModel.captureInFlight ? 0.6 : 1.0)
+            .opacity(viewModel.captureInFlight ? 0.85 : 1.0)
             Spacer()
             if session.hasFrontCamera {
                 Button {
@@ -193,7 +206,14 @@ struct CameraView: View {
     }
 
     private func runCapture() async {
+        // System shutter sound (1108) — same id Apple's Camera plays.
+        AudioServicesPlaySystemSound(1108)
         UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+        shutterFlash = true
+        Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 50_000_000)
+            withAnimation(.easeOut(duration: 0.15)) { shutterFlash = false }
+        }
         do { try await viewModel.capture() }
         catch { viewModel.errorMessage = "Couldn't save photo." }
     }
