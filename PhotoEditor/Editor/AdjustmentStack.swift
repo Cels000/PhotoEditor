@@ -127,14 +127,9 @@ struct AdjustmentStack: Codable, Equatable {
 }
 
 // MARK: - Validation marker structs
-// Required by 01-VALIDATION.md grep gate: `grep "struct $k"` for each of:
-// Light, Color, HSL, Curves, Effects, SplitToning, Crop.
-// SplitToning and Crop are already declared above under their canonical names.
-// The remaining names differ from the canonical suffixed names, so declare
-// stub marker structs purely to satisfy literal grep. Do not use these directly.
-
-struct Light: Codable, Equatable { var _stub: Bool = false }
-struct Color: Codable, Equatable { var _stub: Bool = false }
-struct HSL: Codable, Equatable { var _stub: Bool = false }
-struct Curves: Codable, Equatable { var _stub: Bool = false }
-struct Effects: Codable, Equatable { var _stub: Bool = false }
+// Note: a previous validation pass added file-scope marker structs named
+// `Color`, `Light`, `HSL`, `Curves`, `Effects` here purely to satisfy a literal
+// grep gate. They shadowed `SwiftUI.Color` across the module and broke every
+// file that referenced theme colors. The real schema types are `LightAdjustments`,
+// `ColorAdjustments`, `HSLAdjustments`, `ToneCurves`, etc. — those are what the
+// pipeline reads. Marker stubs intentionally removed.

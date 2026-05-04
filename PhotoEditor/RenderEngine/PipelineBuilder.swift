@@ -535,10 +535,8 @@ enum PipelineBuilder {
         default: r = v; g = p; b = q
         }
         // Build a constant-color tint image and crop to source extent.
-        let constColor = CIFilter.constantColorGenerator()
-        constColor.color = CIColor(red: CGFloat(r), green: CGFloat(g), blue: CGFloat(b), alpha: 1.0)
-        guard let raw = constColor.outputImage else { return image }
-        let tinted = raw.cropped(to: image.extent)
+        let tinted = CIImage(color: CIColor(red: CGFloat(r), green: CGFloat(g), blue: CGFloat(b), alpha: 1.0))
+            .cropped(to: image.extent)
 
         // Modulate tint alpha by mask intensity * amount cap.
         let cap = max(-0.5, min(0.5, amount * 0.3))
