@@ -61,6 +61,14 @@ final class EditorViewModel {
 
     var previewImage: UIImage?
     var importedImage: ImportedImage?
+
+    /// Toolbar-controlled visibility for the post-pipeline RGB histogram overlay.
+    var isHistogramVisible: Bool = false
+    /// Latest committed histogram bitmap. Recomputed only on render commit
+    /// (stackDidChange Task tail + renderPreviewNow), never per slider tick.
+    /// Held nil while `isHistogramVisible == false` so the overlay view never
+    /// pays for stale state.
+    var histogramImage: UIImage?
     var isSaving: Bool = false
     var isExporting: Bool = false
     var shareData: Data?
@@ -88,6 +96,16 @@ final class EditorViewModel {
     private let engine: RenderEngine?
     private var renderTask: Task<Void, Never>?
     private static let debounceNanos: UInt64 = 40_000_000   // 40 ms
+    /// Monotonic counter incremented on each `stackDidChange()`. Each render
+    /// task captures its generation and only commits its result if it is still
+    /// the latest — eliminates stale-frame writes (TOCTOU on Task.isCancelled)
+    /// and coalesces queued work behind the engine actor.
+    private var renderGeneration: UInt64 = 0
+
+    /// MainActor-owned CIContext used solely for histogram rendering at
+    /// preview-commit. Cheap to keep alive, expensive to recreate per call —
+    /// do NOT inline-construct in recomputeHistogramIfVisible.
+    private let histogramContext: CIContext = CIContext(options: [.useSoftwareRenderer: false])
 
     // MARK: - Mask state
 
@@ -189,6 +207,8 @@ final class EditorViewModel {
     /// Called from every slider's binding set closure — debounces the preview render.
     func stackDidChange() {
         renderTask?.cancel()
+        renderGeneration &+= 1
+        let myGen = renderGeneration
         let snapshotDoc = document
         guard let engine, let source = importedImage?.previewCIImage else { return }
         let resolver = makeCubeResolver()
@@ -197,6 +217,8 @@ final class EditorViewModel {
         renderTask = Task { [weak self] in
             try? await Task.sleep(nanoseconds: Self.debounceNanos)
             guard !Task.isCancelled, let self else { return }
+            // Coalesce: if a newer scrub has arrived during debounce, skip the render entirely.
+            guard myGen == self.renderGeneration else { return }
             do {
                 let cg = try await engine.renderPreview(
                     document: snapshotDoc,
@@ -204,8 +226,12 @@ final class EditorViewModel {
                     cubeResolver: resolver,
                     maskResult: maskResult
                 )
-                guard !Task.isCancelled else { return }
+                // After the actor-hopped render returns, commit only if we're still
+                // the latest scheduled generation. Prevents stale frames from overwriting
+                // fresher output when CIContext.createCGImage queues up behind the actor.
+                guard myGen == self.renderGeneration else { return }
                 self.previewImage = UIImage(cgImage: cg)
+                self.recomputeHistogramIfVisible(from: cg)
             } catch {
                 // Render failure is non-fatal for live preview; keep last good image.
             }
@@ -416,6 +442,11 @@ final class EditorViewModel {
     /// RECIPE-02: applies the recipe to the current photo; RECIPE-05: missing
     /// filter ID is degraded to nil filter (slot blank) without affecting other
     /// adjustments. Creates exactly ONE undo entry for the entire apply.
+    ///
+    /// Scoping: with no mask, writes to both stacks (the `stack` setter mirrors).
+    /// With a mask active, writes only to the active scope so the other region's
+    /// edits are preserved — applying a recipe must never silently flatten
+    /// per-region work the user did before this call.
     func applyRecipe(_ recipe: RecipeItem) {
         var newStack = recipe.adjustmentStack
 
@@ -425,15 +456,22 @@ final class EditorViewModel {
             newStack.filter = nil
         }
 
-        // Recipes apply to the entire document (both stacks). Save and restore scope
-        // so the user's active sub-segment isn't disturbed.
-        let savedScope = activeScope
-        activeScope = .full
-        stack = newStack
-        activeScope = savedScope
+        let maskActive = document.mask != nil
+        if maskActive {
+            // Preserve the other scope's edits; the `stack` setter already routes
+            // by `activeScope` and enforces the crop mirror invariant.
+            stack = newStack
+            let scopeName = activeScope == .background ? "background" : "subject"
+            successMessage = "Applied \"\(recipe.name)\" to \(scopeName)."
+        } else {
+            // Single-stack mode: writing via .full is unnecessary (the setter
+            // already mirrors when mask is nil), but keep an explicit pass for
+            // symmetry / future-proofing.
+            stack = newStack
+            successMessage = "Applied \"\(recipe.name)\"."
+        }
         commitDiscreteChange()  // single undo entry for the whole apply
         stackDidChange()         // debounced re-render of preview
-        successMessage = "Applied \"\(recipe.name)\"."
     }
 
     /// Persist the current stack as a named Recipe. If a photo is loaded, a
@@ -496,7 +534,7 @@ final class EditorViewModel {
             errorMessage = "Mask requires an imported photo."
             return
         }
-        let assetID: AssetID = imported.sourceAssetID ?? "unattached-\(ObjectIdentifier(self).hashValue)"
+        let assetID: AssetID = imported.sourceAssetID ?? "unattached-\(imported.sessionID.uuidString)"
 
         maskComputeInFlight = true
         errorMessage = nil
@@ -530,7 +568,7 @@ final class EditorViewModel {
     /// user taps the mask button, the result will already be cached.
     func prefetchMaskForCurrentPhoto() {
         guard let imported = importedImage else { return }
-        let assetID: AssetID = imported.sourceAssetID ?? "unattached-\(ObjectIdentifier(self).hashValue)"
+        let assetID: AssetID = imported.sourceAssetID ?? "unattached-\(imported.sessionID.uuidString)"
         maskStore.prefetch(for: assetID, source: imported.previewCIImage)
     }
 
@@ -541,7 +579,7 @@ final class EditorViewModel {
     /// re-enables the mask manually.
     private func restoreMaskResultForCurrentPhoto() async {
         guard let imported = importedImage else { return }
-        let assetID: AssetID = imported.sourceAssetID ?? "unattached-\(ObjectIdentifier(self).hashValue)"
+        let assetID: AssetID = imported.sourceAssetID ?? "unattached-\(imported.sessionID.uuidString)"
         do {
             let result = try await maskStore.mask(for: assetID, source: imported.previewCIImage)
             // The user may have removed the mask while we were waiting; double-check.
@@ -599,6 +637,11 @@ final class EditorViewModel {
 
     private func renderPreviewNow() async {
         guard let engine, let source = importedImage?.previewCIImage else { return }
+        // Cancel any in-flight debounced render and bump generation so its post-await
+        // commit guard rejects it — otherwise a stale frame from the previous photo
+        // could land on top of this fresh first-frame render.
+        renderTask?.cancel()
+        renderGeneration &+= 1
         do {
             let cg = try await engine.renderPreview(
                 document: document,
@@ -607,8 +650,40 @@ final class EditorViewModel {
                 maskResult: currentMaskResult
             )
             self.previewImage = UIImage(cgImage: cg)
+            self.recomputeHistogramIfVisible(from: cg)
         } catch {
             self.errorMessage = "Could not render preview."
+        }
+    }
+
+    // MARK: - Histogram overlay
+
+    /// Toolbar-driven toggle. When turning ON, computes immediately from the
+    /// current preview if available so the user doesn't have to wiggle a slider
+    /// to see bars. When turning OFF, drops the bitmap so the view tree reclaims
+    /// memory and stops drawing stale data.
+    func toggleHistogram() {
+        isHistogramVisible.toggle()
+        if !isHistogramVisible {
+            histogramImage = nil
+            return
+        }
+        if let ui = previewImage, let cg = ui.cgImage {
+            recomputeHistogramIfVisible(from: cg)
+        }
+    }
+
+    /// Render-commit hook. Called from BOTH commit points
+    /// (stackDidChange's debounced Task tail + renderPreviewNow), each already
+    /// guarded by the `myGen == renderGeneration` invariant — so this only
+    /// fires for the latest-generation preview frame, never mid-drag.
+    private func recomputeHistogramIfVisible(from cg: CGImage) {
+        guard isHistogramVisible else {
+            histogramImage = nil
+            return
+        }
+        if let h = HistogramRenderer.render(postPipeline: cg, context: histogramContext) {
+            histogramImage = UIImage(cgImage: h)
         }
     }
 }
