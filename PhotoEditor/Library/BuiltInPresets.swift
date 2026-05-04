@@ -32,7 +32,7 @@ import Foundation
 
 enum BuiltInPresets {
 
-    private static let seedKey = "builtInPresetsSeeded.v5"
+    private static let seedKey = "builtInPresetsSeeded.v6"
 
     /// Insert (and update) built-in presets the first time we see this device on
     /// this seed version. Idempotent — safe to call on every launch.
@@ -69,7 +69,7 @@ enum BuiltInPresets {
                 inserted += 1
             }
         }
-        NSLog("PhotoEditor: BuiltInPresets seed v4 — inserted \(inserted), updated \(updated) of \(all.count)")
+        NSLog("PhotoEditor: BuiltInPresets seed v6 — inserted \(inserted), updated \(updated) of \(all.count)")
         defaults.set(true, forKey: seedKey)
     }
 
@@ -151,6 +151,7 @@ enum BuiltInPresets {
             s.splitToning.highlightSaturation = 0.20
             s.grain.size = 0.30
             s.grain.intensity = 0.18
+            s.softness = 0.06
             return s
         }()),
 
@@ -184,6 +185,7 @@ enum BuiltInPresets {
             s.splitToning.highlightSaturation = 0.18
             s.grain.size = 0.55
             s.grain.intensity = 0.40
+            s.softness = 0.08
             return s
         }()),
 
@@ -217,6 +219,7 @@ enum BuiltInPresets {
             s.hsl.purple.saturation = 0.10
             s.grain.size = 0.12
             s.grain.intensity = 0.06
+            s.softness = 0.04
             return s
         }()),
 
@@ -255,6 +258,7 @@ enum BuiltInPresets {
             s.splitToning.highlightSaturation = 0.15
             s.grain.size = 0.28
             s.grain.intensity = 0.15
+            s.softness = 0.1
             return s
         }()),
 
@@ -292,6 +296,7 @@ enum BuiltInPresets {
             s.vignette.feather = 0.6
             s.grain.size = 0.05
             s.grain.intensity = 0.03
+            s.softness = 0.03
             return s
         }()),
 
@@ -330,6 +335,7 @@ enum BuiltInPresets {
             s.splitToning.highlightSaturation = 0.30
             s.grain.size = 0.60
             s.grain.intensity = 0.42
+            s.softness = 0.12
             return s
         }()),
 
@@ -366,6 +372,7 @@ enum BuiltInPresets {
             s.splitToning.shadowSaturation = 0.35
             s.splitToning.highlightHue = 40
             s.splitToning.highlightSaturation = 0.10
+            s.softness = 0.05
             return s
         }()),
 
@@ -404,6 +411,7 @@ enum BuiltInPresets {
             s.splitToning.highlightSaturation = 0.15
             s.grain.size = 0.35
             s.grain.intensity = 0.20
+            s.softness = 0.08
             return s
         }()),
 
@@ -434,6 +442,7 @@ enum BuiltInPresets {
             s.splitToning.highlightSaturation = 0.10
             s.grain.size = 0.20
             s.grain.intensity = 0.10
+            s.softness = 0.1
             return s
         }()),
 
@@ -474,6 +483,7 @@ enum BuiltInPresets {
             s.splitToning.highlightSaturation = 0.35
             s.grain.size = 0.30
             s.grain.intensity = 0.15
+            s.softness = 0.08
             return s
         }())
     ]
@@ -499,6 +509,7 @@ enum BuiltInPresets {
             s.sharpness = 0.45
             s.grain.size = 0.70
             s.grain.intensity = 0.72
+            s.softness = 0.05
             return s
         }()),
 
@@ -515,6 +526,7 @@ enum BuiltInPresets {
             s.sharpness = 0.35
             s.grain.size = 0.55
             s.grain.intensity = 0.55
+            s.softness = 0.1
             return s
         }()),
 
@@ -531,6 +543,7 @@ enum BuiltInPresets {
             s.sharpness = 0.70                  // clinical micro-detail
             s.grain.size = 0.25
             s.grain.intensity = 0.28
+            s.softness = 0.03
             return s
         }()),
 
@@ -547,6 +560,7 @@ enum BuiltInPresets {
             s.sharpness = 0.65
             s.grain.size = 0.20
             s.grain.intensity = 0.22
+            s.softness = 0.04
             return s
         }())
     ]
@@ -585,6 +599,7 @@ enum BuiltInPresets {
             s.vignette.feather = 0.75
             s.grain.size = 0.55
             s.grain.intensity = 0.32
+            s.softness = 0.2
             return s
         }()),
 
@@ -620,6 +635,7 @@ enum BuiltInPresets {
             s.vignette.feather = 0.45
             s.grain.size = 0.65
             s.grain.intensity = 0.55
+            s.softness = 0.3
             return s
         }()),
 
@@ -655,6 +671,7 @@ enum BuiltInPresets {
             s.vignette.feather = 0.85
             s.grain.size = 0.40
             s.grain.intensity = 0.15
+            s.softness = 0.4
             return s
         }()),
 
@@ -691,6 +708,7 @@ enum BuiltInPresets {
             s.vignette.feather = 0.80
             s.grain.size = 0.45
             s.grain.intensity = 0.20
+            s.softness = 0.32
             return s
         }()),
 
@@ -721,6 +739,7 @@ enum BuiltInPresets {
             s.vignette.feather = 0.85
             s.grain.size = 0.35
             s.grain.intensity = 0.10
+            s.softness = 0.2
             return s
         }())
     ]

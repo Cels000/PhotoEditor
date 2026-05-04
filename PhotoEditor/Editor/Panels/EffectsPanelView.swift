@@ -16,9 +16,10 @@ struct EffectsPanelView: View {
                 signedSlider("Vignette Amount", \.vignette.amount, defaultValue: 0)
                 percentSlider("Vignette Feather", \.vignette.feather, defaultValue: 0.5)
 
-                // Sharpen
-                sectionHeader("Sharpen")
+                // Detail
+                sectionHeader("Detail")
                 percentSlider("Sharpen", \.sharpness, defaultValue: 0)
+                percentSlider("Soften",  \.softness,  defaultValue: 0)
 
                 // Split Toning
                 sectionHeader("Split Toning")

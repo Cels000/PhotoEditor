@@ -9,8 +9,9 @@ typealias CubeResolver = (String) -> ColorCubeData?
 
 /// Pure namespace that turns an `AdjustmentStack` into a CIImage filter chain.
 /// Stage order: LUT → light → color → HSL → curves → split toning → sharpness
-/// → grain → vignette → crop. Sharpness runs BEFORE grain so we don't sharpen
-/// the noise we just added (which would exaggerate grain into crunch).
+/// → softness → grain → vignette → crop. Sharpness runs before softness so the
+/// final MTF roll-off applies to the sharpened result; both run before grain
+/// so noise is preserved through the rest of the pipeline.
 enum PipelineBuilder {
 
     /// Top-level entry point. Pure: same inputs always produce the same output.
@@ -20,16 +21,17 @@ enum PipelineBuilder {
                       suppressCrop: Bool = false) -> CIImage {
         var img = source
         img = applyLUT(stack.filter, to: img, cubeResolver: cubeResolver)  // 1
-        img = applyLight(stack.light, to: img)            // 2
-        img = applyColor(stack.color, to: img)            // 3
-        img = applyHSL(stack.hsl, to: img)                // 4
-        img = applyCurves(stack.curves, to: img)          // 5
-        img = applySplitToning(stack.splitToning, to: img)// 6
-        img = applySharpness(stack.sharpness, to: img)    // 7  (before grain — see header)
-        img = applyGrain(stack.grain, to: img)            // 8
-        img = applyVignette(stack.vignette, to: img)      // 9
+        img = applyLight(stack.light, to: img)             // 2
+        img = applyColor(stack.color, to: img)             // 3
+        img = applyHSL(stack.hsl, to: img)                 // 4
+        img = applyCurves(stack.curves, to: img)           // 5
+        img = applySplitToning(stack.splitToning, to: img) // 6
+        img = applySharpness(stack.sharpness, to: img)     // 7
+        img = applySoftness(stack.softness, to: img)       // 8  MTF roll-off
+        img = applyGrain(stack.grain, to: img)             // 9
+        img = applyVignette(stack.vignette, to: img)       // 10
         if !suppressCrop {
-            img = applyCrop(stack.crop, to: img)          // 10 (skipped when masking)
+            img = applyCrop(stack.crop, to: img)           // 11 (skipped when masking)
         }
         return img
     }
@@ -608,6 +610,19 @@ enum PipelineBuilder {
         s.inputImage = image
         s.sharpness = Float(max(0, min(1, sharpness)) * 2.0) // 0...2 useful
         return s.outputImage ?? image
+    }
+
+    /// Subtle MTF roll-off — a small Gaussian blur to soften over-sharp captures
+    /// (iPhone HDR / Deep Fusion / Photonic Engine all apply heavy local-contrast
+    /// enhancement that reads "digital crispy"). Real film has lower MTF at high
+    /// spatial frequencies; even slide film and T-grain B&W aren't this sharp.
+    /// 0...1 → σ 0...2 px. CIGaussianBlur expands extent so we crop back.
+    static func applySoftness(_ softness: Double, to image: CIImage) -> CIImage {
+        guard softness > 0 else { return image }
+        let blur = CIFilter.gaussianBlur()
+        blur.inputImage = image
+        blur.radius = Float(max(0, min(1, softness)) * 2.0)
+        return blur.outputImage?.cropped(to: image.extent) ?? image
     }
     // MARK: - applyCrop (internal visibility for masked-compositing extension)
 
