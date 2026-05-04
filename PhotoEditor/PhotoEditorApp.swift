@@ -11,6 +11,11 @@ struct PhotoEditorApp: App {
     @AppStorage("hasSeenFirstRun") private var hasSeenFirstRun: Bool = false
 
     init() {
+        let info = Bundle.main.infoDictionary
+        let short = info?["CFBundleShortVersionString"] as? String ?? "?"
+        let build = info?["CFBundleVersion"] as? String ?? "?"
+        NSLog("PhotoEditor launch — version \(short) (build \(build))")
+
         do {
             // RECIPE-01: LibrarySchemaV1 now carries both LibraryItem and RecipeItem.
             // No rename needed — adding a model to an existing VersionedSchema is the
