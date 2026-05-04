@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-05-03)
 Phase: 1 of 7 (Rendering Foundation)
 Plan: 0 of TBD in current phase
 Status: Ready to plan
-Last activity: 2026-05-03 — Roadmap created; requirements mapped to 7 phases
+Last activity: 2026-05-04 — Completed quick task 260504-mgz: add histogram overlay
 
 Progress: [██░░░░░░░░] 20%
 
@@ -177,6 +177,12 @@ None yet.
 - Phase 3: Gesture conflict between canvas and adjustment panels needs real-device testing — Simulator diverges from device.
 - Phase 4: PHAsset `.limited` permission mode needs explicit testing. SwiftData iOS 17.x migration path must be tested before shipping any update.
 - Phase 6: Custom UTI file association (`.photorecipe`) must be verified on a real device, both export and import flows.
+
+### Quick Tasks Completed
+
+| # | Description | Date | Commit | Directory |
+|---|-------------|------|--------|-----------|
+| 260504-mgz | add histogram overlay | 2026-05-04 | b190a70 | [260504-mgz-add-histogram-overlay](./quick/260504-mgz-add-histogram-overlay/) |
 
 ## Session Continuity
 
