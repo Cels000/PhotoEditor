@@ -75,6 +75,7 @@ struct RootTabView: View {
             }
             if recipeStore == nil {
                 let rstore = RecipeStore(context: modelContext)
+                BuiltInPresets.seedIfNeeded(store: rstore)
                 recipeStore = rstore
                 viewModel.recipeStore = rstore
             }

@@ -19,6 +19,10 @@ final class RecipeItem {
     var stackData: Data            // JSON-encoded AdjustmentStack
     var thumbnailData: Data?       // optional 200x200 JPEG (~10 KB)
     var schemaVersion: Int         // mirrors AdjustmentStack.schemaVersion at save time
+    // Optional category tag — nil for user-saved recipes, non-nil for built-in
+    // presets seeded on first run. Stored as the raw value of RecipeCategory so
+    // the UI layer can group rows without a separate lookup table.
+    var categoryRaw: String?
 
     init(id: UUID = UUID(),
          name: String = "Untitled Look",
@@ -27,7 +31,8 @@ final class RecipeItem {
          sortOrder: Int = 0,
          stackData: Data = Data(),
          thumbnailData: Data? = nil,
-         schemaVersion: Int = 1) {
+         schemaVersion: Int = 1,
+         categoryRaw: String? = nil) {
         self.id = id
         self.name = name
         self.createdAt = createdAt
@@ -36,6 +41,7 @@ final class RecipeItem {
         self.stackData = stackData
         self.thumbnailData = thumbnailData
         self.schemaVersion = schemaVersion
+        self.categoryRaw = categoryRaw
     }
 }
 

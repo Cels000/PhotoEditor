@@ -39,7 +39,8 @@ final class RecipeStore {
     @discardableResult
     func save(name: String,
               stack: AdjustmentStack,
-              thumbnail: Data?) -> RecipeItem {
+              thumbnail: Data?,
+              category: RecipeCategory? = nil) -> RecipeItem {
         let now = Date()
         let nextOrder = (items.map { $0.sortOrder }.max() ?? -1) + 1
         let item = RecipeItem(
@@ -50,7 +51,8 @@ final class RecipeStore {
             sortOrder: nextOrder,
             stackData: (try? JSONEncoder().encode(stack)) ?? Data(),
             thumbnailData: thumbnail,
-            schemaVersion: stack.schemaVersion
+            schemaVersion: stack.schemaVersion,
+            categoryRaw: category?.rawValue
         )
         context.insert(item)
         try? context.save()

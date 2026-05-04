@@ -1,10 +1,12 @@
 // RecipesSheetView.swift
 // User-facing recipe management surface.
 // - Tap row: apply (calls onApply, closes sheet)
-// - Context menu: Rename, Share, Delete
-// - EditMode toggle: reorder (.onMove) and swipe-to-delete
-// - Empty state: prompt to save a recipe
-// RECIPE-02, RECIPE-03, RECIPE-04.
+// - Context menu: Rename, Share, Delete (works on built-in presets too —
+//   if a user removes one, it's gone unless they bump the seed key)
+// - Sections: "My Recipes" (uncategorized) + one per RecipeCategory.
+//   All collapsible, all collapsed by default to keep the sheet compact.
+// - User-recipe section supports reorder; preset sections do not.
+// RECIPE-02, RECIPE-03, RECIPE-04, presets seed (BuiltInPresets).
 
 import SwiftUI
 import UIKit
@@ -19,11 +21,13 @@ struct RecipesSheetView: View {
     /// Optional — `nil` when used as a tab destination (no Done button needed).
     let onDismiss: (() -> Void)?
 
-    @State private var editMode: EditMode = .inactive
     @State private var renameTarget: RecipeItem?
     @State private var deleteTarget: RecipeItem?
     @State private var shareURL: URL?
     @State private var errorMessage: String?
+    /// Section expansion state — keyed by category, with `nil` for "My Recipes".
+    /// All start collapsed so the sheet is compact on open.
+    @State private var expandedSections: Set<String> = []
 
     var body: some View {
         NavigationStack {
@@ -31,7 +35,7 @@ struct RecipesSheetView: View {
                 if store.items.isEmpty {
                     emptyState
                 } else {
-                    recipeList
+                    sectionList
                 }
             }
             .navigationTitle("Recipes")
@@ -42,13 +46,7 @@ struct RecipesSheetView: View {
                         Button("Done") { onDismiss() }
                     }
                 }
-                if !store.items.isEmpty {
-                    ToolbarItem(placement: .primaryAction) {
-                        EditButton()
-                    }
-                }
             }
-            .environment(\.editMode, $editMode)
             .sheet(item: $renameTarget) { recipe in
                 RecipeNamePromptView(
                     title: "Rename Recipe",
@@ -98,6 +96,8 @@ struct RecipesSheetView: View {
         }
     }
 
+    // MARK: - Empty state
+
     private var emptyState: some View {
         VStack(spacing: 12) {
             Image(systemName: "wand.and.stars")
@@ -113,42 +113,125 @@ struct RecipesSheetView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
-    private var recipeList: some View {
+    // MARK: - Sectioned list
+
+    /// "My Recipes" — items with no category tag.
+    private var userRecipes: [RecipeItem] {
+        store.items.filter { $0.categoryRaw == nil }
+    }
+
+    private func recipes(in category: RecipeCategory) -> [RecipeItem] {
+        store.items.filter { $0.categoryRaw == category.rawValue }
+    }
+
+    private var sectionList: some View {
         List {
-            ForEach(store.items, id: \.id) { recipe in
-                RecipeRow(recipe: recipe)
-                    .contentShape(Rectangle())
-                    .onTapGesture {
-                        guard editMode == .inactive else { return }
-                        onApply(recipe)
-                        onDismiss?()
+            if !userRecipes.isEmpty {
+                disclosure(
+                    key: "user",
+                    title: "My Recipes",
+                    iconSystemName: "person.crop.square",
+                    count: userRecipes.count
+                ) {
+                    ForEach(userRecipes, id: \.id) { recipe in
+                        recipeRow(recipe)
                     }
-                    .contextMenu {
-                        Button { renameTarget = recipe } label: {
-                            Label("Rename", systemImage: "pencil")
-                        }
-                        Button { shareRecipe(recipe) } label: {
-                            Label("Share", systemImage: "square.and.arrow.up")
-                        }
-                        Button(role: .destructive) { deleteTarget = recipe } label: {
-                            Label("Delete", systemImage: "trash")
-                        }
-                    }
+                    .onMove(perform: moveUserItems)
+                    .onDelete(perform: deleteUserItems)
+                }
             }
-            .onMove(perform: moveItems)
-            .onDelete(perform: deleteItems)
+            ForEach(RecipeCategory.allCases) { category in
+                let items = recipes(in: category)
+                if !items.isEmpty {
+                    disclosure(
+                        key: category.rawValue,
+                        title: category.displayName,
+                        iconSystemName: category.iconSystemName,
+                        count: items.count
+                    ) {
+                        ForEach(items, id: \.id) { recipe in
+                            recipeRow(recipe)
+                        }
+                    }
+                }
+            }
         }
-        .listStyle(.plain)
+        .listStyle(.insetGrouped)
     }
 
-    private func moveItems(from source: IndexSet, to destination: Int) {
-        var newOrder = store.items
-        newOrder.move(fromOffsets: source, toOffset: destination)
-        store.reorder(newOrder)
+    @ViewBuilder
+    private func disclosure<Content: View>(
+        key: String,
+        title: String,
+        iconSystemName: String,
+        count: Int,
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        DisclosureGroup(
+            isExpanded: Binding(
+                get: { expandedSections.contains(key) },
+                set: { isOpen in
+                    if isOpen { expandedSections.insert(key) }
+                    else { expandedSections.remove(key) }
+                }
+            )
+        ) {
+            content()
+        } label: {
+            HStack(spacing: 10) {
+                Image(systemName: iconSystemName)
+                    .foregroundStyle(Theme.Colors.accent)
+                    .frame(width: 22)
+                Text(title).font(.body.weight(.semibold))
+                Spacer()
+                Text("\(count)")
+                    .font(.caption.monospacedDigit())
+                    .foregroundStyle(.secondary)
+            }
+        }
     }
 
-    private func deleteItems(at offsets: IndexSet) {
-        for index in offsets { store.delete(store.items[index]) }
+    @ViewBuilder
+    private func recipeRow(_ recipe: RecipeItem) -> some View {
+        RecipeRow(recipe: recipe)
+            .contentShape(Rectangle())
+            .onTapGesture {
+                onApply(recipe)
+                onDismiss?()
+            }
+            .contextMenu {
+                Button { renameTarget = recipe } label: {
+                    Label("Rename", systemImage: "pencil")
+                }
+                Button { shareRecipe(recipe) } label: {
+                    Label("Share", systemImage: "square.and.arrow.up")
+                }
+                Button(role: .destructive) { deleteTarget = recipe } label: {
+                    Label("Delete", systemImage: "trash")
+                }
+            }
+            .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                Button(role: .destructive) { deleteTarget = recipe } label: {
+                    Label("Delete", systemImage: "trash")
+                }
+            }
+    }
+
+    // MARK: - Mutations (user section only)
+
+    private func moveUserItems(from source: IndexSet, to destination: Int) {
+        var users = userRecipes
+        users.move(fromOffsets: source, toOffset: destination)
+        // Rebuild the full ordering: presets keep their positions, user items follow.
+        let presets = store.items.filter { $0.categoryRaw != nil }
+        store.reorder(users + presets)
+    }
+
+    private func deleteUserItems(at offsets: IndexSet) {
+        let snapshot = userRecipes
+        for index in offsets where index < snapshot.count {
+            store.delete(snapshot[index])
+        }
     }
 
     private func shareRecipe(_ recipe: RecipeItem) {
@@ -172,8 +255,8 @@ private struct RecipeRow: View {
     var body: some View {
         HStack(spacing: 12) {
             thumbnail
-                .frame(width: 56, height: 56)
-                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                .frame(width: 44, height: 44)
+                .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
             VStack(alignment: .leading, spacing: 2) {
                 Text(recipe.name).font(.body.weight(.medium))
                 Text(recipe.updatedAt, style: .date)
@@ -182,7 +265,7 @@ private struct RecipeRow: View {
             }
             Spacer()
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, 2)
     }
 
     @ViewBuilder
