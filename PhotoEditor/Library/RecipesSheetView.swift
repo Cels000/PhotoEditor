@@ -32,14 +32,18 @@ struct RecipesSheetView: View {
 
     var body: some View {
         NavigationStack {
-            Group {
+            ZStack {
+                // Canvas base layer — explicit ignoresSafeArea so the color
+                // fills past nav bar (top) and tab bar (bottom) even when the
+                // ScrollView's content is shorter than the viewport.
+                Theme.Colors.canvas.ignoresSafeArea()
+
                 if store.items.isEmpty {
                     emptyState
                 } else {
                     sectionList
                 }
             }
-            .background(Theme.Colors.canvas.ignoresSafeArea())
             .navigationTitle("Recipes")
             .navigationBarTitleDisplayMode(.inline)
             .toolbarBackground(Theme.Colors.canvas, for: .navigationBar)
@@ -104,16 +108,19 @@ struct RecipesSheetView: View {
     // MARK: - Empty state
 
     private var emptyState: some View {
-        VStack(spacing: 12) {
+        VStack(spacing: Theme.Spacing.md) {
             Image(systemName: "wand.and.stars")
-                .font(.system(size: 44, weight: .regular))
+                .font(.system(size: 36, weight: .regular))
                 .foregroundStyle(Theme.Colors.accent)
-            Text("No Recipes Yet").font(Theme.Typography.subtitle)
-            Text("Tap the Save Recipe button while editing a photo to capture your current look.")
-                .font(Theme.Typography.body)
+            Text("NO RECIPES YET")
+                .font(Theme.Typography.label)
+                .tracking(1.5)
+                .foregroundStyle(Theme.Colors.text)
+            Text("Save a Recipe while editing to capture the current look.")
+                .font(.system(size: 12))
                 .foregroundStyle(Theme.Colors.secondary)
                 .multilineTextAlignment(.center)
-                .padding(.horizontal, 32)
+                .padding(.horizontal, Theme.Spacing.xl)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
@@ -152,10 +159,10 @@ struct RecipesSheetView: View {
                         )
                     }
                 }
-                Spacer(minLength: Theme.Spacing.xl)
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .background(Theme.Colors.canvas)
+        .scrollContentBackground(.hidden)
     }
 
     @ViewBuilder
