@@ -16,9 +16,8 @@ struct CameraView: View {
     @State private var exposureBias: Float = 0
     @State private var showExposureSlider: Bool = false
     @State private var hideSliderTask: Task<Void, Never>?
-    @State private var ghostsVisible: Bool = false
-    @State private var ghostHideTask: Task<Void, Never>?
     @State private var scrolledID: String?
+    @State private var stripScrolledID: String?
 
     var body: some View {
         ZStack {
@@ -153,84 +152,89 @@ struct CameraView: View {
 
     private var bottomDeck: some View {
         VStack(spacing: Theme.Spacing.sm) {
+            categoryLine
+            nameStrip
             carousel
-            labelRow
             shutterRow
         }
     }
 
-    private var labelRow: some View {
-        let cellEdge: CGFloat = 72
-        let cellSpacing: CGFloat = 8
-        let neighborOffset: CGFloat = cellEdge + cellSpacing
+    @ViewBuilder
+    private var categoryLine: some View {
         let slot = viewModel.selectedSlot
-        let idx = viewModel.slots.firstIndex(where: { $0.id == slot.id })
-        let leftSlot: CameraSlot? = {
-            guard let idx, idx > 0 else { return nil }
-            return viewModel.slots[idx - 1]
-        }()
-        let rightSlot: CameraSlot? = {
-            guard let idx, idx < viewModel.slots.count - 1 else { return nil }
-            return viewModel.slots[idx + 1]
-        }()
-
-        return ZStack {
-            if let leftSlot {
-                ghostLabel(for: leftSlot)
-                    .offset(x: -neighborOffset)
+        if let categoryText = slot.categoryDisplayName {
+            Button {
+                jumpToNextCategory()
+            } label: {
+                HStack(spacing: 2) {
+                    Text(categoryText)
+                        .font(Theme.Typography.label)
+                        .tracking(2)
+                        .foregroundStyle(Theme.Colors.secondary)
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 8, weight: .semibold))
+                        .foregroundStyle(Theme.Colors.secondary)
+                }
+                .contentShape(Rectangle())
             }
-            if let rightSlot {
-                ghostLabel(for: rightSlot)
-                    .offset(x: neighborOffset)
-            }
-            centeredLabel(for: slot)
+            .buttonStyle(.plain)
+            .frame(height: 16)
+        } else {
+            Color.clear.frame(height: 16)
         }
-        .frame(height: 16)
     }
 
-    @ViewBuilder
-    private func centeredLabel(for slot: CameraSlot) -> some View {
-        let name = Text(slot.displayName.uppercased())
-            .font(Theme.Typography.label)
-            .tracking(2)
-            .foregroundStyle(Theme.Colors.text)
-
-        if let categoryText = slot.categoryDisplayName {
-            HStack(spacing: 6) {
-                Button {
-                    jumpToNextCategory()
-                } label: {
-                    HStack(spacing: 2) {
-                        Text(categoryText)
+    private var nameStrip: some View {
+        let nameCellWidth: CGFloat = 140
+        let selectedIdx = viewModel.slots.firstIndex(where: { $0.id == viewModel.selectedSlotID })
+        return ScrollViewReader { proxy in
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 0) {
+                    ForEach(Array(viewModel.slots.enumerated()), id: \.element.id) { idx, slot in
+                        let distance: Int = {
+                            guard let selectedIdx else { return 0 }
+                            return abs(idx - selectedIdx)
+                        }()
+                        let (color, opacity, scale): (Color, Double, CGFloat) = {
+                            switch distance {
+                            case 0: return (Theme.Colors.text, 1.0, 1.0)
+                            case 1: return (Theme.Colors.secondary, 0.7, 0.9)
+                            case 2: return (Theme.Colors.secondary, 0.35, 0.8)
+                            default: return (Theme.Colors.secondary, 0.0, 0.8)
+                            }
+                        }()
+                        Text(slot.displayName.uppercased())
                             .font(Theme.Typography.label)
                             .tracking(2)
-                            .foregroundStyle(Theme.Colors.secondary)
-                        Image(systemName: "chevron.right")
-                            .font(.system(size: 8, weight: .semibold))
-                            .foregroundStyle(Theme.Colors.secondary)
+                            .foregroundStyle(color)
+                            .opacity(opacity)
+                            .scaleEffect(scale)
+                            .lineLimit(1)
+                            .frame(width: nameCellWidth)
+                            .id(slot.id)
                     }
-                    .contentShape(Rectangle())
                 }
-                .buttonStyle(.plain)
-                Text("·")
-                    .font(Theme.Typography.label)
-                    .tracking(2)
-                    .foregroundStyle(Theme.Colors.secondary)
-                name
+                .scrollTargetLayout()
             }
-        } else {
-            name
+            .scrollTargetBehavior(.viewAligned)
+            .scrollPosition(id: $stripScrolledID, anchor: .center)
+            .frame(height: 24)
+            .onAppear {
+                stripScrolledID = viewModel.selectedSlotID
+                proxy.scrollTo(viewModel.selectedSlotID, anchor: .center)
+            }
+            .onChange(of: stripScrolledID) { _, newID in
+                guard let newID, newID != viewModel.selectedSlotID,
+                      let slot = viewModel.slots.first(where: { $0.id == newID })
+                else { return }
+                viewModel.selectSlot(slot)
+            }
+            .onChange(of: viewModel.selectedSlotID) { _, newID in
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    proxy.scrollTo(newID, anchor: .center)
+                }
+            }
         }
-    }
-
-    @ViewBuilder
-    private func ghostLabel(for slot: CameraSlot) -> some View {
-        Text(slot.displayName.uppercased())
-            .font(Theme.Typography.label)
-            .tracking(2)
-            .foregroundStyle(Theme.Colors.text.opacity(0.4))
-            .scaleEffect(0.85)
-            .opacity(ghostsVisible ? 1 : 0)
     }
 
     @ViewBuilder
@@ -256,23 +260,7 @@ struct CameraView: View {
                 scrolledID = viewModel.selectedSlotID
                 proxy.scrollTo(viewModel.selectedSlotID, anchor: .center)
             }
-            // Guard prevents scroll<->select feedback loop with the
-            // proxy.scrollTo below. Also drives ghost label visibility:
-            // iOS 17 lacks onScrollPhaseChange, so we treat any scrolledID
-            // change as "user is scrubbing" and debounce the fade-out.
             .onChange(of: scrolledID) { _, newID in
-                withAnimation(.easeInOut(duration: 0.12)) {
-                    ghostsVisible = true
-                }
-                ghostHideTask?.cancel()
-                ghostHideTask = Task { @MainActor in
-                    try? await Task.sleep(nanoseconds: 350_000_000)
-                    if !Task.isCancelled {
-                        withAnimation(.easeInOut(duration: 0.25)) {
-                            ghostsVisible = false
-                        }
-                    }
-                }
                 guard let newID, newID != viewModel.selectedSlotID,
                       let slot = viewModel.slots.first(where: { $0.id == newID })
                 else { return }
