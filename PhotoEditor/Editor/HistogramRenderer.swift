@@ -26,7 +26,7 @@ enum HistogramRenderer {
         area.scale = 1.0
         guard let histogramData = area.outputImage else { return nil }
 
-        let display = CIFilter.histogramDisplayFilter()
+        let display = CIFilter.histogramDisplay()
         display.inputImage = histogramData
         display.height = 64
         display.highLimit = 1.0
