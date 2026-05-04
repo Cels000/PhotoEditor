@@ -56,6 +56,17 @@ final class LibraryStore {
         return item
     }
 
+    /// Camera-capture entry point. Inserts a fresh LibraryItem whose stack
+    /// reflects the recipe selected in the viewfinder at shutter time. The
+    /// thumbnail is the cooked preview frame (JPEG bytes) — passing it in
+    /// avoids a re-render via ThumbnailGenerator on first display.
+    @discardableResult
+    func importFromCamera(assetID: String,
+                          stack: AdjustmentStack,
+                          thumbnail: Data?) -> LibraryItem {
+        save(stack: stack, sourceAssetID: assetID, thumbnail: thumbnail)
+    }
+
     /// Update an existing item's stack and (optionally) thumbnail.
     /// Used by EditorViewModel.saveToLibrary() when re-saving an opened item.
     func update(_ item: LibraryItem,
