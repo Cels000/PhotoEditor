@@ -267,6 +267,10 @@ struct CameraView: View {
                 viewModel.selectSlot(slot)
             }
             .onChange(of: viewModel.selectedSlotID) { _, newID in
+                // Skip programmatic scrollTo when the selection change came
+                // from the user's own scroll — otherwise we fight their flick
+                // and the carousel jitters.
+                if scrolledID == newID { return }
                 withAnimation(.easeInOut(duration: 0.2)) {
                     proxy.scrollTo(newID, anchor: .center)
                 }
