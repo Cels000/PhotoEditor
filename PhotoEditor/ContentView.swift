@@ -69,6 +69,12 @@ struct ContentView: View {
             .navigationBarTitleDisplayMode(.inline)
             .tint(Theme.Colors.accent)
             .toolbar(isChromeHidden ? .hidden : .visible, for: .navigationBar)
+            // Make the nav bar visually disappear into the canvas — no system
+            // material strip showing at the top of the screen.
+            .toolbarBackground(Theme.Colors.canvas, for: .navigationBar)
+            .toolbarBackground(.visible, for: .navigationBar)
+            .statusBarHidden(isChromeHidden)
+            .persistentSystemOverlays(isChromeHidden ? .hidden : .automatic)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Button {
