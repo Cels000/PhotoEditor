@@ -120,15 +120,15 @@ struct EditorPresetPickerView: View {
                     Theme.Colors.panel
                 }
             }
-            .frame(width: 56, height: 56)
+            .frame(width: 72, height: 72)
             .clipped()
             Text(recipe.name.uppercased())
                 .font(Theme.Typography.label)
-                .tracking(1.0)
-                .lineLimit(1)
-                .truncationMode(.tail)
+                .lineLimit(2)
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
                 .foregroundStyle(Theme.Colors.text)
-                .frame(width: 64)
+                .frame(width: 76)
         }
         .contentShape(Rectangle())
         .onTapGesture {
