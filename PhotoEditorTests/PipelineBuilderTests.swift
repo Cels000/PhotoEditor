@@ -77,4 +77,60 @@ extension PipelineBuilderTests {
         let out = PipelineBuilder.applyLUT(selection, to: source, cubeResolver: nil)
         XCTAssertEqual(out.extent, source.extent)
     }
+
+    // MARK: - Crop suppression (Task 2)
+
+    func testBuildSuppressingCrop_ignoresCropField() {
+        let source = CIImage(color: CIColor.gray)
+            .cropped(to: CGRect(x: 0, y: 0, width: 100, height: 100))
+        var stack = AdjustmentStack.identity
+        stack.crop.normalizedRect = CGRect(x: 0.25, y: 0.25, width: 0.5, height: 0.5)
+
+        let cropped = PipelineBuilder.build(stack: stack, source: source, cubeResolver: nil)
+        let uncropped = PipelineBuilder.build(stack: stack, source: source, cubeResolver: nil, suppressCrop: true)
+
+        XCTAssertEqual(cropped.extent.width, 50, accuracy: 0.5,
+                       "default build should apply crop normalizedRect")
+        XCTAssertEqual(uncropped.extent.width, 100, accuracy: 0.5,
+                       "suppressCrop:true should skip the crop stage")
+    }
+
+    func testBuildSuppressingCrop_preservesNonCropAdjustments() {
+        let source = CIImage(color: CIColor.gray)
+            .cropped(to: CGRect(x: 0, y: 0, width: 50, height: 50))
+        var stack = AdjustmentStack.identity
+        stack.light.exposure = 0.5
+        stack.crop.normalizedRect = CGRect(x: 0.1, y: 0.1, width: 0.8, height: 0.8)
+
+        let withCrop = PipelineBuilder.build(stack: stack, source: source, cubeResolver: nil)
+        let suppressed = PipelineBuilder.build(stack: stack, source: source, cubeResolver: nil, suppressCrop: true)
+
+        // Both should have +0.5 exposure applied. Sample average brightness.
+        let ctx = CIContext(options: [.useSoftwareRenderer: true])
+        guard let withCG = ctx.createCGImage(withCrop, from: withCrop.extent),
+              let suppressedCG = ctx.createCGImage(suppressed, from: suppressed.extent) else {
+            XCTFail("CIContext rendering failed")
+            return
+        }
+        XCTAssertEqual(averagePixel(withCG), averagePixel(suppressedCG), accuracy: 0.05,
+                       "non-crop adjustments must be identical between cropped and suppressed paths")
+    }
+
+    private func averagePixel(_ cg: CGImage) -> Double {
+        let bpr = cg.width * 4
+        var data = [UInt8](repeating: 0, count: bpr * cg.height)
+        let cs = CGColorSpaceCreateDeviceRGB()
+        let ctx = CGContext(data: &data, width: cg.width, height: cg.height,
+                            bitsPerComponent: 8, bytesPerRow: bpr,
+                            space: cs, bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)!
+        ctx.draw(cg, in: CGRect(x: 0, y: 0, width: cg.width, height: cg.height))
+        var total: Double = 0
+        let count = cg.width * cg.height
+        for i in 0..<count {
+            total += Double(data[i*4]) / 255
+            total += Double(data[i*4+1]) / 255
+            total += Double(data[i*4+2]) / 255
+        }
+        return total / Double(count * 3)
+    }
 }

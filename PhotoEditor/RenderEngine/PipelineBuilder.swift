@@ -14,7 +14,10 @@ typealias CubeResolver = (String) -> ColorCubeData?
 enum PipelineBuilder {
 
     /// Top-level entry point. Pure: same inputs always produce the same output.
-    static func build(stack: AdjustmentStack, source: CIImage, cubeResolver: CubeResolver? = nil) -> CIImage {
+    static func build(stack: AdjustmentStack,
+                      source: CIImage,
+                      cubeResolver: CubeResolver? = nil,
+                      suppressCrop: Bool = false) -> CIImage {
         var img = source
         img = applyLUT(stack.filter, to: img, cubeResolver: cubeResolver)  // 1. Phase 2
         img = applyLight(stack.light, to: img)            // 2. Phase 1
@@ -25,7 +28,9 @@ enum PipelineBuilder {
         img = applyGrain(stack.grain, to: img)            // 7. Phase 3
         img = applyVignette(stack.vignette, to: img)      // 8. Phase 3
         img = applySharpness(stack.sharpness, to: img)    // 9. Phase 3
-        img = applyCrop(stack.crop, to: img)              // 10. Phase 3
+        if !suppressCrop {
+            img = applyCrop(stack.crop, to: img)          // 10. Phase 3 (skipped when masking)
+        }
         return img
     }
 
