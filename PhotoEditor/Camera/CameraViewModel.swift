@@ -181,17 +181,37 @@ final class CameraViewModel {
         slots.first(where: { $0.id == selectedSlotID }) ?? .original
     }
 
-    func selectSlot(_ slot: CameraSlot) {
+    /// Select a carousel slot. `updateRecents` defaults true for explicit
+    /// taps; the scroll-driven binding in `CameraView.presetStrip` passes
+    /// `false` so the recents section doesn't re-order under the user's
+    /// finger while they're flicking the carousel — that mid-scroll reorder
+    /// repositions cells in `displayedSlots`, which the SwiftUI ScrollView
+    /// experiences as items shifting around the visible viewport, producing
+    /// the visible jank. Recents now update only on tap (intentional pick)
+    /// and on `bumpSelectedIntoRecents()` after a successful capture.
+    func selectSlot(_ slot: CameraSlot, updateRecents: Bool = true) {
         selectedSlotID = slot.id
         userDefaults.set(slot.id, forKey: Self.lastSlotKey)
-        if slot.id != CameraSlot.originalID {
-            var updated = recentSlotIDs.filter { $0 != slot.id }
-            updated.insert(slot.id, at: 0)
-            if updated.count > 4 { updated = Array(updated.prefix(4)) }
-            recentSlotIDs = updated
-            if let encoded = try? JSONEncoder().encode(updated) {
-                userDefaults.set(encoded, forKey: Self.recentSlotIDsKey)
-            }
+        if updateRecents {
+            bumpRecents(for: slot.id)
+        }
+    }
+
+    /// Promote the currently-selected slot into the recents section. Called
+    /// from the capture flow so the user's actually-used preset shows up at
+    /// the front of recents even if they reached it by scrolling.
+    func bumpSelectedIntoRecents() {
+        bumpRecents(for: selectedSlotID)
+    }
+
+    private func bumpRecents(for slotID: String) {
+        guard slotID != CameraSlot.originalID else { return }
+        var updated = recentSlotIDs.filter { $0 != slotID }
+        updated.insert(slotID, at: 0)
+        if updated.count > 4 { updated = Array(updated.prefix(4)) }
+        recentSlotIDs = updated
+        if let encoded = try? JSONEncoder().encode(updated) {
+            userDefaults.set(encoded, forKey: Self.recentSlotIDsKey)
         }
     }
 
@@ -240,6 +260,10 @@ final class CameraViewModel {
             stack: .identity,
             thumbnail: thumb
         )
+        // Recents now reorder on capture (intentional use), not on every
+        // scroll-driven slot change. Keeps the carousel from reflowing under
+        // the user's finger while flicking through presets.
+        bumpSelectedIntoRecents()
     }
 
     private static func makeThumbnail(from heic: Data) -> Data? {

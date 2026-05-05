@@ -443,7 +443,13 @@ struct CameraView: View {
                 guard let newID, newID != viewModel.selectedSlotID,
                       let slot = viewModel.displayedSlots.first(where: { $0.id == newID })
                 else { return }
-                viewModel.selectSlot(slot)
+                // Scroll-driven select: don't reorder recents — that would
+                // reflow `displayedSlots` mid-scroll and yank cells out from
+                // under the user's finger. Tap-driven selects still reorder
+                // (default `updateRecents: true`), and `capture()` calls
+                // `bumpSelectedIntoRecents` so the actually-used preset
+                // surfaces in recents after the shot.
+                viewModel.selectSlot(slot, updateRecents: false)
             }
             .onChange(of: viewModel.selectedSlotID) { _, newID in
                 // Skip programmatic scrollTo when the selection change came
