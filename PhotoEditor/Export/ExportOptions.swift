@@ -95,15 +95,25 @@ public struct ExportOptions: Codable, Equatable {
     public var size: ExportSize
     /// Compression quality in 0.0...1.0. Only meaningful when `format.supportsQuality` is true.
     public var quality: Double
+    /// HDR HEIC export. When true and `format == .heic`, the export pipeline:
+    ///   1. Renders into an extended-linear Display P3 working buffer (no
+    ///      highlight clamp), so EDR data from ProRAW survives end-to-end.
+    ///   2. Encodes 10-bit HEIC tagged with `displayP3_HLG`, which iOS
+    ///      Photos and other HDR-aware viewers light up on the EDR display.
+    /// Falls back to standard SDR encode if format != heic. Honored only by
+    /// the editor export path; camera capture stays SDR for now.
+    public var hdr: Bool
 
     public init(
         format: ExportFormat = .heic,
         size: ExportSize = .full,
-        quality: Double = 0.85
+        quality: Double = 0.85,
+        hdr: Bool = false
     ) {
         self.format = format
         self.size = size
         self.quality = quality
+        self.hdr = hdr
     }
 
     /// Default export options: HEIC, full resolution, quality 0.85.

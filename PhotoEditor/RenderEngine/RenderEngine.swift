@@ -1,5 +1,6 @@
 import CoreImage
 import Foundation
+import ImageIO
 import Metal
 
 enum RenderError: Error {
@@ -16,6 +17,12 @@ actor RenderEngine {
 
     private let previewContext: CIContext
     private let exportContext: CIContext
+    /// HDR-capable export context. Same Metal device, same working space, but
+    /// outputs into `extendedLinearDisplayP3` so values >1.0 (EDR highlights
+    /// from ProRAW or scenes that pushed past clip in linear working space)
+    /// survive into the encoded HEIC instead of being clamped to displayP3.
+    /// Only used by the HDR export branch; preview always renders SDR.
+    private let hdrExportContext: CIContext
 
     /// Caller-side preview cap. The caller is responsible for downsampling sources
     /// to this size before invoking `renderPreview`. Documented here so the constant
@@ -38,6 +45,14 @@ actor RenderEngine {
 
         self.previewContext = CIContext(mtlDevice: device, options: options)
         self.exportContext = CIContext(mtlDevice: device, options: options)
+
+        let hdrOutputSpace = CGColorSpace(name: CGColorSpace.extendedLinearDisplayP3)!
+        let hdrOptions: [CIContextOption: Any] = [
+            .workingColorSpace: workingSpace,
+            .outputColorSpace: hdrOutputSpace,
+            .useSoftwareRenderer: false
+        ]
+        self.hdrExportContext = CIContext(mtlDevice: device, options: hdrOptions)
     }
 
     /// Preview render. Caller MUST pass a source already downsampled to
@@ -94,5 +109,50 @@ actor RenderEngine {
             throw RenderError.outputEmpty
         }
         return cg
+    }
+
+    /// Build the full pipeline CIImage and encode it as 10-bit HLG-tagged HEIC.
+    /// Working space stays `extendedLinearSRGB` so EDR highlight values >1.0
+    /// survive the chain; the encoder converts that linear extended-range
+    /// buffer into the HLG transfer curve as it writes the HEIC bytes. The
+    /// resulting file is recognized by Photos / Preview as HDR and lights up
+    /// the EDR display.
+    ///
+    /// `targetLongEdge` lets the caller request a downscale at encode time
+    /// (so HDR export still honors the size preset). Pass `nil` for full-res.
+    func renderExportHDRData(document: EditDocument,
+                             source: CIImage,
+                             cubeResolver: CubeResolver? = nil,
+                             maskResult: SubjectMaskResult? = nil,
+                             targetLongEdge: Int?,
+                             quality: Double) throws -> Data {
+        var chain = PipelineBuilder.build(
+            document: document,
+            source: source,
+            cubeResolver: cubeResolver,
+            maskResult: maskResult
+        )
+
+        if let targetLongEdge {
+            let extent = chain.extent
+            let longEdge = max(extent.width, extent.height)
+            let scale = Double(targetLongEdge) / Double(longEdge)
+            if scale < 1.0 {
+                chain = chain.transformed(by: CGAffineTransform(scaleX: scale, y: scale))
+            }
+        }
+
+        guard let hlgSpace = CGColorSpace(name: CGColorSpace.displayP3_HLG) else {
+            throw RenderError.outputEmpty
+        }
+        let qualityKey = CIImageRepresentationOption(
+            rawValue: kCGImageDestinationLossyCompressionQuality as String
+        )
+        let opts: [CIImageRepresentationOption: Any] = [
+            qualityKey: max(0, min(1, quality))
+        ]
+        return try hdrExportContext.heif10Representation(of: chain,
+                                                         colorSpace: hlgSpace,
+                                                         options: opts)
     }
 }

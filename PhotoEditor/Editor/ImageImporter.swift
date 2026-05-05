@@ -23,6 +23,12 @@ struct ImportedImage {
     let exportCIImage: CIImage
     let pixelSize: CGSize           // full-res oriented size
     let sourceAssetID: String?      // PHAsset localIdentifier; nil for picker-imported / no-asset paths
+    /// True when the import bytes were a recognized RAW format and decoded
+    /// through CIRAWFilter. Export uses this to override the embedded preview's
+    /// (often sRGB) ICC tag and force Display P3 output — RAW captures wide
+    /// gamut data, and tagging the export with the embedded JPEG preview's
+    /// narrow gamut throws away exactly the fidelity the user shot RAW for.
+    let wasRawSource: Bool
     /// Stable per-import identity. Used as the mask-cache key fallback when
     /// `sourceAssetID` is nil — distinct imports never collide, even within the
     /// lifetime of a single EditorViewModel.
@@ -71,19 +77,23 @@ enum ImageImporter {
         // mapped into the working [0,1] domain. No-op on traditional RAW
         // formats that don't carry EDR data.
         let oriented: CIImage
+        let wasRaw: Bool
         if let rawFilter = CIRAWFilter(imageData: data, identifierHint: nil) {
             rawFilter.boostShadowAmount = 0.5
             rawFilter.extendedDynamicRangeAmount = 1.0
             if let rawOutput = rawFilter.outputImage {
                 oriented = rawOutput.oriented(forExifOrientation: exifOrientation)
+                wasRaw = true
             } else {
                 // CIRAWFilter created but couldn't produce output (corrupt /
                 // partially-supported variant) — fall back to the standard
                 // decoder, which usually has a baseline preview embedded.
                 oriented = try standardDecode(data: data, exifOrientation: exifOrientation)
+                wasRaw = false
             }
         } else {
             oriented = try standardDecode(data: data, exifOrientation: exifOrientation)
+            wasRaw = false
         }
 
         // Downsample for preview (≤1080px long edge).
@@ -94,7 +104,8 @@ enum ImageImporter {
             previewCIImage: preview,
             exportCIImage: oriented,
             pixelSize: oriented.extent.size,
-            sourceAssetID: nil
+            sourceAssetID: nil,
+            wasRawSource: wasRaw
         )
     }
 
@@ -142,7 +153,8 @@ enum ImageImporter {
             previewCIImage: base.previewCIImage,
             exportCIImage: base.exportCIImage,
             pixelSize: base.pixelSize,
-            sourceAssetID: assetID
+            sourceAssetID: assetID,
+            wasRawSource: base.wasRawSource
         )
     }
 

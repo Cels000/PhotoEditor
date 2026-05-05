@@ -187,7 +187,8 @@ final class EditorViewModel {
                 previewCIImage: baseImported.previewCIImage,
                 exportCIImage: baseImported.exportCIImage,
                 pixelSize: baseImported.pixelSize,
-                sourceAssetID: sourceAssetID
+                sourceAssetID: sourceAssetID,
+                wasRawSource: baseImported.wasRawSource
             )
             // Reset to identity so the new photo starts unedited.
             self.document = .identity
@@ -280,6 +281,30 @@ final class EditorViewModel {
         isExporting = true
         defer { isExporting = false }
 
+        // HDR HEIC branch: bypass the SDR encoder. The HDR render path keeps
+        // working-space EDR values >1.0 alive through to the 10-bit HLG encode,
+        // so highlights that ProRAW captured (or that LUTs / curves pushed past
+        // SDR clip) actually appear bright on the EDR display. SDR formats and
+        // hdr=false fall through to the standard ExportService.encode path.
+        if options.hdr && options.format == .heic {
+            let resolvedLongEdge = options.size.resolve(
+                sourceLongEdge: Int(max(imported.exportCIImage.extent.width,
+                                        imported.exportCIImage.extent.height))
+            )
+            let snapshotDocument = self.document
+            let snapshotSource = imported.exportCIImage
+            let resolver = makeCubeResolver()
+            let snapshotMask = self.currentMaskResult
+            return try await engine.renderExportHDRData(
+                document: snapshotDocument,
+                source: snapshotSource,
+                cubeResolver: resolver,
+                maskResult: snapshotMask,
+                targetLongEdge: resolvedLongEdge,
+                quality: options.quality
+            )
+        }
+
         // Full-res render on the engine actor.
         let cg = try await engine.renderExport(
             document: document,
@@ -289,8 +314,17 @@ final class EditorViewModel {
         )
 
         // Read source metadata + color space from the raw bytes (preserves EXIF dictionaries).
-        let (sourceProps, sourceCS) = Self.readSourceMetadata(from: imported.sourceData)
+        let (sourceProps, sourceCSFromBytes) = Self.readSourceMetadata(from: imported.sourceData)
             ?? ([:], imported.exportCIImage.colorSpace)
+
+        // RAW gamut preservation: when the source was a RAW capture, the
+        // embedded preview JPEG is often sRGB, but the actual decoded RAW
+        // pixels are wide-gamut and the render output is Display P3. Tagging
+        // the export as sRGB would throw away exactly the gamut the user
+        // shot RAW for. Force Display P3 in that case.
+        let sourceCS: CGColorSpace? = imported.wasRawSource
+            ? CGColorSpace(name: CGColorSpace.displayP3)
+            : sourceCSFromBytes
 
         // Encode off the main actor (CGImageDestination + Lanczos resize is CPU-heavy).
         let data: Data = try await Task.detached(priority: .userInitiated) {

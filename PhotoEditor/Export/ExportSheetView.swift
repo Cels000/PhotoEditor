@@ -8,6 +8,7 @@ struct ExportSheetView: View {
     @State private var sizeChoice: SizeChoice = .full
     @State private var customLongEdge: String = "2048"
     @State private var quality: Double = 0.85
+    @State private var hdr: Bool = false
 
     enum SizeChoice: Hashable, CaseIterable {
         case full, web, story, custom
@@ -63,6 +64,16 @@ struct ExportSheetView: View {
                                 .tint(Theme.Colors.accent)
                             Text("\(Int(quality * 100))%").monospacedDigit().frame(width: 50, alignment: .trailing)
                         }
+                    }
+                }
+
+                if format == .heic {
+                    Section {
+                        Toggle("HDR", isOn: $hdr)
+                            .tint(Theme.Colors.accent)
+                        Text("10-bit HLG-tagged HEIC. Brightens highlights on the iPhone HDR display, especially for ProRAW captures.")
+                            .font(Theme.Typography.caption)
+                            .foregroundStyle(Theme.Colors.secondary)
                     }
                 }
 
@@ -123,6 +134,7 @@ struct ExportSheetView: View {
     }
 
     private var resolvedOptions: ExportOptions {
-        ExportOptions(format: format, size: resolvedSize, quality: quality)
+        ExportOptions(format: format, size: resolvedSize, quality: quality,
+                      hdr: hdr && format == .heic)
     }
 }
