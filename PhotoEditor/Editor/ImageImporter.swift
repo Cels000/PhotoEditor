@@ -70,6 +70,13 @@ enum ImageImporter {
         // highlight headroom that ProRAW captures. 1.0 = full extended range
         // mapped into the working [0,1] domain. No-op on traditional RAW
         // formats that don't carry EDR data.
+        // Caller's value wins (PHImageManager's callback is authoritative —
+        // `requestImageDataAndOrientation` strips/normalizes the EXIF tag in
+        // the bytes for HEIC, so the callback parameter is the only reliable
+        // signal). Falls back to a CGImageSource read for picker/file paths.
+        let exifOrientation: Int32 = explicitEXIFOrientation
+            ?? readEXIFOrientation(from: data)
+
         let oriented: CIImage
         let wasRaw: Bool
         if let rawFilter = CIRAWFilter(imageData: data, identifierHint: nil) {
@@ -78,18 +85,14 @@ enum ImageImporter {
             if let rawOutput = rawFilter.outputImage {
                 // CIRAWFilter outputs in sensor-native orientation (its
                 // `orientation` property defaults to .up). Apply EXIF on top.
-                // Caller's value wins (PHImageManager's callback is more
-                // reliable than container EXIF on Photos-edited assets);
-                // fall back to a CGImageSource read of the bytes.
-                let exifOrientation = explicitEXIFOrientation ?? readEXIFOrientation(from: data)
                 oriented = rawOutput.oriented(forExifOrientation: exifOrientation)
                 wasRaw = true
             } else {
-                oriented = try standardDecode(data: data)
+                oriented = try standardDecode(data: data, exifOrientation: exifOrientation)
                 wasRaw = false
             }
         } else {
-            oriented = try standardDecode(data: data)
+            oriented = try standardDecode(data: data, exifOrientation: exifOrientation)
             wasRaw = false
         }
 
@@ -160,16 +163,18 @@ enum ImageImporter {
         return false
     }
 
-    /// Standard (non-RAW) decode. `applyOrientationProperty: true` makes
-    /// Core Image apply the EXIF orientation to the bitmap and remove the
-    /// orientation key from the resulting properties dict — i.e., the
-    /// returned CIImage is already upright. Calling `.oriented(...)` again
-    /// here would double-rotate (this was the recurring 90°-sideways bug).
-    private static func standardDecode(data: Data) throws -> CIImage {
-        guard let raw = CIImage(data: data, options: [.applyOrientationProperty: true]) else {
+    /// Standard (non-RAW) decode. Decodes to a known sensor-native bitmap
+    /// (`applyOrientationProperty: false`) and applies the caller-supplied
+    /// EXIF orientation explicitly. Avoids the long-running ambiguity around
+    /// `applyOrientationProperty: true`, whose effect depends on whether
+    /// the source bytes carry an EXIF tag — which Photos'
+    /// `requestImageDataAndOrientation` strips for HEIC, leaving iPhone
+    /// portrait shots sensor-sideways when relying on auto-apply.
+    private static func standardDecode(data: Data, exifOrientation: Int32) throws -> CIImage {
+        guard let raw = CIImage(data: data, options: [.applyOrientationProperty: false]) else {
             throw ImageImportError.invalidImageData
         }
-        return raw
+        return raw.oriented(forExifOrientation: exifOrientation)
     }
 
     /// Reads EXIF orientation from a container's metadata via CGImageSource.
