@@ -14,6 +14,7 @@ import CoreImage
 import Foundation
 import ImageIO
 import Photos
+import UIKit
 
 /// Result of importing photo bytes — both a downsampled preview and the full-res
 /// oriented source. `sourceData` is retained for re-loading on export if needed.
@@ -163,24 +164,61 @@ enum ImageImporter {
         return false
     }
 
-    /// Standard (non-RAW) decode path. Deliberately does NOT pass
-    /// `.applyOrientationProperty: true` — its effect on the post-decode
-    /// `raw.properties` orientation key has been observed inconsistently
-    /// across iOS versions / capture sources (sometimes it bakes the rotation
-    /// AND clears the property to 1, sometimes it leaves the property at the
-    /// source EXIF, sometimes it doesn't bake at all). The double-rotate
-    /// vs. no-rotate ambiguity is what was leaving portrait photos sideways.
+    /// Standard (non-RAW) decode path. Routes through `UIImage(data:)` and
+    /// `UIGraphicsImageRenderer` to bake orientation into the bitmap before
+    /// wrapping as CIImage. UIImage is the same orientation-handling code
+    /// path that produces correct portrait photos in every iOS app —
+    /// reusing it bypasses every CIImage `.applyOrientationProperty` /
+    /// `.oriented(forExifOrientation:)` ambiguity we've been chasing.
     ///
-    /// Without the option, `CIImage(data:)` returns pixels in sensor-storage
-    /// orientation. We then read the source EXIF directly from the container
-    /// (always returns the original source value, no Core Image ambiguity)
-    /// and apply via `.oriented(forExifOrientation:)`. Predictable.
+    /// `exifOrientation` (the explicit override from PHImageManager's
+    /// callback parameter) is honored when UIImage's own EXIF read returned
+    /// `.up` but the caller knows otherwise — Photos can hand back data
+    /// with the EXIF tag stripped while still indicating rotation via the
+    /// callback parameter.
+    ///
+    /// Cost: a full-resolution CPU redraw at import. Done once per import,
+    /// not per render — fine on iPhone for the deterministic-correctness
+    /// benefit.
     private static func standardDecode(data: Data, exifOrientation: Int32) throws -> CIImage {
-        guard let raw = CIImage(data: data) else {
+        guard let decoded = UIImage(data: data) else {
             throw ImageImportError.invalidImageData
         }
-        return raw.oriented(forExifOrientation: exifOrientation)
+        // If the decoded UIImage's own orientation says `.up` but the caller
+        // gave us a real EXIF value, splice it in so the redraw applies it.
+        // (Photos.app strips EXIF on edited assets — UIImage(data:) then
+        // reads .up; the PHImageManager callback's orientation parameter
+        // is the actual truth.)
+        let oriented: UIImage
+        if decoded.imageOrientation == .up,
+           let cg = decoded.cgImage,
+           let exifEnum = CGImagePropertyOrientation(rawValue: UInt32(exifOrientation)) {
+            let uiOrientation = UIImage.Orientation(exifEnum)
+            if uiOrientation != .up {
+                oriented = UIImage(cgImage: cg, scale: decoded.scale, orientation: uiOrientation)
+            } else {
+                oriented = decoded
+            }
+        } else {
+            oriented = decoded
+        }
+
+        // Bake orientation into the bitmap by drawing into a renderer the
+        // size of the *displayed* image (UIImage.size already reflects the
+        // applied orientation, e.g. portrait for portrait photos).
+        let format = UIGraphicsImageRendererFormat.default()
+        format.scale = oriented.scale
+        format.opaque = true
+        let renderer = UIGraphicsImageRenderer(size: oriented.size, format: format)
+        let upright = renderer.image { _ in
+            oriented.draw(in: CGRect(origin: .zero, size: oriented.size))
+        }
+        guard let ci = CIImage(image: upright) else {
+            throw ImageImportError.invalidImageData
+        }
+        return ci
     }
+
 
     /// Reads EXIF orientation from a container's metadata via CGImageSource.
     /// Used by the RAW branch where CIRAWFilter's output doesn't expose the
