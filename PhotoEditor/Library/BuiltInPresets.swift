@@ -32,7 +32,7 @@ import Foundation
 
 enum BuiltInPresets {
 
-    private static let seedKey = "builtInPresetsSeeded.v12"
+    private static let seedKey = "builtInPresetsSeeded.v13"
 
     /// Old preset name → new preset name. v9 swap renames so each preset's
     /// title matches the underlying bundled LUT (Polaroid 600 was using a
@@ -58,7 +58,8 @@ enum BuiltInPresets {
     /// — user-renamed items are preserved). Used to clean up the redundant
     /// Dusk 01/03/05 cubes that mid-grey-sampling showed were near-duplicates.
     private static let removedNames: Set<String> = [
-        "Dusk 01", "Dusk 03", "Dusk 05"
+        "Dusk 01", "Dusk 03", "Dusk 05",
+        "Warm Fade", "Cool Cine", "Noir B&W", "Sepia"
     ]
 
     /// Insert (and update) built-in presets the first time we see this device on
@@ -116,7 +117,7 @@ enum BuiltInPresets {
                 inserted += 1
             }
         }
-        NSLog("PhotoEditor: BuiltInPresets seed v11 — renamed \(renamed), removed \(removed), inserted \(inserted), updated \(updated) of \(all.count)")
+        NSLog("PhotoEditor: BuiltInPresets seed v13 — renamed \(renamed), removed \(removed), inserted \(inserted), updated \(updated) of \(all.count)")
         defaults.set(true, forKey: seedKey)
     }
 
@@ -180,21 +181,8 @@ enum BuiltInPresets {
     }
 
     private static var all: [Preset] {
-        defaults + colorFilm + bwFilm + era + modern
+        colorFilm + bwFilm + era + modern
     }
-
-    // MARK: Default — surface the bundled LUTs as one-tap recipes
-
-    private static let defaults: [Preset] = [
-        Preset(name: "Warm Fade", category: .default,
-               stack: stack(filterID: BuiltInLUTs.ID.warmFade)),
-        Preset(name: "Cool Cine", category: .default,
-               stack: stack(filterID: BuiltInLUTs.ID.cinematicCool)),
-        Preset(name: "Noir B&W", category: .default,
-               stack: stack(filterID: BuiltInLUTs.ID.noir)),
-        Preset(name: "Sepia", category: .default,
-               stack: stack(filterID: BuiltInLUTs.ID.sepia))
-    ]
 
     // MARK: Color Film
     //
@@ -963,6 +951,42 @@ enum BuiltInPresets {
     // (40-60% in After Effects), so its strength stays low.
 
     private static let modern: [Preset] = [
+
+        // Bleach Bypass — silver-retention process. High contrast desaturated
+        // look, crushed shadows, hot highlights, slight cool shift. Saving
+        // Private Ryan, Three Kings, Minority Report. No LUT — pure math.
+        Preset(name: "Bleach Bypass", category: .modern, stack: {
+            var s = AdjustmentStack()
+            s.color.saturation = -0.55
+            s.color.vibrance = -0.10
+            s.color.temperature = -0.04
+            s.light.contrast = 0.30
+            s.light.shadows = -0.18
+            s.light.highlights = -0.05
+            s.light.blacks = -0.15
+            s.light.whites = 0.10
+            s.hsl.red.saturation = -0.20
+            s.hsl.orange.saturation = -0.30
+            s.hsl.yellow.saturation = -0.35
+            s.hsl.green.saturation = -0.40
+            s.hsl.aqua.saturation = -0.30
+            s.hsl.blue.saturation = -0.20
+            s.hsl.purple.saturation = -0.30
+            s.hsl.magenta.saturation = -0.30
+            s.splitToning.shadowHue = 210
+            s.splitToning.shadowSaturation = 0.20
+            s.splitToning.highlightHue = 35
+            s.splitToning.highlightSaturation = 0.10
+            s.sharpness = 0.20
+            s.curves.rgb.points = [
+                CurvePoint(x: 0.0, y: 0.00),
+                CurvePoint(x: 0.25, y: 0.13),
+                CurvePoint(x: 0.5, y: 0.50),
+                CurvePoint(x: 0.75, y: 0.88),
+                CurvePoint(x: 1.0, y: 1.00)
+            ]
+            return s
+        }()),
 
         // Cinematic Teal — orange-skin / teal-shadow Hollywood grade. Lifts
         // and cools shadows, warms midtones. Looks great on outdoor portraits

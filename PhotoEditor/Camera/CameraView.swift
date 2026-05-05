@@ -19,6 +19,8 @@ struct CameraView: View {
     @State private var hideSliderTask: Task<Void, Never>?
     @State private var scrolledID: String?
     @State private var showPresetGrid: Bool = false
+    @State private var showSaveRecipe: Bool = false
+    @State private var comparing: Bool = false
     @State private var shutterFlash: Bool = false
     @State private var shutterPress: Bool = false
 
@@ -77,6 +79,17 @@ struct CameraView: View {
             CameraPresetGridView(viewModel: viewModel)
                 .presentationDetents([.large])
                 .presentationDragIndicator(.visible)
+        }
+        .sheet(isPresented: $showSaveRecipe) {
+            RecipeNamePromptView(
+                title: "Save Recipe",
+                initialName: viewModel.selectedSlot.displayName,
+                onSubmit: { name in
+                    viewModel.saveCurrentAsRecipe(named: name)
+                    showSaveRecipe = false
+                },
+                onCancel: { showSaveRecipe = false }
+            )
         }
     }
 
@@ -261,6 +274,16 @@ struct CameraView: View {
                     .foregroundStyle(Theme.Colors.secondary)
                     .frame(width: 44, alignment: .trailing)
                     .monospacedDigit()
+                Button {
+                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                    showSaveRecipe = true
+                } label: {
+                    Image(systemName: "bookmark")
+                        .font(.system(size: 16, weight: .medium))
+                        .foregroundStyle(Theme.Colors.text)
+                        .frame(width: 32, height: 32)
+                }
+                .buttonStyle(.plain)
             }
             .padding(.horizontal, Theme.Spacing.lg)
             .frame(height: 28)
@@ -466,11 +489,42 @@ struct CameraView: View {
                             .padding(.trailing, Theme.Spacing.md)
                     }
                 }
+                VStack {
+                    Text("ORIGINAL")
+                        .font(Theme.Typography.label)
+                        .tracking(2)
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                        .background(.black.opacity(0.5))
+                        .clipShape(Capsule())
+                        .padding(.top, Theme.Spacing.md)
+                        .opacity(comparing ? 1 : 0)
+                        .animation(.easeInOut(duration: 0.15), value: comparing)
+                    Spacer()
+                }
             }
             .contentShape(Rectangle())
             .onTapGesture { location in
                 handleTap(at: location, in: geo.size)
             }
+            .gesture(
+                LongPressGesture(minimumDuration: 0.4)
+                    .sequenced(before: DragGesture(minimumDistance: 0))
+                    .onChanged { value in
+                        if case .second(true, _) = value, !comparing {
+                            comparing = true
+                            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                            renderer.setStack(.identity)
+                        }
+                    }
+                    .onEnded { _ in
+                        if comparing {
+                            comparing = false
+                            renderer.setStack(viewModel.effectiveStack)
+                        }
+                    }
+            )
         }
     }
 

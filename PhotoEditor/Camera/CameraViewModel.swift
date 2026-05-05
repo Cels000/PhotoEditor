@@ -239,4 +239,22 @@ final class CameraViewModel {
         thumbnailer?.stop()
         thumbnailer = nil
     }
+
+    /// Persist the current preset+intensity combo as a new recipe so the
+    /// scaled-down look becomes a one-tap entry. Saves the *effective* stack
+    /// (intensity baked in) so the new recipe IS that look at 100%.
+    func saveCurrentAsRecipe(named name: String) {
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        let baked = effectiveStack
+        let saved = recipeStore.save(name: trimmed, stack: baked, thumbnail: nil)
+        slots = CameraSlot.build(from: recipeStore.items)
+        thumbnailer?.setSlots(slots)
+        if let newSlot = slots.first(where: {
+            if case .recipe(let item) = $0 { return item.id == saved.id }
+            return false
+        }) {
+            selectSlot(newSlot)
+        }
+    }
 }
