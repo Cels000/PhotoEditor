@@ -192,13 +192,9 @@ enum ImageImporter {
         let oriented: UIImage
         if decoded.imageOrientation == .up,
            let cg = decoded.cgImage,
-           let exifEnum = CGImagePropertyOrientation(rawValue: UInt32(exifOrientation)) {
-            let uiOrientation = UIImage.Orientation(exifEnum)
-            if uiOrientation != .up {
-                oriented = UIImage(cgImage: cg, scale: decoded.scale, orientation: uiOrientation)
-            } else {
-                oriented = decoded
-            }
+           let uiOrientation = uiImageOrientation(fromEXIF: exifOrientation),
+           uiOrientation != .up {
+            oriented = UIImage(cgImage: cg, scale: decoded.scale, orientation: uiOrientation)
         } else {
             oriented = decoded
         }
@@ -219,6 +215,22 @@ enum ImageImporter {
         return ci
     }
 
+    /// Map an EXIF orientation tag (1...8) to UIImage.Orientation. Apple's
+    /// two enums use different raw values, so the mapping is by case, not
+    /// by number.
+    private static func uiImageOrientation(fromEXIF exif: Int32) -> UIImage.Orientation? {
+        switch exif {
+        case 1: return .up
+        case 2: return .upMirrored
+        case 3: return .down
+        case 4: return .downMirrored
+        case 5: return .leftMirrored
+        case 6: return .right
+        case 7: return .rightMirrored
+        case 8: return .left
+        default: return nil
+        }
+    }
 
     /// Reads EXIF orientation from a container's metadata via CGImageSource.
     /// Used by the RAW branch where CIRAWFilter's output doesn't expose the
