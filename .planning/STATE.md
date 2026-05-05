@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-05-03)
 Phase: 1 of 7 (Rendering Foundation)
 Plan: 0 of TBD in current phase
 Status: Ready to plan
-Last activity: 2026-05-04 — Completed quick task 260504-mgz: add histogram overlay
+Last activity: 2026-05-05 — Completed quick task 260505-e3t: research RGB histogram only shows red channel
 
 Progress: [██░░░░░░░░] 20%
 
@@ -183,6 +183,7 @@ None yet.
 | # | Description | Date | Commit | Directory |
 |---|-------------|------|--------|-----------|
 | 260504-mgz | add histogram overlay | 2026-05-04 | b190a70 | [260504-mgz-add-histogram-overlay](./quick/260504-mgz-add-histogram-overlay/) |
+| 260505-e3t | research RGB histogram only shows red channel | 2026-05-05 | 1485bce | [260505-e3t-research-rgb-histogram-only-shows-red-ch](./quick/260505-e3t-research-rgb-histogram-only-shows-red-ch/) |
 
 ## Session Continuity
 
