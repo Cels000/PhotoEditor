@@ -1,12 +1,19 @@
 import SwiftUI
 import UIKit
 
-/// VSCO-flavored chrome around the histogram bitmap. Fixed 120x80pt; pass-through
-/// hit testing so the canvas tap-to-hide-chrome gesture still works underneath.
+/// VSCO-flavored chrome around the histogram bitmap. Pass-through hit
+/// testing so the canvas tap-to-hide-chrome gesture still works underneath.
+/// Sized as a fraction of the screen width (capped) so it's actually
+/// readable on a modern phone — the original 120x80pt felt postage-stamp
+/// on a Pro Max.
 struct HistogramOverlayView: View {
     let image: UIImage?
 
     var body: some View {
+        let screenW = UIScreen.main.bounds.width
+        let width: CGFloat = min(260, max(160, screenW * 0.32))
+        let height: CGFloat = width * 0.62  // ~5:3 ratio, matches Lightroom
+
         ZStack {
             RoundedRectangle(cornerRadius: Theme.Radii.small)
                 .fill(Theme.Colors.canvas.opacity(0.55))
@@ -23,7 +30,7 @@ struct HistogramOverlayView: View {
                     .padding(Theme.Spacing.xs)
             }
         }
-        .frame(width: 120, height: 80)
+        .frame(width: width, height: height)
         .accessibilityLabel("RGB histogram")
         .allowsHitTesting(false)
     }

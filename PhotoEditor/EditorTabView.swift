@@ -238,7 +238,7 @@ struct EditorTabView: View {
     // MARK: - Canvas
 
     private var editorPreview: some View {
-        ZStack {
+        ZStack(alignment: .bottomLeading) {
             Theme.Colors.canvas.ignoresSafeArea()
 
             if isSplitCompareActive,
@@ -276,17 +276,20 @@ struct EditorTabView: View {
                                 .padding(Theme.Spacing.md)
                         }
                     }
-                    .overlay(alignment: .bottomLeading) {
-                        if viewModel.isHistogramVisible, viewModel.importedImage != nil {
-                            HistogramOverlayView(image: viewModel.histogramImage)
-                                .padding(Theme.Spacing.md)
-                                .transition(.opacity)
-                        }
-                    }
             } else if viewModel.importedImage != nil {
                 ProgressView().controlSize(.large)
             } else {
                 emptyEditorState
+            }
+
+            // Histogram overlay — anchored bottom-leading on the ZStack so
+            // it shows in both normal-view and split-compare mode (the
+            // histogram of the edited side is what the user wants to see
+            // while comparing).
+            if viewModel.isHistogramVisible, viewModel.importedImage != nil {
+                HistogramOverlayView(image: viewModel.histogramImage)
+                    .padding(Theme.Spacing.md)
+                    .transition(.opacity)
             }
         }
         .contentShape(Rectangle())
