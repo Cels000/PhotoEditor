@@ -19,7 +19,9 @@ struct RootTabView: View {
     @State private var viewModel = EditorViewModel()
     @State private var libraryStore: LibraryStore?
     @State private var recipeStore: RecipeStore?
-    @State private var selectedTab: RootTab = .edit
+    // Default landing tab — Studio (camera roll picker) so users land on a
+    // photo chooser instead of the empty-state editor canvas.
+    @State private var selectedTab: RootTab = .studio
     @State private var showLimitedBanner: Bool = false
 
     var body: some View {

@@ -32,7 +32,7 @@ import Foundation
 
 enum BuiltInPresets {
 
-    private static let seedKey = "builtInPresetsSeeded.v14"
+    private static let seedKey = "builtInPresetsSeeded.v15"
 
     /// Old preset name → new preset name. v9 swap renames so each preset's
     /// title matches the underlying bundled LUT (Polaroid 600 was using a
@@ -117,7 +117,7 @@ enum BuiltInPresets {
                 inserted += 1
             }
         }
-        NSLog("PhotoEditor: BuiltInPresets seed v14 — renamed \(renamed), removed \(removed), inserted \(inserted), updated \(updated) of \(all.count)")
+        NSLog("PhotoEditor: BuiltInPresets seed v15 — renamed \(renamed), removed \(removed), inserted \(inserted), updated \(updated) of \(all.count)")
         defaults.set(true, forKey: seedKey)
     }
 
@@ -1055,24 +1055,82 @@ enum BuiltInPresets {
             return s
         }()),
 
-        // Dusk Cool — green-cool twilight wash (Vivid LUTs #2). Mid-grey
-        // shifts toward cyan-green; pulls reds warmer; lifts shadows.
+        // Dusk Cool — moody twilight wash. The vivid_dusk_2.cube was
+        // authored in a domain that ends up near-identity in mid-tones when
+        // applied through our extendedLinearSRGB working-space pipeline, so
+        // this recipe carries the look itself: cool teal cast, lifted shadows,
+        // muted skin, blue-shifted highlights. Reads as an obvious preset
+        // regardless of the LUT's contribution.
         Preset(name: "Dusk Cool", category: .modern, stack: {
-            var s = stack(filterID: LUT.duskCool, strength: 1.0)
-            s.color.vibrance = 0.05
-            s.light.shadows = 0.10
-            s.light.highlights = -0.05
+            var s = stack(filterID: LUT.duskCool, strength: 0.5)
+            s.color.temperature = -0.22
+            s.color.tint = -0.06
+            s.color.saturation = -0.15
+            s.color.vibrance = 0.10
+            s.light.shadows = 0.30
+            s.light.highlights = -0.18
+            s.light.contrast = -0.05
+            s.hsl.orange.saturation = -0.20         // skin desat for moodiness
+            s.hsl.orange.luminance = -0.08
+            s.hsl.yellow.hue = 0.10                  // pull yellows toward green
+            s.hsl.yellow.saturation = -0.15
+            s.hsl.green.hue = -0.10
+            s.hsl.green.saturation = 0.12
+            s.hsl.aqua.saturation = 0.20
+            s.hsl.aqua.luminance = 0.10
+            s.hsl.blue.saturation = 0.18
+            s.hsl.blue.luminance = 0.05
+            s.splitToning.shadowHue = 215           // teal shadows
+            s.splitToning.shadowSaturation = 0.55
+            s.splitToning.highlightHue = 195        // cool-cyan highlights
+            s.splitToning.highlightSaturation = 0.30
+            s.curves.rgb.points = [
+                CurvePoint(x: 0.0,  y: 0.06),
+                CurvePoint(x: 0.25, y: 0.24),
+                CurvePoint(x: 0.5,  y: 0.50),
+                CurvePoint(x: 0.75, y: 0.74),
+                CurvePoint(x: 1.0,  y: 0.92)
+            ]
             return s
         }()),
 
-        // Dusk Warm — orange/amber sunset wash (Vivid LUTs #4). Mid-grey
-        // shifts toward warm-orange; bumps reds and yellows; gentle
-        // shoulder so highlights stay readable.
+        // Dusk Warm — golden-hour amber wash. Same caveat as Dusk Cool: the
+        // bundled vivid_dusk_4.cube doesn't carry visible weight through our
+        // pipeline, so this recipe drives the look itself: warm tungsten
+        // cast, glowing oranges, lifted blacks, slight green pull on cool
+        // tones to push contrast against the warm wash.
         Preset(name: "Dusk Warm", category: .modern, stack: {
-            var s = stack(filterID: LUT.duskWarm, strength: 1.0)
-            s.color.vibrance = 0.05
-            s.light.shadows = 0.08
-            s.light.highlights = -0.08
+            var s = stack(filterID: LUT.duskWarm, strength: 0.5)
+            s.color.temperature = 0.28
+            s.color.tint = 0.06
+            s.color.saturation = -0.05
+            s.color.vibrance = 0.12
+            s.light.shadows = 0.25
+            s.light.highlights = -0.15
+            s.hsl.red.hue = 0.05
+            s.hsl.red.saturation = 0.12
+            s.hsl.orange.hue = 0.10                  // warm-shift skin
+            s.hsl.orange.saturation = 0.22
+            s.hsl.orange.luminance = 0.10
+            s.hsl.yellow.hue = -0.06
+            s.hsl.yellow.saturation = 0.20
+            s.hsl.yellow.luminance = 0.08
+            s.hsl.green.hue = 0.10                   // greens toward yellow-warm
+            s.hsl.green.saturation = -0.18
+            s.hsl.aqua.saturation = -0.20
+            s.hsl.blue.saturation = -0.20
+            s.hsl.blue.luminance = -0.08
+            s.splitToning.shadowHue = 30            // warm amber shadows
+            s.splitToning.shadowSaturation = 0.45
+            s.splitToning.highlightHue = 50         // gold highlights
+            s.splitToning.highlightSaturation = 0.40
+            s.curves.rgb.points = [
+                CurvePoint(x: 0.0,  y: 0.08),
+                CurvePoint(x: 0.25, y: 0.26),
+                CurvePoint(x: 0.5,  y: 0.50),
+                CurvePoint(x: 0.75, y: 0.74),
+                CurvePoint(x: 1.0,  y: 0.93)
+            ]
             return s
         }())
     ]
