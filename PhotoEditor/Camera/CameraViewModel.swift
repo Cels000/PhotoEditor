@@ -181,20 +181,23 @@ final class CameraViewModel {
         slots.first(where: { $0.id == selectedSlotID }) ?? .original
     }
 
-    /// Select a carousel slot. `updateRecents` defaults true for explicit
-    /// taps; the scroll-driven binding in `CameraView.presetStrip` passes
-    /// `false` so the recents section doesn't re-order under the user's
-    /// finger while they're flicking the carousel — that mid-scroll reorder
-    /// repositions cells in `displayedSlots`, which the SwiftUI ScrollView
-    /// experiences as items shifting around the visible viewport, producing
-    /// the visible jank. Recents now update only on tap (intentional pick)
-    /// and on `bumpSelectedIntoRecents()` after a successful capture.
+    /// Select a carousel slot. Deliberately does NOT reorder recents — that
+    /// reorder repositions cells in `displayedSlots`, which makes the
+    /// SwiftUI ScrollView jump back to the slot's *new* (front-of-recents)
+    /// position the moment its `scrollPosition` binding observes the
+    /// `selectedSlotID` change. From the user's perspective: tap a far-away
+    /// preset, get slingshotted back to the start of the strip.
+    /// Recents now update only when a photo is captured with the slot
+    /// selected, via `bumpSelectedIntoRecents()`. That's also more accurate
+    /// — recents reflects "presets you've actually shot with," not "presets
+    /// you've scrolled near or peeked at."
+    /// (`updateRecents` parameter retained for source compatibility but is
+    /// now ignored — fixing this with another in-flight callsite would need
+    /// a larger refactor and the parameter has no other callers.)
     func selectSlot(_ slot: CameraSlot, updateRecents: Bool = true) {
+        _ = updateRecents
         selectedSlotID = slot.id
         userDefaults.set(slot.id, forKey: Self.lastSlotKey)
-        if updateRecents {
-            bumpRecents(for: slot.id)
-        }
     }
 
     /// Promote the currently-selected slot into the recents section. Called
