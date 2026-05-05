@@ -163,18 +163,30 @@ enum ImageImporter {
         return false
     }
 
-    /// Standard (non-RAW) decode. Decodes to a known sensor-native bitmap
-    /// (`applyOrientationProperty: false`) and applies the caller-supplied
-    /// EXIF orientation explicitly. Avoids the long-running ambiguity around
-    /// `applyOrientationProperty: true`, whose effect depends on whether
-    /// the source bytes carry an EXIF tag — which Photos'
-    /// `requestImageDataAndOrientation` strips for HEIC, leaving iPhone
-    /// portrait shots sensor-sideways when relying on auto-apply.
+    /// Standard (non-RAW) decode. Goes through `CGImageSource` → `CGImage`
+    /// → `CIImage(cgImage:)` — deliberately not `CIImage(data:)`.
+    ///
+    /// Why: `CIImage(data:)` always reads the EXIF orientation tag from the
+    /// bytes and stamps the resulting CIImage as "this image is at
+    /// orientation N", *regardless* of `applyOrientationProperty`. That
+    /// option only controls whether the rotation is baked into the bitmap;
+    /// the metadata is set either way. Subsequent
+    /// `.oriented(forExifOrientation: N)` then computes the delta from N→N
+    /// and does nothing — leaving iPhone portrait shots in their
+    /// sensor-native (landscape) layout. (Confirmed empirically with an
+    /// on-device diag: raw extent and oriented extent were identical
+    /// 4032×3024 for an EXIF-6 portrait shot.)
+    ///
+    /// `CGImage` carries no orientation metadata, so wrapping it in
+    /// `CIImage(cgImage:)` produces a CIImage at logical orientation 1
+    /// (Up). `.oriented(forExifOrientation:)` then applies the unambiguous
+    /// geometric transform we actually want.
     private static func standardDecode(data: Data, exifOrientation: Int32) throws -> CIImage {
-        guard let raw = CIImage(data: data, options: [.applyOrientationProperty: false]) else {
+        guard let src = CGImageSourceCreateWithData(data as CFData, nil),
+              let cg = CGImageSourceCreateImageAtIndex(src, 0, nil) else {
             throw ImageImportError.invalidImageData
         }
-        return raw.oriented(forExifOrientation: exifOrientation)
+        return CIImage(cgImage: cg).oriented(forExifOrientation: exifOrientation)
     }
 
     /// TEMP DIAG: dumps the values we use to choose orientation so we can see
