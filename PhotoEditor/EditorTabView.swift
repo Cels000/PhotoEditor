@@ -321,6 +321,7 @@ struct EditorTabView: View {
                 .font(Theme.Typography.caption)
                 .foregroundStyle(Theme.Colors.secondary)
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     private var displayedImage: UIImage? {
