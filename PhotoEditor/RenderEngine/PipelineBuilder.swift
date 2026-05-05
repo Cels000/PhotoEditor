@@ -264,11 +264,28 @@ enum PipelineBuilder {
 
     private static let hslKernel: CIColorKernel? = {
         // CIKL source. Compiled once at first use, cached by Core Image.
+        //
+        // Band falloff: each color band has a center hue and a 45° half-width.
+        // Earlier versions used a linear (triangular) falloff `1 - d/45`. That
+        // has two problems: (a) the peak is a derivative discontinuity, which
+        // shows up as a faint ridge along the band-center hue when channels
+        // are pushed; (b) the boundary at d=45° is also a derivative kink,
+        // visible as banding across smooth gradients (sky, skin) when an HSL
+        // adjustment crosses a band edge. Replaced with `smoothstep` so the
+        // falloff has zero derivative at both peak and boundary — visually
+        // smooth across hue, no band-edge artifacts.
+        //
+        // Saturation gate: pure grays read H=0 from RGB→HSL conversion, which
+        // sits at the red band center. Without a gate, cranking red.luminance
+        // would tint neutral grays red. We multiply hue/luminance shifts by
+        // a smoothstep on input saturation so adjustments fade out as pixels
+        // approach gray. Saturation shifts are unaffected (S=0 * (1+dS) = 0
+        // already nullifies them).
         let source = """
         float bandWeight(float h, float center) {
             float d = abs(h - center);
             d = min(d, 360.0 - d);
-            return max(0.0, 1.0 - d / 45.0);
+            return smoothstep(45.0, 0.0, d);
         }
 
         float hue2rgb(float p, float q, float t) {
@@ -329,6 +346,13 @@ enum PipelineBuilder {
                         wA*aS + wB*bS + wP*pS + wM*mS;
             float dL = (wR*rL + wO*oL + wY*yL + wG*gL +
                         wA*aL + wB*bL + wP*pL + wM*mL) * 0.25;
+
+            // Saturation gate: 0 below S=0.04, ramps to 1 by S=0.18. Keeps
+            // pure grays from picking up a hue cast or luminance shift from
+            // whichever band their unstable H reading falls into.
+            float sGate = smoothstep(0.04, 0.18, S);
+            dH *= sGate;
+            dL *= sGate;
 
             H = mod(H + dH + 360.0, 360.0);
             S = clamp(S * (1.0 + dS), 0.0, 1.0);

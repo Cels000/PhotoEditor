@@ -46,6 +46,8 @@ final class CameraViewModel {
     static let gridKey     = "camera.gridEnabled"
     static let intensitiesKey = "camera.slotIntensities"
     static let recentSlotIDsKey = "camera.recentSlotIDs"
+    static let timerSecondsKey  = "camera.timerSeconds"
+    static let levelEnabledKey  = "camera.levelEnabled"
 
     // MARK: - Dependencies
     let libraryStore: LibraryStore
@@ -66,6 +68,12 @@ final class CameraViewModel {
     }
     var gridEnabled: Bool = false {
         didSet { userDefaults.set(gridEnabled, forKey: Self.gridKey) }
+    }
+    var timerSeconds: Int = 0 {
+        didSet { userDefaults.set(timerSeconds, forKey: Self.timerSecondsKey) }
+    }
+    var levelEnabled: Bool = false {
+        didSet { userDefaults.set(levelEnabled, forKey: Self.levelEnabledKey) }
     }
     var errorMessage: String?
     var captureInFlight: Bool = false
@@ -99,6 +107,9 @@ final class CameraViewModel {
             self.flashMode = mode
         }
         self.gridEnabled = userDefaults.bool(forKey: Self.gridKey)
+        let persistedTimer = userDefaults.integer(forKey: Self.timerSecondsKey)
+        self.timerSeconds = [0, 3, 10].contains(persistedTimer) ? persistedTimer : 0
+        self.levelEnabled = userDefaults.bool(forKey: Self.levelEnabledKey)
 
         // If the persisted slot ID is no longer present (recipe deleted), fall
         // back to ORIGINAL.
@@ -242,8 +253,15 @@ final class CameraViewModel {
         return UIImage(cgImage: cg).jpegData(compressionQuality: 0.85)
     }
 
-    /// Default cooker: decodes the raw HEIC, runs it through the export render
-    /// pipeline with the slot's stack, and re-encodes as HEIC at q=0.95.
+    /// Default cooker: decodes the raw HEIC and runs it through the export
+    /// render pipeline with the slot's stack, encoding the result as 10-bit
+    /// HLG-tagged HDR HEIC. iPhone 12 Pro and later capture HDR HEIC by
+    /// default and the raw bytes carry EDR data; routing the cook through
+    /// the HDR pipeline keeps that brightness alive through the LUT / color
+    /// / grain chain into the saved file. SDR captures (older devices, or
+    /// scenes with no EDR content) get HDR-tagged 10-bit HEIC — slightly
+    /// larger files from the bit depth, but no fabricated brightness because
+    /// linear extended-range values >1.0 simply aren't present to encode.
     nonisolated static func defaultCookHEIC(_ rawData: Data, stack: AdjustmentStack, isFront: Bool) async throws -> Data {
         guard let source = CIImage(data: rawData, options: [.applyOrientationProperty: true]) else {
             throw CameraError.captureFailed(nil)
@@ -255,21 +273,11 @@ final class CameraViewModel {
                 .translatedBy(x: -source.extent.width, y: 0))
             : source
         let engine = try RenderEngine()
-        let cookedCG = try await engine.renderExport(stack: stack, source: oriented, cubeResolver: nil)
-
-        let props: [CFString: Any] = {
-            guard let imgSource = CGImageSourceCreateWithData(rawData as CFData, nil),
-                  let p = CGImageSourceCopyPropertiesAtIndex(imgSource, 0, nil) as? [CFString: Any]
-            else { return [:] }
-            return p
-        }()
-
-        return try ExportService.encode(
-            cgImage: cookedCG,
-            sourceProperties: props,
-            colorSpace: cookedCG.colorSpace,
-            options: ExportOptions(format: .heic, size: .full, quality: 0.95)
-        )
+        return try await engine.renderExportHDRData(stack: stack,
+                                                    source: oriented,
+                                                    cubeResolver: nil,
+                                                    targetLongEdge: nil,
+                                                    quality: 0.95)
     }
 
     // MARK: - Carousel thumbnailer

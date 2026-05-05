@@ -111,6 +111,48 @@ actor RenderEngine {
         return cg
     }
 
+    /// Stack-only HDR variant. Used by the in-app camera capture path which
+    /// builds against `AdjustmentStack` directly (no EditDocument / mask
+    /// composite). iPhone 12 Pro and later capture HDR HEIC by default; this
+    /// keeps the EDR data alive through the cook-with-preset pipeline so the
+    /// saved photo carries the same HDR brightness the viewfinder was showing.
+    func renderExportHDRData(stack: AdjustmentStack,
+                             source: CIImage,
+                             cubeResolver: CubeResolver? = nil,
+                             targetLongEdge: Int? = nil,
+                             quality: Double) throws -> Data {
+        var chain = PipelineBuilder.build(stack: stack, source: source,
+                                          cubeResolver: cubeResolver)
+        if let targetLongEdge {
+            let extent = chain.extent
+            let longEdge = max(extent.width, extent.height)
+            let scale = Double(targetLongEdge) / Double(longEdge)
+            if scale < 1.0 {
+                chain = chain.transformed(by: CGAffineTransform(scaleX: scale, y: scale))
+            }
+        }
+        return try encodeHLG10(chain: chain, quality: quality)
+    }
+
+    /// Internal helper shared by both HDR overloads. Encodes a CIImage chain
+    /// as 10-bit HLG-tagged HEIC. The chain must be built against a context
+    /// whose working space preserves >1.0 values (extendedLinearSRGB) — the
+    /// CIContext used here owns that conversion automatically.
+    private func encodeHLG10(chain: CIImage, quality: Double) throws -> Data {
+        guard let hlgSpace = CGColorSpace(name: CGColorSpace.displayP3_HLG) else {
+            throw RenderError.outputEmpty
+        }
+        let qualityKey = CIImageRepresentationOption(
+            rawValue: kCGImageDestinationLossyCompressionQuality as String
+        )
+        let opts: [CIImageRepresentationOption: Any] = [
+            qualityKey: max(0, min(1, quality))
+        ]
+        return try hdrExportContext.heif10Representation(of: chain,
+                                                         colorSpace: hlgSpace,
+                                                         options: opts)
+    }
+
     /// Build the full pipeline CIImage and encode it as 10-bit HLG-tagged HEIC.
     /// Working space stays `extendedLinearSRGB` so EDR highlight values >1.0
     /// survive the chain; the encoder converts that linear extended-range
@@ -142,17 +184,6 @@ actor RenderEngine {
             }
         }
 
-        guard let hlgSpace = CGColorSpace(name: CGColorSpace.displayP3_HLG) else {
-            throw RenderError.outputEmpty
-        }
-        let qualityKey = CIImageRepresentationOption(
-            rawValue: kCGImageDestinationLossyCompressionQuality as String
-        )
-        let opts: [CIImageRepresentationOption: Any] = [
-            qualityKey: max(0, min(1, quality))
-        ]
-        return try hdrExportContext.heif10Representation(of: chain,
-                                                         colorSpace: hlgSpace,
-                                                         options: opts)
+        return try encodeHLG10(chain: chain, quality: quality)
     }
 }

@@ -26,6 +26,7 @@ final class CameraSession: NSObject {
     private var videoInput: AVCaptureDeviceInput?
     private let videoOutput = AVCaptureVideoDataOutput()
     private let photoOutput = AVCapturePhotoOutput()
+    private var volumeObservation: NSKeyValueObservation?
 
     /// Set this BEFORE `start()` so the renderer receives sample buffers.
     weak var sampleBufferDelegate: AVCaptureVideoDataOutputSampleBufferDelegate?
@@ -71,6 +72,49 @@ final class CameraSession: NSObject {
         photoOutput.maxPhotoQualityPrioritization = .quality
 
         session.commitConfiguration()
+
+        // Activate the audio session AFTER commitConfiguration — setting the
+        // category mid-config can interfere with capture session setup.
+        // Failure isn't fatal; volume-button shutter just won't work.
+        try? AVAudioSession.sharedInstance().setCategory(.playAndRecord,
+                                                        options: [.mixWithOthers,
+                                                                  .defaultToSpeaker])
+        try? AVAudioSession.sharedInstance().setActive(true, options: [])
+    }
+
+    // MARK: - Zoom
+
+    func setZoomFactor(_ factor: CGFloat) {
+        sessionQueue.async { [weak self] in
+            guard let device = self?.videoInput?.device else { return }
+            do {
+                try device.lockForConfiguration()
+                let cap = min(device.activeFormat.videoMaxZoomFactor, 5.0)
+                // Cap at 5× — beyond that the digital crop quality falls
+                // apart on wide-angle sensors.
+                device.videoZoomFactor = min(cap, max(1.0, factor))
+                device.unlockForConfiguration()
+            } catch {}
+        }
+    }
+
+    var zoomFactor: CGFloat {
+        videoInput?.device.videoZoomFactor ?? 1.0
+    }
+
+    // MARK: - Volume button shutter
+
+    func startVolumeButtonShutter(handler: @escaping () -> Void) {
+        let session = AVAudioSession.sharedInstance()
+        volumeObservation = session.observe(\.outputVolume, options: [.new, .old]) { _, change in
+            guard let new = change.newValue, let old = change.oldValue, new != old else { return }
+            Task { @MainActor in handler() }
+        }
+    }
+
+    func stopVolumeButtonShutter() {
+        volumeObservation?.invalidate()
+        volumeObservation = nil
     }
 
     /// Pick the highest-resolution 4:3 format on the active device, capped at

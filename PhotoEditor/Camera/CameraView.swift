@@ -1,5 +1,6 @@
 import AudioToolbox
 import AVFoundation
+import CoreMotion
 import SwiftUI
 
 /// Full-screen camera modal. Composed of preview, top bar, bottom carousel,
@@ -23,6 +24,14 @@ struct CameraView: View {
     @State private var comparing: Bool = false
     @State private var shutterFlash: Bool = false
     @State private var shutterPress: Bool = false
+    @State private var pinchBaseZoom: CGFloat = 1.0
+    @State private var liveZoom: CGFloat = 1.0
+    @State private var zoomPillVisible: Bool = false
+    @State private var zoomPillHideTask: Task<Void, Never>?
+    @State private var countdown: Int = 0
+    @State private var countingDown: Bool = false
+    @State private var motionManager = CMMotionManager()
+    @State private var roll: Double = 0
 
     var body: some View {
         ZStack {
@@ -56,6 +65,17 @@ struct CameraView: View {
             viewModel.bindHEIC(provider: { try await session.capturePhoto() })
             viewModel.bindFront(isFront: { session.position == .front })
             session.start()
+            session.startVolumeButtonShutter {
+                Task { @MainActor in
+                    if !viewModel.captureInFlight && !countingDown {
+                        await runCapture()
+                    }
+                }
+            }
+            startMotionIfNeeded()
+        }
+        .onChange(of: viewModel.levelEnabled) { _, enabled in
+            if enabled { startMotionIfNeeded() } else { stopMotion() }
         }
         .onChange(of: viewModel.selectedSlotID) { _, _ in
             renderer?.setStack(viewModel.effectiveStack)
@@ -65,6 +85,8 @@ struct CameraView: View {
         }
         .onDisappear {
             session.stop()
+            session.stopVolumeButtonShutter()
+            stopMotion()
             viewModel.detachThumbnailer()
         }
         .alert("Camera access needed", isPresented: Binding(
@@ -107,6 +129,26 @@ struct CameraView: View {
                     Image(systemName: flashIconName)
                         .font(.system(size: 18, weight: .medium))
                 }
+            }
+            Button { cycleTimer() } label: {
+                HStack(spacing: 2) {
+                    Image(systemName: "timer")
+                        .font(.system(size: 18, weight: .medium))
+                        .opacity(viewModel.timerSeconds == 0 ? 0.5 : 1.0)
+                    if viewModel.timerSeconds > 0 {
+                        Text("\(viewModel.timerSeconds)s")
+                            .font(Theme.Typography.label)
+                            .tracking(1)
+                    }
+                }
+            }
+            Button {
+                viewModel.levelEnabled.toggle()
+                UIImpactFeedbackGenerator(style: .light).impactOccurred()
+            } label: {
+                Image(systemName: "level")
+                    .font(.system(size: 18, weight: .medium))
+                    .opacity(viewModel.levelEnabled ? 1.0 : 0.5)
             }
             Button { showPresetGrid = true } label: {
                 Image(systemName: "square.grid.2x2")
@@ -180,6 +222,8 @@ struct CameraView: View {
                 Button {
                     UIImpactFeedbackGenerator(style: .light).impactOccurred()
                     session.flipCamera()
+                    pinchBaseZoom = 1.0
+                    liveZoom = 1.0
                 } label: {
                     Image(systemName: "arrow.triangle.2.circlepath.camera")
                         .font(.system(size: 22, weight: .medium))
