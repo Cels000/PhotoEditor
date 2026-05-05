@@ -55,18 +55,6 @@ enum ImageImporter {
     static let previewMaxLongEdge: CGFloat = 1080
 
     static func importImage(from data: Data) throws -> ImportedImage {
-        // EXIF orientation lives in the container metadata for both standard
-        // and RAW formats. CIRAWFilter's outputImage doesn't carry .properties
-        // reliably, so we read orientation up-front from the bytes and bake
-        // it geometrically below regardless of decode path.
-        let exifOrientation: Int32 = {
-            guard let src = CGImageSourceCreateWithData(data as CFData, nil),
-                  let props = CGImageSourceCopyPropertiesAtIndex(src, 0, nil) as? [CFString: Any],
-                  let o = props[kCGImagePropertyOrientation] as? Int32
-            else { return 1 }
-            return o
-        }()
-
         // RAW path: CIRAWFilter init returns nil when the bytes aren't a
         // recognized RAW format, so we use it as the format probe. ProRAW DNG
         // and traditional RAW both flow through here.
@@ -87,17 +75,21 @@ enum ImageImporter {
             rawFilter.boostShadowAmount = 0.5
             rawFilter.extendedDynamicRangeAmount = 1.0
             if let rawOutput = rawFilter.outputImage {
-                oriented = rawOutput.oriented(forExifOrientation: exifOrientation)
+                // RAW path: CIRAWFilter output doesn't carry the source's
+                // properties dict, so we read EXIF orientation from the
+                // container directly via CGImageSource. CIRAWFilter itself
+                // outputs in sensor-native orientation (its `orientation`
+                // property defaults to .up), so applying the source EXIF on
+                // top is correct.
+                let exif = readEXIFOrientation(from: data)
+                oriented = rawOutput.oriented(forExifOrientation: exif)
                 wasRaw = true
             } else {
-                // CIRAWFilter created but couldn't produce output (corrupt /
-                // partially-supported variant) — fall back to the standard
-                // decoder, which usually has a baseline preview embedded.
-                oriented = try standardDecode(data: data, exifOrientation: exifOrientation)
+                oriented = try standardDecode(data: data)
                 wasRaw = false
             }
         } else {
-            oriented = try standardDecode(data: data, exifOrientation: exifOrientation)
+            oriented = try standardDecode(data: data)
             wasRaw = false
         }
 
@@ -168,14 +160,32 @@ enum ImageImporter {
         return false
     }
 
-    /// Standard (non-RAW) decode path. Kept separate so the RAW branch can
-    /// fall back to it without duplicating the decode + orient logic.
-    private static func standardDecode(data: Data, exifOrientation: Int32) throws -> CIImage {
+    /// Standard (non-RAW) decode path. Reads the EXIF orientation from the
+    /// CIImage's own properties dict *after* decoding — that reflects what
+    /// rotation is still needed to get upright (e.g., 1 if Core Image already
+    /// baked the rotation, or 6/8 if it didn't). Reading EXIF from the raw
+    /// container bytes instead would always return the source value (e.g., 6
+    /// for portrait iPhone shots) and double-rotate when `.applyOrientationProperty`
+    /// already handled the bake — that's the bug the up-front-EXIF refactor
+    /// introduced and this method now avoids.
+    private static func standardDecode(data: Data) throws -> CIImage {
         let options: [CIImageOption: Any] = [.applyOrientationProperty: true]
         guard let raw = CIImage(data: data, options: options) else {
             throw ImageImportError.invalidImageData
         }
-        return raw.oriented(forExifOrientation: exifOrientation)
+        let exif = (raw.properties[kCGImagePropertyOrientation as String] as? Int32) ?? 1
+        return raw.oriented(forExifOrientation: exif)
+    }
+
+    /// Reads EXIF orientation from a container's metadata via CGImageSource.
+    /// Used by the RAW branch where CIRAWFilter's output doesn't expose the
+    /// source's properties dict. Returns 1 (Up) when missing or unreadable.
+    private static func readEXIFOrientation(from data: Data) -> Int32 {
+        guard let src = CGImageSourceCreateWithData(data as CFData, nil),
+              let props = CGImageSourceCopyPropertiesAtIndex(src, 0, nil) as? [CFString: Any],
+              let o = props[kCGImagePropertyOrientation] as? Int32
+        else { return 1 }
+        return o
     }
 
     /// Loads an ImportedImage from a PHAsset localIdentifier. Used by the library
