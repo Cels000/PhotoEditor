@@ -160,20 +160,23 @@ enum ImageImporter {
         return false
     }
 
-    /// Standard (non-RAW) decode path. Reads the EXIF orientation from the
-    /// CIImage's own properties dict *after* decoding — that reflects what
-    /// rotation is still needed to get upright (e.g., 1 if Core Image already
-    /// baked the rotation, or 6/8 if it didn't). Reading EXIF from the raw
-    /// container bytes instead would always return the source value (e.g., 6
-    /// for portrait iPhone shots) and double-rotate when `.applyOrientationProperty`
-    /// already handled the bake — that's the bug the up-front-EXIF refactor
-    /// introduced and this method now avoids.
+    /// Standard (non-RAW) decode path. Deliberately does NOT pass
+    /// `.applyOrientationProperty: true` — its effect on the post-decode
+    /// `raw.properties` orientation key has been observed inconsistently
+    /// across iOS versions / capture sources (sometimes it bakes the rotation
+    /// AND clears the property to 1, sometimes it leaves the property at the
+    /// source EXIF, sometimes it doesn't bake at all). The double-rotate
+    /// vs. no-rotate ambiguity is what was leaving portrait photos sideways.
+    ///
+    /// Without the option, `CIImage(data:)` returns pixels in sensor-storage
+    /// orientation. We then read the source EXIF directly from the container
+    /// (always returns the original source value, no Core Image ambiguity)
+    /// and apply via `.oriented(forExifOrientation:)`. Predictable.
     private static func standardDecode(data: Data) throws -> CIImage {
-        let options: [CIImageOption: Any] = [.applyOrientationProperty: true]
-        guard let raw = CIImage(data: data, options: options) else {
+        guard let raw = CIImage(data: data) else {
             throw ImageImportError.invalidImageData
         }
-        let exif = (raw.properties[kCGImagePropertyOrientation as String] as? Int32) ?? 1
+        let exif = readEXIFOrientation(from: data)
         return raw.oriented(forExifOrientation: exif)
     }
 
