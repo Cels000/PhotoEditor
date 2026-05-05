@@ -181,25 +181,47 @@ enum ImageImporter {
     /// not per render — fine on iPhone for the deterministic-correctness
     /// benefit.
     private static func standardDecode(data: Data, exifOrientation: Int32) throws -> CIImage {
-        guard let decoded = UIImage(data: data) else {
+        // Bypass UIImage(data:)'s EXIF auto-detection — its behavior on
+        // Photos-served HEIC has been inconsistent. Decode the bitmap
+        // explicitly via CGImageSource (always sensor-storage orientation),
+        // then construct a UIImage with the EXPLICIT EXIF orientation we
+        // were handed by the caller (PHImageManager.requestImageDataAndOrientation
+        // returns the authoritative value as a separate parameter). UIImage
+        // honors that orientation when drawing — redraw bakes it in.
+        guard let src = CGImageSourceCreateWithData(data as CFData, nil),
+              let cg = CGImageSourceCreateImageAtIndex(src, 0, nil) else {
             throw ImageImportError.invalidImageData
         }
-        // Trust UIImage's own EXIF read. UIImage.size respects orientation
-        // (returns display dimensions, not bitmap dimensions), and drawing
-        // into a renderer at that size bakes the orientation transform into
-        // the resulting upright bitmap. This is the same code path every
-        // iOS photo app uses.
+        let uiOrientation = uiImageOrientation(fromEXIF: exifOrientation) ?? .up
+        let oriented = UIImage(cgImage: cg, scale: 1, orientation: uiOrientation)
+
         let format = UIGraphicsImageRendererFormat.default()
-        format.scale = decoded.scale
+        format.scale = 1
         format.opaque = true
-        let renderer = UIGraphicsImageRenderer(size: decoded.size, format: format)
+        let renderer = UIGraphicsImageRenderer(size: oriented.size, format: format)
         let upright = renderer.image { _ in
-            decoded.draw(in: CGRect(origin: .zero, size: decoded.size))
+            oriented.draw(in: CGRect(origin: .zero, size: oriented.size))
         }
         guard let ci = CIImage(image: upright) else {
             throw ImageImportError.invalidImageData
         }
         return ci
+    }
+
+    /// Map an EXIF orientation tag (1...8) to UIImage.Orientation. Apple's
+    /// two enums use different raw values, so the mapping is by case.
+    private static func uiImageOrientation(fromEXIF exif: Int32) -> UIImage.Orientation? {
+        switch exif {
+        case 1: return .up
+        case 2: return .upMirrored
+        case 3: return .down
+        case 4: return .downMirrored
+        case 5: return .leftMirrored
+        case 6: return .right
+        case 7: return .rightMirrored
+        case 8: return .left
+        default: return nil
+        }
     }
 
     /// Reads EXIF orientation from a container's metadata via CGImageSource.
