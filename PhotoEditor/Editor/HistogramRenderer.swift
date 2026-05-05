@@ -34,22 +34,21 @@ enum HistogramRenderer {
         area.scale = 1.0
         guard let bins = area.outputImage else { return nil }
 
-        // Render the 256x1 RGBA float-normalized output into RGBA8 so we can
-        // read counts directly. CIAreaHistogram already normalizes against the
-        // input's pixel count, so values fit in [0, 1] — RGBA8 quantization is
-        // plenty for a ~200pt-wide overlay.
-        var pixels = [UInt8](repeating: 0, count: 256 * 4)
+        // Read the 256x1 area-histogram output as raw float RGBA. CRITICAL:
+        // pass colorSpace=nil so CIContext does NOT apply a color transform —
+        // the bytes here are *counts*, not colors, and any sRGB/P3 gamma
+        // mapping silently mangles G and B (the known symptom: only the red
+        // channel shows up). RGBAf preserves precision for low-count bins.
+        var pixels = [Float](repeating: 0, count: 256 * 4)
         let bounds = CGRect(x: 0, y: 0, width: 256, height: 1)
-        let format = CIFormat.RGBA8
-        let colorSpace = CGColorSpaceCreateDeviceRGB()
         pixels.withUnsafeMutableBytes { buf in
             context.render(
                 bins,
                 toBitmap: buf.baseAddress!,
-                rowBytes: 256 * 4,
+                rowBytes: 256 * 4 * MemoryLayout<Float>.size,
                 bounds: bounds,
-                format: format,
-                colorSpace: colorSpace
+                format: CIFormat.RGBAf,
+                colorSpace: nil
             )
         }
 
@@ -58,9 +57,9 @@ enum HistogramRenderer {
         var b = [CGFloat](repeating: 0, count: 256)
         var peak: CGFloat = 0
         for i in 0..<256 {
-            let rv = CGFloat(pixels[i * 4 + 0]) / 255.0
-            let gv = CGFloat(pixels[i * 4 + 1]) / 255.0
-            let bv = CGFloat(pixels[i * 4 + 2]) / 255.0
+            let rv = CGFloat(pixels[i * 4 + 0])
+            let gv = CGFloat(pixels[i * 4 + 1])
+            let bv = CGFloat(pixels[i * 4 + 2])
             r[i] = rv; g[i] = gv; b[i] = bv
             peak = max(peak, max(rv, max(gv, bv)))
         }
