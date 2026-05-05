@@ -162,33 +162,27 @@ enum ImageImporter {
         return false
     }
 
-    /// Standard (non-RAW) decode. Decodes through CGImageSource and wraps
-    /// the resulting CGImage in CIImage with no further orientation work.
+    /// Standard (non-RAW) decode via `CIImage(data:options:[.applyOrientationProperty: true])`.
     ///
-    /// On-device diag for an iPhone EXIF-6 portrait shot from
-    /// `requestImageDataAndOrientation` showed:
+    /// On-device diag for an iPhone EXIF-6 portrait shot exposed the
+    /// long-standing geometric mismatch the importer kept tripping on:
     ///
-    ///   callback EXIF: 6
-    ///   bytes EXIF:    6
-    ///   raw extent:    3024 × 4032   ← already upright dimensions
+    ///   CI(data) default:  3672 × 4896   (portrait dims, sideways pixels)
+    ///   CI(data) appT:     4896 × 3672   (landscape dims, upright pixels)
+    ///   CGImage source:    3672 × 4896   (portrait dims, sideways pixels)
+    ///   CI(cg).oriented:   4896 × 3672   (landscape dims, upright pixels)
     ///
-    /// So PHImageManager normalizes the HEIC pixels to upright on access
-    /// while keeping the EXIF=6 tag for metadata fidelity. Trusting that
-    /// tag (calling `.oriented(forExifOrientation: 6)`) over-rotates an
-    /// already-upright bitmap into sideways — the recurring 90° bug.
-    ///
-    /// `CGImageSourceCreateImageAtIndex` returns the stored pixel layout.
-    /// For HEIC out of Photos that's upright; for non-rotated formats
-    /// (PNG screenshots, EXIF-1 JPEG) it's also upright trivially. We
-    /// apply no orientation. (Hypothetical future case: a JPEG with a
-    /// non-1 EXIF tag whose stored pixels really are sensor-native — not
-    /// produced by any path in this app today; revisit if it surfaces.)
+    /// The dimensions don't tell you which form is upright — the pixel
+    /// content does. The "portrait-shape buffer with landscape pixels"
+    /// outputs render visibly sideways even though their bounding box
+    /// matches a portrait photo. `applyOrientationProperty: true` is the
+    /// only path that produces a buffer whose pixel content actually
+    /// renders upright; trust it and don't post-process.
     private static func standardDecode(data: Data) throws -> CIImage {
-        guard let src = CGImageSourceCreateWithData(data as CFData, nil),
-              let cg = CGImageSourceCreateImageAtIndex(src, 0, nil) else {
+        guard let raw = CIImage(data: data, options: [.applyOrientationProperty: true]) else {
             throw ImageImportError.invalidImageData
         }
-        return CIImage(cgImage: cg)
+        return raw
     }
 
     /// TEMP DIAG: probe every decoder path for orientation behavior.

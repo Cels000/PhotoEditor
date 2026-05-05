@@ -198,7 +198,7 @@ final class EditorViewModel {
             // rendered preview size — the lying decoder is whichever doesn't
             // agree with what's drawn on screen. Remove with the fix.
             self.errorMessage = """
-            ORIENT-DBG2
+            ORIENT-DBG3
             cb=\(diag.callbackEXIF.map(String.init) ?? "nil") bytes=\(diag.bytesEXIF)
             CI(data) def: \(sz(diag.ciDataDefault))
             CI(data) appT: \(sz(diag.ciDataApplyTrue))
