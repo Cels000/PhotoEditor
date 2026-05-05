@@ -16,6 +16,15 @@ struct EditorTabView: View {
     @State private var isChromeHidden: Bool = false
     @State private var didDismissLimitedBanner: Bool = false
 
+    /// Split-compare mode: original on the left of a draggable vertical
+    /// divider, edited on the right. Toggled via a top-bar button. Independent
+    /// of the press-and-hold quick-compare gesture (which still shows full
+    /// original anywhere on the canvas while held).
+    @State private var isSplitCompareActive: Bool = false
+    /// Divider X position in 0...1 of the canvas width. Resets to 0.5 each
+    /// time split mode is entered so the user starts at center.
+    @State private var splitPosition: CGFloat = 0.5
+
     @State private var isExportSheetPresented: Bool = false
     @State private var isNamePromptPresented: Bool = false
     @State private var showingMaskRefinement: Bool = false
@@ -134,6 +143,23 @@ struct EditorTabView: View {
             .accessibilityLabel("Histogram")
             .accessibilityValue(viewModel.isHistogramVisible ? "On" : "Off")
 
+            // Side-by-side compare toggle. Recenters the divider every entry.
+            Button {
+                Haptic.play(.undoRedo)
+                if !isSplitCompareActive { splitPosition = 0.5 }
+                withAnimation(Motion.adaptive(Motion.panel)) {
+                    isSplitCompareActive.toggle()
+                }
+            } label: {
+                Image(systemName: isSplitCompareActive
+                      ? "rectangle.split.2x1.fill"
+                      : "rectangle.split.2x1")
+                    .font(.system(size: 15, weight: .semibold))
+            }
+            .disabled(viewModel.importedImage == nil)
+            .accessibilityLabel("Side-by-side compare")
+            .accessibilityValue(isSplitCompareActive ? "On" : "Off")
+
             Spacer()
 
             // Single labeled "save" affordance. Replaces the previous 4-icon
@@ -215,7 +241,26 @@ struct EditorTabView: View {
         ZStack {
             Theme.Colors.canvas.ignoresSafeArea()
 
-            if let image = displayedImage {
+            if isSplitCompareActive,
+               let edited = viewModel.previewImage,
+               let original = originalPreviewImage {
+                // Side-by-side split: original on left of the divider, edited
+                // on the right, draggable vertical handle in between.
+                SplitCompareView(
+                    original: original,
+                    edited: edited,
+                    splitPosition: $splitPosition
+                )
+                .overlay(alignment: .topLeading) {
+                    Text("COMPARE")
+                        .font(Theme.Typography.label)
+                        .tracking(1.5)
+                        .padding(.horizontal, Theme.Spacing.sm)
+                        .padding(.vertical, Theme.Spacing.xs)
+                        .background(.thinMaterial, in: Capsule())
+                        .padding(Theme.Spacing.md)
+                }
+            } else if let image = displayedImage {
                 Image(uiImage: image)
                     .resizable()
                     .scaledToFit()
@@ -246,10 +291,16 @@ struct EditorTabView: View {
         }
         .contentShape(Rectangle())
         .onTapGesture {
-            guard viewModel.importedImage != nil else { return }
+            // In split mode, taps are reserved for the divider drag — don't
+            // toggle chrome out from under the user.
+            guard viewModel.importedImage != nil, !isSplitCompareActive else { return }
             withAnimation(Motion.adaptive(Motion.panel)) { isChromeHidden.toggle() }
         }
-        .compareOnLongPress(showOriginal: $showOriginal)
+        // Press-and-hold quick-compare is suppressed in split mode so the
+        // gesture doesn't fight with the divider drag.
+        .compareOnLongPress(showOriginal: isSplitCompareActive
+                            ? .constant(false)
+                            : $showOriginal)
         .accessibilityLabel("Photo canvas")
         .accessibilityHint("Tap to toggle full-screen. Press and hold to compare with the original.")
     }
