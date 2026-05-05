@@ -204,22 +204,22 @@ enum ImageImporter {
               let cg = CGImageSourceCreateImageAtIndex(src, 0, nil) else {
             throw ImageImportError.invalidImageData
         }
+        let exifValue: Int32 = exifOrientation ?? readEXIFOrientation(from: data)
         let uiOrientation: UIImage.Orientation = {
-            // Prefer caller-supplied EXIF (PHImageManager callback). Fall
-            // back to UIImage's own EXIF read by leaving orientation .up
-            // and letting it interpret the CGImage — but since we hand a
-            // raw CGImage with no EXIF metadata, .up is correct only when
-            // we have an explicit value to apply.
-            if let exif = exifOrientation,
-               let cgOri = CGImagePropertyOrientation(rawValue: UInt32(exif)) {
-                return UIImage.Orientation(cgOri)
+            // Map EXIF (CGImagePropertyOrientation) → UIImage.Orientation.
+            // Apple's two enums use different raw values, so the mapping
+            // has to go case-by-case.
+            switch exifValue {
+            case 1: return .up
+            case 2: return .upMirrored
+            case 3: return .down
+            case 4: return .downMirrored
+            case 5: return .leftMirrored
+            case 6: return .right
+            case 7: return .rightMirrored
+            case 8: return .left
+            default: return .up
             }
-            // No explicit orientation — read it from the bytes.
-            let bytes = readEXIFOrientation(from: data)
-            if let cgOri = CGImagePropertyOrientation(rawValue: UInt32(bytes)) {
-                return UIImage.Orientation(cgOri)
-            }
-            return .up
         }()
         let oriented = UIImage(cgImage: cg, scale: 1, orientation: uiOrientation)
         let format = UIGraphicsImageRendererFormat.default()
