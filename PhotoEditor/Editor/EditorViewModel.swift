@@ -188,22 +188,10 @@ final class EditorViewModel {
                      sourceAssetID: String? = nil,
                      explicitEXIFOrientation: Int32? = nil) async {
         do {
-            let diag = ImageImporter.diagnoseOrientation(data: data,
-                                                        explicitEXIFOrientation: explicitEXIFOrientation)
             let baseImported = try ImageImporter.importImage(
                 from: data,
                 explicitEXIFOrientation: explicitEXIFOrientation
             )
-            // TEMP DIAG: surface orientation values so we can see what the
-            // pipeline is actually receiving on a real device. Remove once
-            // the camera-roll rotation bug is resolved.
-            self.errorMessage = """
-            ORIENT-DBG
-            callback EXIF: \(diag.callbackEXIF.map(String.init) ?? "nil")
-            bytes EXIF: \(diag.bytesEXIF)
-            raw extent: \(Int(diag.rawExtent.width))×\(Int(diag.rawExtent.height))
-            oriented extent: \(Int(baseImported.pixelSize.width))×\(Int(baseImported.pixelSize.height))
-            """
             // Splice the assetID from the picker into the imported value.
             self.importedImage = ImportedImage(
                 sourceData: baseImported.sourceData,
