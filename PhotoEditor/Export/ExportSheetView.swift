@@ -8,7 +8,15 @@ struct ExportSheetView: View {
     @State private var sizeChoice: SizeChoice = .full
     @State private var customLongEdge: String = "2048"
     @State private var quality: Double = 0.85
-    @State private var hdr: Bool = false
+    @State private var hdr: Bool
+
+    init(viewModel: EditorViewModel) {
+        self.viewModel = viewModel
+        // HDR toggle defaults on when the source carries HDR content (RAW,
+        // HLG-tagged HEIC, or an Apple HDR gain map). Otherwise off so SDR
+        // sources don't get fake-tagged-HDR exports the user didn't ask for.
+        _hdr = State(initialValue: viewModel.importedImage?.hasHDRContent ?? false)
+    }
 
     enum SizeChoice: Hashable, CaseIterable {
         case full, web, story, custom

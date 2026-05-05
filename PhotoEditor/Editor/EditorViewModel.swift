@@ -188,7 +188,8 @@ final class EditorViewModel {
                 exportCIImage: baseImported.exportCIImage,
                 pixelSize: baseImported.pixelSize,
                 sourceAssetID: sourceAssetID,
-                wasRawSource: baseImported.wasRawSource
+                wasRawSource: baseImported.wasRawSource,
+                hasHDRContent: baseImported.hasHDRContent
             )
             // Reset to identity so the new photo starts unedited.
             self.document = .identity

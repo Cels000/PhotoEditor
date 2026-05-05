@@ -29,6 +29,11 @@ struct ImportedImage {
     /// gamut data, and tagging the export with the embedded JPEG preview's
     /// narrow gamut throws away exactly the fidelity the user shot RAW for.
     let wasRawSource: Bool
+    /// True when the source carries HDR / EDR content. Drives the export
+    /// sheet's default for the HDR toggle so users don't have to remember.
+    /// Set by `detectHDRContent` based on the source's color space tag,
+    /// gain-map presence, or RAW flag (RAW always has EDR potential).
+    let hasHDRContent: Bool
     /// Stable per-import identity. Used as the mask-cache key fallback when
     /// `sourceAssetID` is nil — distinct imports never collide, even within the
     /// lifetime of a single EditorViewModel.
@@ -99,14 +104,68 @@ enum ImageImporter {
         // Downsample for preview (≤1080px long edge).
         let preview = downsample(oriented, maxLongEdge: previewMaxLongEdge)
 
+        // HDR detection: RAW always carries EDR potential (the whole point of
+        // shooting RAW). Otherwise read the source's color space and HEIF
+        // metadata for HDR transfer-curve tags or gain-map presence.
+        let hasHDR = wasRaw || detectHDRContent(in: data)
+
         return ImportedImage(
             sourceData: data,
             previewCIImage: preview,
             exportCIImage: oriented,
             pixelSize: oriented.extent.size,
             sourceAssetID: nil,
-            wasRawSource: wasRaw
+            wasRawSource: wasRaw,
+            hasHDRContent: hasHDR
         )
+    }
+
+    /// Inspect the source bytes for HDR content. Two signals, either of which
+    /// flips the bit:
+    ///
+    ///  1. The image's tagged color space uses an HDR transfer curve (HLG or
+    ///     PQ) — Apple's iPhone-12-Pro-and-later default capture for stills.
+    ///     Detected via `CGColorSpace.name` matching one of the known HDR
+    ///     name constants.
+    ///  2. The HEIF container carries an ISO 21496-1 gain map — Apple's
+    ///     "HDR Photo" gain-map format that pairs an SDR base image with an
+    ///     auxiliary image describing the HDR boost. Detected via
+    ///     `kCGImagePropertyAuxiliaryDataType` for HDR gain map.
+    ///
+    /// False negatives are acceptable (user can flip the toggle manually);
+    /// false positives are worse — they'd default users into HDR export of
+    /// SDR content. So this errs conservative.
+    private static func detectHDRContent(in data: Data) -> Bool {
+        guard let src = CGImageSourceCreateWithData(data as CFData, nil) else { return false }
+
+        // Signal 1: HDR transfer-curve color space.
+        if let cgImage = CGImageSourceCreateImageAtIndex(src, 0, nil),
+           let csName = cgImage.colorSpace?.name as String? {
+            // Match all the HDR name constants Apple ships across iOS
+            // versions. The HLG variants are the common iPhone capture path;
+            // PQ shows up on imported HDR HEIC from other sources.
+            let hdrNames: Set<String> = [
+                CGColorSpace.itur_2100_HLG as String,
+                CGColorSpace.itur_2100_PQ as String,
+                CGColorSpace.displayP3_HLG as String,
+                CGColorSpace.displayP3_PQ as String,
+                CGColorSpace.extendedLinearDisplayP3 as String,
+                CGColorSpace.extendedLinearITUR_2020 as String
+            ]
+            if hdrNames.contains(csName) { return true }
+        }
+
+        // Signal 2: Apple HDR gain map auxiliary data. iOS 14.1+ exposes the
+        // gain map as kCGImageAuxiliaryDataTypeHDRGainMap on iPhone HDR HEIC
+        // stills. Presence (any non-nil dict) is enough — we don't read the
+        // contents, just use it as the HDR yes/no signal.
+        if CGImageSourceCopyAuxiliaryDataInfoAtIndex(
+            src, 0, kCGImageAuxiliaryDataTypeHDRGainMap
+        ) != nil {
+            return true
+        }
+
+        return false
     }
 
     /// Standard (non-RAW) decode path. Kept separate so the RAW branch can
@@ -122,28 +181,26 @@ enum ImageImporter {
     /// Loads an ImportedImage from a PHAsset localIdentifier. Used by the library
     /// re-edit flow (LIB-02) and gracefully throws when the source has been
     /// deleted from Photos (LIB-05).
+    ///
+    /// ProRAW gamut: PHImageManager's `requestImageDataAndOrientation` returns
+    /// the rendered HEIC for ProRAW assets (a HEIC+DNG bundle), not the DNG —
+    /// so a naive re-edit lost the wide-gamut RAW data the user shot for. We
+    /// probe `PHAssetResource.assetResources(for:)` first for an
+    /// `.alternatePhoto` resource with the Adobe DNG UTI; when present, fetch
+    /// the DNG bytes via `PHAssetResourceManager` so the editor reopens with
+    /// full RAW latitude. Falls back to the standard image-data path for HEIC,
+    /// JPEG, and any RAW formats Photos doesn't expose as alternates.
     static func importImage(fromAssetID assetID: String) async throws -> ImportedImage {
         let fetch = PHAsset.fetchAssets(withLocalIdentifiers: [assetID], options: nil)
         guard let asset = fetch.firstObject else {
             throw ImageImportError.phAssetUnavailable
         }
 
-        let options = PHImageRequestOptions()
-        options.isSynchronous = false
-        options.isNetworkAccessAllowed = true
-        options.deliveryMode = .highQualityFormat
-        options.version = .current
-
-        let data: Data = try await withCheckedThrowingContinuation { cont in
-            PHImageManager.default().requestImageDataAndOrientation(
-                for: asset, options: options
-            ) { data, _, _, info in
-                if let data { cont.resume(returning: data); return }
-                if (info?[PHImageErrorKey] as? Error) != nil {
-                    cont.resume(throwing: ImageImportError.phAssetUnavailable); return
-                }
-                cont.resume(throwing: ImageImportError.phAssetUnavailable)
-            }
+        let data: Data
+        if let rawData = try? await fetchRawAlternate(for: asset) {
+            data = rawData
+        } else {
+            data = try await fetchImageData(for: asset)
         }
 
         // Reuse existing decode/orient/downsample path, then attach sourceAssetID.
@@ -154,8 +211,63 @@ enum ImageImporter {
             exportCIImage: base.exportCIImage,
             pixelSize: base.pixelSize,
             sourceAssetID: assetID,
-            wasRawSource: base.wasRawSource
+            wasRawSource: base.wasRawSource,
+            hasHDRContent: base.hasHDRContent
         )
+    }
+
+    /// Try to fetch a RAW DNG resource attached to the asset. Returns nil if
+    /// the asset has no DNG alternate (most assets — JPEG, HEIC, traditional
+    /// RAW formats Photos doesn't bundle as alternates). Throws only on a
+    /// genuine resource-fetch error so the caller can fall back.
+    private static func fetchRawAlternate(for asset: PHAsset) async throws -> Data? {
+        let resources = PHAssetResource.assetResources(for: asset)
+        // ProRAW assets carry the DNG as `.alternatePhoto` with UTI
+        // `com.adobe.raw-image`. The primary `.photo` resource is the rendered
+        // HEIC. We deliberately prefer the DNG even when the user has saved
+        // edits in Photos — the editor wants the source of truth.
+        guard let dng = resources.first(where: {
+            $0.type == .alternatePhoto &&
+            $0.uniformTypeIdentifier == "com.adobe.raw-image"
+        }) else { return nil }
+
+        let opts = PHAssetResourceRequestOptions()
+        opts.isNetworkAccessAllowed = true
+        return try await withCheckedThrowingContinuation { cont in
+            var buffer = Data()
+            PHAssetResourceManager.default().requestData(
+                for: dng,
+                options: opts,
+                dataReceivedHandler: { chunk in buffer.append(chunk) },
+                completionHandler: { error in
+                    if let error { cont.resume(throwing: error); return }
+                    cont.resume(returning: buffer)
+                }
+            )
+        }
+    }
+
+    /// Standard PHImageManager fetch — used for HEIC, JPEG, and any asset
+    /// without a DNG alternate. Returns the user's *current* version (Photos
+    /// edits applied) since that matches what they see in the Photos app.
+    private static func fetchImageData(for asset: PHAsset) async throws -> Data {
+        let options = PHImageRequestOptions()
+        options.isSynchronous = false
+        options.isNetworkAccessAllowed = true
+        options.deliveryMode = .highQualityFormat
+        options.version = .current
+
+        return try await withCheckedThrowingContinuation { cont in
+            PHImageManager.default().requestImageDataAndOrientation(
+                for: asset, options: options
+            ) { data, _, _, info in
+                if let data { cont.resume(returning: data); return }
+                if (info?[PHImageErrorKey] as? Error) != nil {
+                    cont.resume(throwing: ImageImportError.phAssetUnavailable); return
+                }
+                cont.resume(throwing: ImageImportError.phAssetUnavailable)
+            }
+        }
     }
 
     /// Pure CIImage downsample — preserves color space, no UIKit round-trip.
