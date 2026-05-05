@@ -54,7 +54,8 @@ enum ImageImporter {
 
     static let previewMaxLongEdge: CGFloat = 1080
 
-    static func importImage(from data: Data) throws -> ImportedImage {
+    static func importImage(from data: Data,
+                            explicitEXIFOrientation: Int32? = nil) throws -> ImportedImage {
         // RAW path: CIRAWFilter init returns nil when the bytes aren't a
         // recognized RAW format, so we use it as the format probe. ProRAW DNG
         // and traditional RAW both flow through here.
@@ -69,27 +70,29 @@ enum ImageImporter {
         // highlight headroom that ProRAW captures. 1.0 = full extended range
         // mapped into the working [0,1] domain. No-op on traditional RAW
         // formats that don't carry EDR data.
+        // Caller's authoritative orientation wins (e.g., PHImageManager's
+        // separate orientation parameter is more reliable than EXIF on
+        // Photos-edited assets). Falls back to a CGImageSource read of the
+        // container's EXIF tag for picker / file-import paths.
+        let exifOrientation: Int32 = explicitEXIFOrientation
+            ?? readEXIFOrientation(from: data)
+
         let oriented: CIImage
         let wasRaw: Bool
         if let rawFilter = CIRAWFilter(imageData: data, identifierHint: nil) {
             rawFilter.boostShadowAmount = 0.5
             rawFilter.extendedDynamicRangeAmount = 1.0
             if let rawOutput = rawFilter.outputImage {
-                // RAW path: CIRAWFilter output doesn't carry the source's
-                // properties dict, so we read EXIF orientation from the
-                // container directly via CGImageSource. CIRAWFilter itself
-                // outputs in sensor-native orientation (its `orientation`
-                // property defaults to .up), so applying the source EXIF on
-                // top is correct.
-                let exif = readEXIFOrientation(from: data)
-                oriented = rawOutput.oriented(forExifOrientation: exif)
+                // CIRAWFilter outputs in sensor-native orientation (its
+                // `orientation` property defaults to .up). Apply EXIF on top.
+                oriented = rawOutput.oriented(forExifOrientation: exifOrientation)
                 wasRaw = true
             } else {
-                oriented = try standardDecode(data: data)
+                oriented = try standardDecode(data: data, exifOrientation: exifOrientation)
                 wasRaw = false
             }
         } else {
-            oriented = try standardDecode(data: data)
+            oriented = try standardDecode(data: data, exifOrientation: exifOrientation)
             wasRaw = false
         }
 
@@ -172,12 +175,11 @@ enum ImageImporter {
     /// orientation. We then read the source EXIF directly from the container
     /// (always returns the original source value, no Core Image ambiguity)
     /// and apply via `.oriented(forExifOrientation:)`. Predictable.
-    private static func standardDecode(data: Data) throws -> CIImage {
+    private static func standardDecode(data: Data, exifOrientation: Int32) throws -> CIImage {
         guard let raw = CIImage(data: data) else {
             throw ImageImportError.invalidImageData
         }
-        let exif = readEXIFOrientation(from: data)
-        return raw.oriented(forExifOrientation: exif)
+        return raw.oriented(forExifOrientation: exifOrientation)
     }
 
     /// Reads EXIF orientation from a container's metadata via CGImageSource.
@@ -210,14 +212,18 @@ enum ImageImporter {
         }
 
         let data: Data
+        let exifOverride: Int32?
         if let rawData = try? await fetchRawAlternate(for: asset) {
             data = rawData
+            exifOverride = nil  // DNG container carries its own EXIF
         } else {
-            data = try await fetchImageData(for: asset)
+            let (d, o) = try await fetchImageDataAndOrientation(for: asset)
+            data = d
+            exifOverride = Int32(o.rawValue)
         }
 
         // Reuse existing decode/orient/downsample path, then attach sourceAssetID.
-        let base = try importImage(from: data)
+        let base = try importImage(from: data, explicitEXIFOrientation: exifOverride)
         return ImportedImage(
             sourceData: base.sourceData,
             previewCIImage: base.previewCIImage,
@@ -263,7 +269,12 @@ enum ImageImporter {
     /// Standard PHImageManager fetch — used for HEIC, JPEG, and any asset
     /// without a DNG alternate. Returns the user's *current* version (Photos
     /// edits applied) since that matches what they see in the Photos app.
-    private static func fetchImageData(for asset: PHAsset) async throws -> Data {
+    /// Also returns the orientation parameter from the callback — Photos.app
+    /// strips/overwrites EXIF on edited assets, so the callback orientation
+    /// is the authoritative signal.
+    private static func fetchImageDataAndOrientation(
+        for asset: PHAsset
+    ) async throws -> (Data, CGImagePropertyOrientation) {
         let options = PHImageRequestOptions()
         options.isSynchronous = false
         options.isNetworkAccessAllowed = true
@@ -273,8 +284,8 @@ enum ImageImporter {
         return try await withCheckedThrowingContinuation { cont in
             PHImageManager.default().requestImageDataAndOrientation(
                 for: asset, options: options
-            ) { data, _, _, info in
-                if let data { cont.resume(returning: data); return }
+            ) { data, _, orientation, info in
+                if let data { cont.resume(returning: (data, orientation)); return }
                 if (info?[PHImageErrorKey] as? Error) != nil {
                     cont.resume(throwing: ImageImportError.phAssetUnavailable); return
                 }

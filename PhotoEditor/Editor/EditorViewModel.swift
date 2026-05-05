@@ -178,9 +178,20 @@ final class EditorViewModel {
 
     // MARK: - Public API used by ContentView
 
-    func importPhoto(data: Data, sourceAssetID: String? = nil) async {
+    /// `explicitEXIFOrientation` lets the call site (camera-roll grid via
+    /// `PHImageManager.requestImageDataAndOrientation`) pass through Photos'
+    /// authoritative orientation. Photos.app may strip or overwrite the
+    /// orientation tag in the encoded bytes for edited / rotated assets,
+    /// so reading EXIF from the bytes alone leaves portrait photos sideways.
+    /// Nil = no override; ImageImporter falls back to its own EXIF read.
+    func importPhoto(data: Data,
+                     sourceAssetID: String? = nil,
+                     explicitEXIFOrientation: Int32? = nil) async {
         do {
-            let baseImported = try ImageImporter.importImage(from: data)
+            let baseImported = try ImageImporter.importImage(
+                from: data,
+                explicitEXIFOrientation: explicitEXIFOrientation
+            )
             // Splice the assetID from the picker into the imported value.
             self.importedImage = ImportedImage(
                 sourceData: baseImported.sourceData,

@@ -176,7 +176,13 @@ struct CameraRollGridView: View {
         opts.deliveryMode = .highQualityFormat
         opts.isSynchronous = false
 
-        PHImageManager.default().requestImageDataAndOrientation(for: asset, options: opts) { data, _, _, _ in
+        // PHImageManager hands back the orientation as a separate callback
+        // parameter because Photos.app may strip / overwrite the EXIF
+        // orientation tag in the encoded bytes (especially for assets the
+        // user has rotated or edited in Photos). Pass it through to the
+        // importer as the source of truth so portrait photos don't open
+        // sideways in the editor.
+        PHImageManager.default().requestImageDataAndOrientation(for: asset, options: opts) { data, _, orientation, _ in
             guard let data else {
                 Task { @MainActor in
                     self.isImporting = false
@@ -184,8 +190,11 @@ struct CameraRollGridView: View {
                 }
                 return
             }
+            let exifInt = Int32(orientation.rawValue)
             Task { @MainActor in
-                await self.viewModel.importPhoto(data: data, sourceAssetID: assetID)
+                await self.viewModel.importPhoto(data: data,
+                                                 sourceAssetID: assetID,
+                                                 explicitEXIFOrientation: exifInt)
                 self.isImporting = false
                 self.onPhotoOpened()
             }

@@ -32,7 +32,7 @@ import Foundation
 
 enum BuiltInPresets {
 
-    private static let seedKey = "builtInPresetsSeeded.v15"
+    private static let seedKey = "builtInPresetsSeeded.v16"
 
     /// Old preset name → new preset name. v9 swap renames so each preset's
     /// title matches the underlying bundled LUT (Polaroid 600 was using a
@@ -117,7 +117,7 @@ enum BuiltInPresets {
                 inserted += 1
             }
         }
-        NSLog("PhotoEditor: BuiltInPresets seed v15 — renamed \(renamed), removed \(removed), inserted \(inserted), updated \(updated) of \(all.count)")
+        NSLog("PhotoEditor: BuiltInPresets seed v16 — renamed \(renamed), removed \(removed), inserted \(inserted), updated \(updated) of \(all.count)")
         defaults.set(true, forKey: seedKey)
     }
 
@@ -1041,9 +1041,11 @@ enum BuiltInPresets {
             s.color.vibrance = 0.05
             s.light.shadows = 0.05
             s.light.highlights = -0.05
-            // Subtle warm bloom around highlights — the cinema-grade signature
-            // most teal/orange looks pair with print-stock halation.
-            s.halation = 0.08
+            // Halation deliberately zero. A previous version added 0.08 for
+            // print-stock cinema vibe but on a digital teal/orange grade
+            // the warm highlight bloom read as softness/blur rather than
+            // film signature. Cinematic Teal is a graded look, not a film
+            // emulation — keep it crisp.
             return s
         }()),
 
