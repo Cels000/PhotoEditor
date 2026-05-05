@@ -14,7 +14,6 @@ import CoreImage
 import Foundation
 import ImageIO
 import Photos
-import UIKit
 
 /// Result of importing photo bytes — both a downsampled preview and the full-res
 /// oriented source. `sourceData` is retained for re-loading on export if needed.
@@ -164,64 +163,28 @@ enum ImageImporter {
         return false
     }
 
-    /// Standard (non-RAW) decode path. Routes through `UIImage(data:)` and
-    /// `UIGraphicsImageRenderer` to bake orientation into the bitmap before
-    /// wrapping as CIImage. UIImage is the same orientation-handling code
-    /// path that produces correct portrait photos in every iOS app —
-    /// reusing it bypasses every CIImage `.applyOrientationProperty` /
-    /// `.oriented(forExifOrientation:)` ambiguity we've been chasing.
-    ///
-    /// `exifOrientation` (the explicit override from PHImageManager's
-    /// callback parameter) is honored when UIImage's own EXIF read returned
-    /// `.up` but the caller knows otherwise — Photos can hand back data
-    /// with the EXIF tag stripped while still indicating rotation via the
-    /// callback parameter.
-    ///
-    /// Cost: a full-resolution CPU redraw at import. Done once per import,
-    /// not per render — fine on iPhone for the deterministic-correctness
-    /// benefit.
+    /// Standard (non-RAW) decode — exact restoration of the pre-RAW
+    /// implementation that was working before the HDR / RAW refactor.
+    /// `applyOrientationProperty: true` does NOT bake rotation in the
+    /// bitmap; it just populates `raw.properties[kCGImagePropertyOrientation]`
+    /// from the EXIF tag. We then call `.oriented(forExifOrientation:)` to
+    /// geometrically rotate. The `exifOrientation` parameter (provided by
+    /// PHImageManager's callback) is unused on this path because raw.properties
+    /// is the source of truth Core Image actually uses.
     private static func standardDecode(data: Data, exifOrientation: Int32) throws -> CIImage {
-        // Bypass UIImage(data:)'s EXIF auto-detection — its behavior on
-        // Photos-served HEIC has been inconsistent. Decode the bitmap
-        // explicitly via CGImageSource (always sensor-storage orientation),
-        // then construct a UIImage with the EXPLICIT EXIF orientation we
-        // were handed by the caller (PHImageManager.requestImageDataAndOrientation
-        // returns the authoritative value as a separate parameter). UIImage
-        // honors that orientation when drawing — redraw bakes it in.
-        guard let src = CGImageSourceCreateWithData(data as CFData, nil),
-              let cg = CGImageSourceCreateImageAtIndex(src, 0, nil) else {
+        let options: [CIImageOption: Any] = [.applyOrientationProperty: true]
+        guard let raw = CIImage(data: data, options: options) else {
             throw ImageImportError.invalidImageData
         }
-        let uiOrientation = uiImageOrientation(fromEXIF: exifOrientation) ?? .up
-        let oriented = UIImage(cgImage: cg, scale: 1, orientation: uiOrientation)
-
-        let format = UIGraphicsImageRendererFormat.default()
-        format.scale = 1
-        format.opaque = true
-        let renderer = UIGraphicsImageRenderer(size: oriented.size, format: format)
-        let upright = renderer.image { _ in
-            oriented.draw(in: CGRect(origin: .zero, size: oriented.size))
-        }
-        guard let ci = CIImage(image: upright) else {
-            throw ImageImportError.invalidImageData
-        }
-        return ci
-    }
-
-    /// Map an EXIF orientation tag (1...8) to UIImage.Orientation. Apple's
-    /// two enums use different raw values, so the mapping is by case.
-    private static func uiImageOrientation(fromEXIF exif: Int32) -> UIImage.Orientation? {
-        switch exif {
-        case 1: return .up
-        case 2: return .upMirrored
-        case 3: return .down
-        case 4: return .downMirrored
-        case 5: return .leftMirrored
-        case 6: return .right
-        case 7: return .rightMirrored
-        case 8: return .left
-        default: return nil
-        }
+        // NSNumber bridge for robust int extraction across the various
+        // CFNumber subtypes Apple uses for orientation values.
+        let exif: Int32 = {
+            if let n = raw.properties[kCGImagePropertyOrientation as String] as? NSNumber {
+                return n.int32Value
+            }
+            return exifOrientation  // PHImageManager fallback
+        }()
+        return raw.oriented(forExifOrientation: exif)
     }
 
     /// Reads EXIF orientation from a container's metadata via CGImageSource.
