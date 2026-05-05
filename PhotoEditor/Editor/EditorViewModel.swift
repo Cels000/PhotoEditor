@@ -188,21 +188,10 @@ final class EditorViewModel {
                      sourceAssetID: String? = nil,
                      explicitEXIFOrientation: Int32? = nil) async {
         do {
-            let diag = ImageImporter.diagnoseOrientation(data: data, explicitEXIFOrientation: explicitEXIFOrientation)
             let baseImported = try ImageImporter.importImage(
                 from: data,
                 explicitEXIFOrientation: explicitEXIFOrientation
             )
-            func sz(_ s: CGSize) -> String { "\(Int(s.width))×\(Int(s.height))" }
-            // TEMP DIAG round 2: every decoder path side-by-side, plus the
-            // rendered preview size — the lying decoder is whichever doesn't
-            // agree with what's drawn on screen. Remove with the fix.
-            self.errorMessage = """
-            ORIENT-DBG4
-            cb=\(diag.callbackEXIF.map(String.init) ?? "nil") bytes=\(diag.bytesEXIF) wasRaw=\(baseImported.wasRawSource)
-            preview: \(sz(baseImported.previewCIImage.extent.size))
-            export: \(sz(baseImported.pixelSize))
-            """
             // Splice the assetID from the picker into the imported value.
             self.importedImage = ImportedImage(
                 sourceData: baseImported.sourceData,

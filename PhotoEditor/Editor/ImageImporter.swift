@@ -235,43 +235,6 @@ enum ImageImporter {
         return ci
     }
 
-    /// TEMP DIAG: probe every decoder path for orientation behavior.
-    /// Remove once the camera-roll rotation bug is resolved.
-    struct OrientationDiag {
-        let callbackEXIF: Int32?
-        let bytesEXIF: Int32
-        let ciDataDefault: CGSize          // CIImage(data:)
-        let ciDataApplyTrue: CGSize        // CIImage(data:, applyOrientationProperty: true)
-        let cgImageSource: CGSize          // CGImageSource → CGImage
-        let ciFromCG: CGSize               // CIImage(cgImage: cg).extent
-        let ciFromCGOriented: CGSize       // .oriented(forExifOrientation: callback)
-    }
-    static func diagnoseOrientation(data: Data, explicitEXIFOrientation: Int32?) -> OrientationDiag {
-        let bytesEXIF = readEXIFOrientation(from: data)
-        let exifFor = explicitEXIFOrientation ?? bytesEXIF
-        let ciDef = CIImage(data: data)?.extent.size ?? .zero
-        let ciTrue = CIImage(data: data, options: [.applyOrientationProperty: true])?.extent.size ?? .zero
-        var cgSize: CGSize = .zero
-        var ciFromCG: CGSize = .zero
-        var ciFromCGOriented: CGSize = .zero
-        if let src = CGImageSourceCreateWithData(data as CFData, nil),
-           let cg = CGImageSourceCreateImageAtIndex(src, 0, nil) {
-            cgSize = CGSize(width: cg.width, height: cg.height)
-            let ci = CIImage(cgImage: cg)
-            ciFromCG = ci.extent.size
-            ciFromCGOriented = ci.oriented(forExifOrientation: exifFor).extent.size
-        }
-        return OrientationDiag(
-            callbackEXIF: explicitEXIFOrientation,
-            bytesEXIF: bytesEXIF,
-            ciDataDefault: ciDef,
-            ciDataApplyTrue: ciTrue,
-            cgImageSource: cgSize,
-            ciFromCG: ciFromCG,
-            ciFromCGOriented: ciFromCGOriented
-        )
-    }
-
     /// Reads EXIF orientation from a container's metadata via CGImageSource.
     /// Used by the RAW branch where CIRAWFilter's output doesn't expose the
     /// source's properties dict. Returns 1 (Up) when missing or unreadable.
