@@ -32,7 +32,7 @@ import Foundation
 
 enum BuiltInPresets {
 
-    private static let seedKey = "builtInPresetsSeeded.v11"
+    private static let seedKey = "builtInPresetsSeeded.v12"
 
     /// Old preset name → new preset name. v9 swap renames so each preset's
     /// title matches the underlying bundled LUT (Polaroid 600 was using a
@@ -281,6 +281,9 @@ enum BuiltInPresets {
                 CurvePoint(x: 0.75, y: 0.81),
                 CurvePoint(x: 1.0, y: 0.97)
             ]
+            // Push-process color neg shows mild red bleed in spec highlights —
+            // streetlights, window reflections — even with anti-halation backing.
+            s.halation = 0.10
             return s
         }()),
 
@@ -791,6 +794,10 @@ enum BuiltInPresets {
                 CurvePoint(x: 0.75, y: 0.87),
                 CurvePoint(x: 1.0, y: 1.00)
             ]
+            // Pushed B&W with bright spec highlights (streetlights, signage)
+            // shows a faint glow around blown areas — partly halation through
+            // the thin emulsion, partly diffraction in fast lenses.
+            s.halation = 0.10
             return s
         }()),
 
@@ -857,6 +864,10 @@ enum BuiltInPresets {
                 CurvePoint(x: 0.75, y: 0.82),
                 CurvePoint(x: 1.0, y: 0.96)
             ]
+            // Disposable cameras shoot with on-camera flash directly into bulbs,
+            // streetlights, retroreflective surfaces — minilab prints show
+            // visible red bloom around those highlights. Part of the look.
+            s.halation = 0.18
             return s
         }()),
 
@@ -961,6 +972,9 @@ enum BuiltInPresets {
             s.color.vibrance = 0.05
             s.light.shadows = 0.05
             s.light.highlights = -0.05
+            // Subtle warm bloom around highlights — the cinema-grade signature
+            // most teal/orange looks pair with print-stock halation.
+            s.halation = 0.08
             return s
         }()),
 

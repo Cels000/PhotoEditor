@@ -67,55 +67,58 @@ public enum ExportService {
         options: ExportOptions
     ) throws -> Data {
 
-        // ── Step 1: Tag the CGImage with the output color space ──────────────────
+        // ── Step 1: Resolve the desired output color space ───────────────────────
         // PITFALL #4: Use named profiles. Honor source profile preference.
         // P3 in → P3 out; sRGB in → sRGB out. Never CGColorSpaceCreateDeviceRGB.
         let outputCS: CGColorSpace = colorSpace
             ?? CGColorSpace(name: CGColorSpace.displayP3)
             ?? CGColorSpace(name: CGColorSpace.sRGB)!
 
-        guard let tagged = cgImage.copy(colorSpace: outputCS) else {
-            throw Error.encodeFailed
-        }
+        // Wide-gamut correctness: RenderEngine always emits Display P3. If the
+        // caller asks for a different output CS (e.g. sRGB to match a non-P3
+        // source), the bitmap's pixel values must be COLOR-CONVERTED, not just
+        // re-tagged. `CGImage.copy(colorSpace:)` only re-tags — using it across
+        // a CS change tags P3 pixel data as sRGB and the file decodes wrong
+        // (Photos shows desaturated / shifted color). Convert via CIContext so
+        // the conversion is gamut-mapped through extendedLinearSRGB.
+        let needsColorConversion: Bool = {
+            guard let inName = cgImage.colorSpace?.name else { return true }
+            return inName != outputCS.name
+        }()
 
         // ── Step 2: Resize if needed ──────────────────────────────────────────────
-        // Derive the source long edge from the (tagged) bitmap dimensions.
-        let srcW = tagged.width
-        let srcH = tagged.height
+        let srcW = cgImage.width
+        let srcH = cgImage.height
         let sourceLongEdge = max(srcW, srcH)
         let targetLongEdge = options.size.resolve(sourceLongEdge: sourceLongEdge)
+        // resolve() already clamps to sourceLongEdge for .full, but guard anyway
+        // so we never upscale via Lanczos.
+        let scale = max(0.0, min(1.0, Double(targetLongEdge) / Double(sourceLongEdge)))
+        let needsResize = abs(targetLongEdge - sourceLongEdge) >= 1 && scale < 1.0
 
         let resizedCG: CGImage
-        if abs(targetLongEdge - sourceLongEdge) < 1 {
-            // No resize needed (within 0.5 px tolerance — integer comparison is fine here).
-            resizedCG = tagged
+        if !needsResize && !needsColorConversion {
+            // Fast path: bitmap already in target CS at target size.
+            resizedCG = cgImage
         } else {
-            // Downsample via Lanczos (CILanczosScaleTransform baked in CIImage rendering).
-            // We NEVER upscale: resolve() already clamps to sourceLongEdge for .full,
-            // and the `abs(...) < 1` guard above catches the exact-match case.
-            let scale = Double(targetLongEdge) / Double(sourceLongEdge)
-            guard scale <= 1.0 else {
-                // Safety: ExportSize.resolve should never return > sourceLongEdge, but guard anyway.
-                resizedCG = tagged
-                // (Not an error; just skip upscale per spec.)
-                _ = scale  // silence unused-variable warning on the early-return path
-                return try finalize(resizedCG: tagged, sourceProperties: sourceProperties,
-                                    options: options, outputCS: outputCS)
-            }
+            // Lanczos downsample and/or color-managed conversion via CIContext.
+            // workingColorSpace = extendedLinearSRGB for precision (gamut-maps
+            // P3 → sRGB correctly); outputColorSpace = the requested outputCS.
+            let ci = CIImage(cgImage: cgImage)
+            let scaled = needsResize
+                ? ci.transformed(by: CGAffineTransform(scaleX: scale, y: scale))
+                : ci
 
-            let ci = CIImage(cgImage: tagged)
-            let transform = CGAffineTransform(scaleX: scale, y: scale)
-            let scaled = ci.transformed(by: transform)
-
-            // CIContext: workingColorSpace = extendedLinearSRGB for precision; output in outputCS.
             let ctx = CIContext(options: [
                 .workingColorSpace: CGColorSpace(name: CGColorSpace.extendedLinearSRGB)
                     ?? CGColorSpace(name: CGColorSpace.sRGB)!,
                 .outputColorSpace: outputCS
             ])
 
-            guard let rendered = ctx.createCGImage(scaled, from: scaled.extent) else {
-                throw Error.resizeFailed
+            guard let rendered = ctx.createCGImage(scaled, from: scaled.extent,
+                                                   format: .RGBA8,
+                                                   colorSpace: outputCS) else {
+                throw needsResize ? Error.resizeFailed : Error.encodeFailed
             }
             resizedCG = rendered
         }
