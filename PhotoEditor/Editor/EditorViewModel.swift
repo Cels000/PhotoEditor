@@ -198,13 +198,8 @@ final class EditorViewModel {
             // rendered preview size — the lying decoder is whichever doesn't
             // agree with what's drawn on screen. Remove with the fix.
             self.errorMessage = """
-            ORIENT-DBG3
-            cb=\(diag.callbackEXIF.map(String.init) ?? "nil") bytes=\(diag.bytesEXIF)
-            CI(data) def: \(sz(diag.ciDataDefault))
-            CI(data) appT: \(sz(diag.ciDataApplyTrue))
-            CGImage: \(sz(diag.cgImageSource))
-            CI(cg): \(sz(diag.ciFromCG))
-            CI(cg).oriented: \(sz(diag.ciFromCGOriented))
+            ORIENT-DBG4
+            cb=\(diag.callbackEXIF.map(String.init) ?? "nil") bytes=\(diag.bytesEXIF) wasRaw=\(baseImported.wasRawSource)
             preview: \(sz(baseImported.previewCIImage.extent.size))
             export: \(sz(baseImported.pixelSize))
             """

@@ -14,6 +14,7 @@ import CoreImage
 import Foundation
 import ImageIO
 import Photos
+import UIKit
 
 /// Result of importing photo bytes — both a downsampled preview and the full-res
 /// oriented source. `sourceData` is retained for re-loading on export if needed.
@@ -70,15 +71,34 @@ enum ImageImporter {
         // highlight headroom that ProRAW captures. 1.0 = full extended range
         // mapped into the working [0,1] domain. No-op on traditional RAW
         // formats that don't carry EDR data.
-        // RAW path needs a real EXIF read — CIRAWFilter output is sensor-
-        // native and the orientation has to be applied geometrically. For
-        // the standard (HEIC/JPEG/PNG) path, CGImageSourceCreateImageAtIndex
-        // returns pixels already in upright layout (PHImageManager normalizes
-        // on access for HEIC; non-rotated formats are upright trivially), so
-        // standardDecode does not need EXIF — see its docstring.
+        // Format probe: CIRAWFilter accepts non-RAW HEIC bytes on some iOS
+        // versions and silently routes around standardDecode, which made
+        // every previous fix invisible (we kept changing the standard
+        // branch and the actual decoder was the RAW one). Gate the RAW
+        // path on a real format check via CGImageSource UTI.
+        let isRawFormat: Bool = {
+            guard let src = CGImageSourceCreateWithData(data as CFData, nil),
+                  let uti = CGImageSourceGetType(src) as String? else { return false }
+            // Adobe DNG (incl. Apple ProRAW) + the major camera RAW UTIs.
+            let rawUTIs: Set<String> = [
+                "com.adobe.raw-image",
+                "com.canon.cr2-raw-image",
+                "com.canon.cr3-raw-image",
+                "com.nikon.raw-image",
+                "com.nikon.nrw-raw-image",
+                "com.sony.arw-raw-image",
+                "com.fuji.raw-image",
+                "com.olympus.raw-image",
+                "com.panasonic.raw-image",
+                "com.pentax.raw-image",
+                "com.leica.raw-image"
+            ]
+            return rawUTIs.contains(uti)
+        }()
+
         let oriented: CIImage
         let wasRaw: Bool
-        if let rawFilter = CIRAWFilter(imageData: data, identifierHint: nil) {
+        if isRawFormat, let rawFilter = CIRAWFilter(imageData: data, identifierHint: nil) {
             rawFilter.boostShadowAmount = 0.5
             rawFilter.extendedDynamicRangeAmount = 1.0
             if let rawOutput = rawFilter.outputImage {
@@ -87,11 +107,11 @@ enum ImageImporter {
                 oriented = rawOutput.oriented(forExifOrientation: exifOrientation)
                 wasRaw = true
             } else {
-                oriented = try standardDecode(data: data)
+                oriented = try standardDecode(data: data, exifOrientation: explicitEXIFOrientation)
                 wasRaw = false
             }
         } else {
-            oriented = try standardDecode(data: data)
+            oriented = try standardDecode(data: data, exifOrientation: explicitEXIFOrientation)
             wasRaw = false
         }
 
@@ -162,27 +182,57 @@ enum ImageImporter {
         return false
     }
 
-    /// Standard (non-RAW) decode via `CIImage(data:options:[.applyOrientationProperty: true])`.
+    /// Standard (non-RAW) decode via UIImage. Reasoning:
     ///
-    /// On-device diag for an iPhone EXIF-6 portrait shot exposed the
-    /// long-standing geometric mismatch the importer kept tripping on:
+    /// CIImage's various orientation knobs (`applyOrientationProperty`,
+    /// `oriented(forExifOrientation:)`) behave differently across iOS
+    /// versions, capture sources, and even per-file — multiple debug
+    /// rounds showed the "same call" returning different extents on
+    /// different photos. UIImage(data:) is the path every native iOS app
+    /// uses for HEIC/JPEG/PNG and produces a deterministically-upright
+    /// bitmap when you draw it. Bake to a fresh CGImage via
+    /// UIGraphicsImageRenderer and wrap as CIImage so downstream Core
+    /// Image work starts from a clean upright bitmap with no orientation
+    /// metadata.
     ///
-    ///   CI(data) default:  3672 × 4896   (portrait dims, sideways pixels)
-    ///   CI(data) appT:     4896 × 3672   (landscape dims, upright pixels)
-    ///   CGImage source:    3672 × 4896   (portrait dims, sideways pixels)
-    ///   CI(cg).oriented:   4896 × 3672   (landscape dims, upright pixels)
-    ///
-    /// The dimensions don't tell you which form is upright — the pixel
-    /// content does. The "portrait-shape buffer with landscape pixels"
-    /// outputs render visibly sideways even though their bounding box
-    /// matches a portrait photo. `applyOrientationProperty: true` is the
-    /// only path that produces a buffer whose pixel content actually
-    /// renders upright; trust it and don't post-process.
-    private static func standardDecode(data: Data) throws -> CIImage {
-        guard let raw = CIImage(data: data, options: [.applyOrientationProperty: true]) else {
+    /// `exifOrientation` (PHImageManager callback) overrides UIImage's
+    /// auto-detected orientation when supplied — Photos sometimes hands
+    /// back HEIC bytes whose EXIF tag has been normalized away while the
+    /// callback parameter is the truth.
+    private static func standardDecode(data: Data, exifOrientation: Int32?) throws -> CIImage {
+        guard let src = CGImageSourceCreateWithData(data as CFData, nil),
+              let cg = CGImageSourceCreateImageAtIndex(src, 0, nil) else {
             throw ImageImportError.invalidImageData
         }
-        return raw
+        let uiOrientation: UIImage.Orientation = {
+            // Prefer caller-supplied EXIF (PHImageManager callback). Fall
+            // back to UIImage's own EXIF read by leaving orientation .up
+            // and letting it interpret the CGImage — but since we hand a
+            // raw CGImage with no EXIF metadata, .up is correct only when
+            // we have an explicit value to apply.
+            if let exif = exifOrientation,
+               let cgOri = CGImagePropertyOrientation(rawValue: UInt32(exif)) {
+                return UIImage.Orientation(cgOri)
+            }
+            // No explicit orientation — read it from the bytes.
+            let bytes = readEXIFOrientation(from: data)
+            if let cgOri = CGImagePropertyOrientation(rawValue: UInt32(bytes)) {
+                return UIImage.Orientation(cgOri)
+            }
+            return .up
+        }()
+        let oriented = UIImage(cgImage: cg, scale: 1, orientation: uiOrientation)
+        let format = UIGraphicsImageRendererFormat.default()
+        format.scale = 1
+        format.opaque = true
+        let renderer = UIGraphicsImageRenderer(size: oriented.size, format: format)
+        let upright = renderer.image { _ in
+            oriented.draw(in: CGRect(origin: .zero, size: oriented.size))
+        }
+        guard let ci = CIImage(image: upright) else {
+            throw ImageImportError.invalidImageData
+        }
+        return ci
     }
 
     /// TEMP DIAG: probe every decoder path for orientation behavior.
