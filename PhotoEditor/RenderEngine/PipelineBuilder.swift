@@ -677,44 +677,86 @@ enum PipelineBuilder {
 
     /// Halation: bright highlights bloom red/orange — the Cinestill 800T
     /// signature (Vision3 motion-picture stock with the anti-halation remjet
-    /// layer chemically removed). Pipeline: bloom the image to expand
-    /// highlights, subtract the source to isolate the bloom contribution,
-    /// tint that contribution red-orange, additively composite back over
-    /// the source. amount in 0...1 controls bloom strength + radius jointly.
+    /// layer chemically removed). Real halation has a soft, long tail because
+    /// back-of-base reflections scatter through the emulsion at varying
+    /// depths. Pipeline:
+    ///   1. Soft-threshold the image to isolate highlights (curve, not clip)
+    ///      so the glow seed varies smoothly with exposure.
+    ///   2. Blur that highlight image at TWO radii — a tight near-halo and a
+    ///      wide far-halo — and sum them. Two-scale Gaussian approximates the
+    ///      long tail of real halation better than a single Gaussian.
+    ///   3. Radii scale with the IMAGE's min dimension so preview (~1080px)
+    ///      and export (4032px+) produce the same visual glow size relative
+    ///      to the frame. Fixes a real preview-vs-export discrepancy where
+    ///      the previous fixed-pixel radius made exported halation look
+    ///      tighter than the live preview.
+    ///   4. Tint the combined glow red-orange and additively composite.
     static func applyHalation(_ halation: Double, to image: CIImage) -> CIImage {
         let cap = max(0, min(1, halation))
         guard cap > 0 else { return image }
 
-        let bloom = CIFilter.bloom()
-        bloom.inputImage = image
-        bloom.intensity = Float(cap * 1.4)
-        bloom.radius = Float(8.0 + cap * 28.0)   // 8...36 px
-        guard let bloomed = bloom.outputImage?.cropped(to: image.extent) else {
+        // 1. Soft highlight isolation. Lift only values above ~0.6 luma and
+        //    ramp them up; everything below stays near zero so the blur seed
+        //    has effectively no contribution from midtones/shadows.
+        let highlightLift = CIFilter.toneCurve()
+        highlightLift.inputImage = image
+        highlightLift.point0 = CGPoint(x: 0.0,  y: 0.0)
+        highlightLift.point1 = CGPoint(x: 0.5,  y: 0.0)
+        highlightLift.point2 = CGPoint(x: 0.7,  y: 0.15)
+        highlightLift.point3 = CGPoint(x: 0.9,  y: 0.7)
+        highlightLift.point4 = CGPoint(x: 1.0,  y: 1.0)
+        guard let seed = highlightLift.outputImage?.cropped(to: image.extent) else {
             return image
         }
 
-        // Isolate the bloom-only contribution: max(0, bloomed - source).
-        // CISubtractBlendMode result = backgroundImage - inputImage, clamped ≥ 0.
-        let sub = CIFilter.subtractBlendMode()
-        sub.backgroundImage = bloomed
-        sub.inputImage = image
-        guard let glow = sub.outputImage else { return image }
+        // 2. Two-scale Gaussian: tight near-halo + wide far-halo.
+        //    Radii expressed as fractions of min(width, height) so behavior is
+        //    resolution-independent. cap drives both radius and strength.
+        let minDim = max(1, min(image.extent.width, image.extent.height))
+        let nearR = Float(minDim * (0.005 + cap * 0.010))   // ~0.5-1.5% of min dim
+        let farR  = Float(minDim * (0.020 + cap * 0.040))   // ~2-6%
 
-        // Tint the glow red-orange. Keep R, suppress G to ~30%, suppress B more.
-        // Slightly lift R further (×1.05) to push the cast warmer than neutral red.
+        let nearBlur = CIFilter.gaussianBlur()
+        nearBlur.inputImage = seed
+        nearBlur.radius = nearR
+        let near = nearBlur.outputImage?.cropped(to: image.extent) ?? seed
+
+        let farBlur = CIFilter.gaussianBlur()
+        farBlur.inputImage = seed
+        farBlur.radius = farR
+        let far = farBlur.outputImage?.cropped(to: image.extent) ?? seed
+
+        // Sum: near contributes more (the bright core), far adds the soft tail.
+        let nearScale = CIFilter.colorMatrix()
+        nearScale.inputImage = near
+        nearScale.rVector = CIVector(x: 0.65, y: 0, z: 0, w: 0)
+        nearScale.gVector = CIVector(x: 0, y: 0.65, z: 0, w: 0)
+        nearScale.bVector = CIVector(x: 0, y: 0, z: 0.65, w: 0)
+        let farScale = CIFilter.colorMatrix()
+        farScale.inputImage = far
+        farScale.rVector = CIVector(x: 0.45, y: 0, z: 0, w: 0)
+        farScale.gVector = CIVector(x: 0, y: 0.45, z: 0, w: 0)
+        farScale.bVector = CIVector(x: 0, y: 0, z: 0.45, w: 0)
+        let combineHaloes = CIFilter.additionCompositing()
+        combineHaloes.inputImage = nearScale.outputImage ?? near
+        combineHaloes.backgroundImage = farScale.outputImage ?? far
+        guard let glow = combineHaloes.outputImage else { return image }
+
+        // 3. Tint the glow red-orange. Same matrix as before — preserves the
+        //    Cinestill warmth without changing perceived hue.
         let tint = CIFilter.colorMatrix()
         tint.inputImage = glow
-        tint.rVector = CIVector(x: 1.05, y: 0.50, z: 0.30, w: 0)
-        tint.gVector = CIVector(x: 0.30, y: 0.20, z: 0.10, w: 0)
-        tint.bVector = CIVector(x: 0.10, y: 0.06, z: 0.06, w: 0)
-        tint.aVector = CIVector(x: 0,    y: 0,    z: 0,    w: 1)
+        tint.rVector = CIVector(x: 1.05 * cap, y: 0.50 * cap, z: 0.30 * cap, w: 0)
+        tint.gVector = CIVector(x: 0.30 * cap, y: 0.20 * cap, z: 0.10 * cap, w: 0)
+        tint.bVector = CIVector(x: 0.10 * cap, y: 0.06 * cap, z: 0.06 * cap, w: 0)
+        tint.aVector = CIVector(x: 0, y: 0, z: 0, w: 1)
         guard let tinted = tint.outputImage else { return image }
 
-        // Additive composite — adds the warm glow on top without dimming the source.
+        // 4. Additive composite — warm glow on top, source unchanged below.
         let add = CIFilter.additionCompositing()
         add.inputImage = tinted
         add.backgroundImage = image
-        return add.outputImage ?? image
+        return add.outputImage?.cropped(to: image.extent) ?? image
     }
 
     static func applyVignette(_ vignette: VignetteSettings, to image: CIImage) -> CIImage {
