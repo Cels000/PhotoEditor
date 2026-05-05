@@ -287,7 +287,7 @@ struct EditorTabView: View {
             // histogram of the edited side is what the user wants to see
             // while comparing).
             if viewModel.isHistogramVisible, viewModel.importedImage != nil {
-                HistogramOverlayView(image: viewModel.histogramImage)
+                HistogramOverlayView(data: viewModel.histogramData)
                     .padding(Theme.Spacing.md)
                     .transition(.opacity)
             }

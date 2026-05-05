@@ -64,11 +64,11 @@ final class EditorViewModel {
 
     /// Toolbar-controlled visibility for the post-pipeline RGB histogram overlay.
     var isHistogramVisible: Bool = false
-    /// Latest committed histogram bitmap. Recomputed only on render commit
+    /// Latest committed histogram bin data. Recomputed only on render commit
     /// (stackDidChange Task tail + renderPreviewNow), never per slider tick.
     /// Held nil while `isHistogramVisible == false` so the overlay view never
     /// pays for stale state.
-    var histogramImage: UIImage?
+    var histogramData: HistogramData?
     var isSaving: Bool = false
     var isExporting: Bool = false
     var shareData: Data?
@@ -711,7 +711,7 @@ final class EditorViewModel {
     func toggleHistogram() {
         isHistogramVisible.toggle()
         if !isHistogramVisible {
-            histogramImage = nil
+            histogramData = nil
             return
         }
         if let ui = previewImage, let cg = ui.cgImage {
@@ -725,11 +725,11 @@ final class EditorViewModel {
     /// fires for the latest-generation preview frame, never mid-drag.
     private func recomputeHistogramIfVisible(from cg: CGImage) {
         guard isHistogramVisible else {
-            histogramImage = nil
+            histogramData = nil
             return
         }
         if let h = HistogramRenderer.render(postPipeline: cg, context: histogramContext) {
-            histogramImage = UIImage(cgImage: h)
+            histogramData = h
         }
     }
 }

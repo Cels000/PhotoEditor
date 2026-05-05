@@ -1,22 +1,30 @@
 import CoreImage
 import CoreImage.CIFilterBuiltins
 import CoreGraphics
+import Foundation
 
-/// Pure utility that produces a small RGB histogram CGImage from a post-pipeline
-/// CGImage (the committed preview frame). Uses CIAreaHistogram +
-/// CIHistogramDisplayFilter — Apple-blessed for exactly this use case, ~1ms on a
-/// 1080px preview, no third-party deps.
-///
-/// Operates on the committed CGImage (Display P3) — what the user actually
-/// sees — rather than the pre-CIContext linear chain, so the histogram reflects
-/// monitor-relative clipping (which is what scopes are for).
+/// 256-bin per-channel histogram counts, normalized to [0, 1] against the
+/// per-frame peak across all three channels (so the tallest bar of any color
+/// touches the top — matches what users expect from Lightroom/VSCO scopes).
+struct HistogramData: Equatable {
+    var r: [CGFloat]   // length 256
+    var g: [CGFloat]
+    var b: [CGFloat]
+}
+
+/// Pure utility that produces normalized RGB histogram counts from a
+/// post-pipeline CGImage (the committed preview frame). Uses `CIAreaHistogram`
+/// to compute the raw bins, then reads the 256x1 RGBA buffer ourselves so the
+/// overlay view can draw crisp colored curves — Apple's `CIHistogramDisplayFilter`
+/// produces a luma-filled grey block with faint colored traces that's hard to
+/// read on-device.
 ///
 /// Caller owns the CIContext lifecycle; we never spin up a fresh CIContext here
 /// (that would be ~50ms per call — unacceptable on every render commit).
 enum HistogramRenderer {
-    /// Render a 256x64 RGBA histogram bitmap from the supplied post-pipeline image.
+    /// Compute normalized R/G/B bin arrays from the supplied post-pipeline image.
     /// Returns nil on any filter or CIContext failure; never throws.
-    static func render(postPipeline cg: CGImage, context: CIContext) -> CGImage? {
+    static func render(postPipeline cg: CGImage, context: CIContext) -> HistogramData? {
         let input = CIImage(cgImage: cg)
 
         let area = CIFilter.areaHistogram()
@@ -24,15 +32,47 @@ enum HistogramRenderer {
         area.extent = input.extent
         area.count = 256
         area.scale = 1.0
-        guard let histogramData = area.outputImage else { return nil }
+        guard let bins = area.outputImage else { return nil }
 
-        let display = CIFilter.histogramDisplay()
-        display.inputImage = histogramData
-        display.height = 64
-        display.highLimit = 1.0
-        display.lowLimit = 0.0
-        guard let bars = display.outputImage else { return nil }
+        // Render the 256x1 RGBA float-normalized output into RGBA8 so we can
+        // read counts directly. CIAreaHistogram already normalizes against the
+        // input's pixel count, so values fit in [0, 1] — RGBA8 quantization is
+        // plenty for a ~200pt-wide overlay.
+        var pixels = [UInt8](repeating: 0, count: 256 * 4)
+        let bounds = CGRect(x: 0, y: 0, width: 256, height: 1)
+        let format = CIFormat.RGBA8
+        let colorSpace = CGColorSpaceCreateDeviceRGB()
+        pixels.withUnsafeMutableBytes { buf in
+            context.render(
+                bins,
+                toBitmap: buf.baseAddress!,
+                rowBytes: 256 * 4,
+                bounds: bounds,
+                format: format,
+                colorSpace: colorSpace
+            )
+        }
 
-        return context.createCGImage(bars, from: bars.extent)
+        var r = [CGFloat](repeating: 0, count: 256)
+        var g = [CGFloat](repeating: 0, count: 256)
+        var b = [CGFloat](repeating: 0, count: 256)
+        var peak: CGFloat = 0
+        for i in 0..<256 {
+            let rv = CGFloat(pixels[i * 4 + 0]) / 255.0
+            let gv = CGFloat(pixels[i * 4 + 1]) / 255.0
+            let bv = CGFloat(pixels[i * 4 + 2]) / 255.0
+            r[i] = rv; g[i] = gv; b[i] = bv
+            peak = max(peak, max(rv, max(gv, bv)))
+        }
+        // Compress the dynamic range with a gentle gamma so a single huge
+        // spike (common in flat skies) doesn't squash everything else flat.
+        let normPeak = peak > 0 ? peak : 1
+        let gamma: CGFloat = 0.5
+        for i in 0..<256 {
+            r[i] = pow(r[i] / normPeak, gamma)
+            g[i] = pow(g[i] / normPeak, gamma)
+            b[i] = pow(b[i] / normPeak, gamma)
+        }
+        return HistogramData(r: r, g: g, b: b)
     }
 }
