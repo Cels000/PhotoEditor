@@ -1,12 +1,12 @@
 import SwiftUI
 
 enum StudioSegment: Hashable {
-    case edits
+    case library
     case cameraRoll
 }
 
 /// Studio tab — the unified entry point for getting a photo into the editor.
-/// Two segments: CAMERA ROLL (inline PHAsset grid) and EDITS (your saved
+/// Two segments: CAMERA ROLL (inline PHAsset grid) and LIBRARY (your saved
 /// app library). Camera Roll is the default landing — most sessions start
 /// from a fresh photo. Solves the previous icon ambiguity in v1 (Library
 /// vs Add Photo were near-identical).
@@ -47,7 +47,7 @@ struct StudioTabView: View {
 
                 Picker("", selection: $segment) {
                     Text("CAMERA ROLL").tag(StudioSegment.cameraRoll)
-                    Text("EDITS").tag(StudioSegment.edits)
+                    Text("LIBRARY").tag(StudioSegment.library)
                 }
                 .pickerStyle(.segmented)
                 .padding(.horizontal, Theme.Spacing.lg)
@@ -57,8 +57,8 @@ struct StudioTabView: View {
                     switch segment {
                     case .cameraRoll:
                         CameraRollGridView(viewModel: viewModel, onPhotoOpened: onPhotoOpened)
-                    case .edits:
-                        editsGrid
+                    case .library:
+                        libraryGrid
                     }
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -105,7 +105,7 @@ struct StudioTabView: View {
     // MARK: - EDITS segment
 
     @ViewBuilder
-    private var editsGrid: some View {
+    private var libraryGrid: some View {
         if let store = libraryStore {
             LibraryGridView(store: store) { item in
                 Task {
