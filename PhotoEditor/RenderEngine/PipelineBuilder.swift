@@ -285,7 +285,10 @@ enum PipelineBuilder {
         float bandWeight(float h, float center) {
             float d = abs(h - center);
             d = min(d, 360.0 - d);
-            return smoothstep(45.0, 0.0, d);
+            // GLSL smoothstep is undefined when edge0 >= edge1, so we ramp
+            // from 0→1 across 0...45° and invert. Equivalent to
+            // smoothstep(45,0,d) mathematically; well-defined in CIKL.
+            return 1.0 - smoothstep(0.0, 45.0, d);
         }
 
         float hue2rgb(float p, float q, float t) {
