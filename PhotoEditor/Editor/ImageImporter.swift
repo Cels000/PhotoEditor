@@ -2,6 +2,13 @@
 // color-space conversion is handled by the RenderEngine CIContext working/output color spaces
 // (extendedLinearSRGB working, displayP3 output — wired in Plan 01-04).
 // Do NOT set .colorSpace in the options dict here — the source's tagged profile must propagate.
+//
+// RAW/ProRAW: when the source bytes are a recognized RAW format (DNG including
+// Apple ProRAW, plus all the CR2/NEF/ARW/etc. formats Core Image's RAW pipeline
+// supports), we route through `CIRAWFilter` so the user gets the actual reason
+// to shoot RAW — extended highlight latitude and shadow recoverability — rather
+// than a default-rendered demosaic. Falls back to the standard `CIImage(data:)`
+// path when the bytes aren't RAW.
 
 import CoreImage
 import Foundation
@@ -37,23 +44,49 @@ enum ImageImporter {
     static let previewMaxLongEdge: CGFloat = 1080
 
     static func importImage(from data: Data) throws -> ImportedImage {
-        // Step 1: Decode using CIImage(data:options:). DO NOT use UIImage.
-        let options: [CIImageOption: Any] = [
-            .applyOrientationProperty: true
-        ]
-        guard let raw = CIImage(data: data, options: options) else {
-            throw ImageImportError.invalidImageData
+        // EXIF orientation lives in the container metadata for both standard
+        // and RAW formats. CIRAWFilter's outputImage doesn't carry .properties
+        // reliably, so we read orientation up-front from the bytes and bake
+        // it geometrically below regardless of decode path.
+        let exifOrientation: Int32 = {
+            guard let src = CGImageSourceCreateWithData(data as CFData, nil),
+                  let props = CGImageSourceCopyPropertiesAtIndex(src, 0, nil) as? [CFString: Any],
+                  let o = props[kCGImagePropertyOrientation] as? Int32
+            else { return 1 }
+            return o
+        }()
+
+        // RAW path: CIRAWFilter init returns nil when the bytes aren't a
+        // recognized RAW format, so we use it as the format probe. ProRAW DNG
+        // and traditional RAW both flow through here.
+        //
+        // boostShadowAmount (0...1, default ~0): lifts shadows during demosaic
+        // so the latitude the user shot RAW to keep is actually visible in the
+        // editor without them having to drag the shadow slider every time.
+        // Conservative 0.5 — leaves room for further adjustment, and isn't so
+        // aggressive that it crushes mid-tone contrast on flat scenes.
+        //
+        // extendedDynamicRangeAmount (iOS 14.1+, 0...2): unlocks the EDR
+        // highlight headroom that ProRAW captures. 1.0 = full extended range
+        // mapped into the working [0,1] domain. No-op on traditional RAW
+        // formats that don't carry EDR data.
+        let oriented: CIImage
+        if let rawFilter = CIRAWFilter(imageData: data, identifierHint: nil) {
+            rawFilter.boostShadowAmount = 0.5
+            rawFilter.extendedDynamicRangeAmount = 1.0
+            if let rawOutput = rawFilter.outputImage {
+                oriented = rawOutput.oriented(forExifOrientation: exifOrientation)
+            } else {
+                // CIRAWFilter created but couldn't produce output (corrupt /
+                // partially-supported variant) — fall back to the standard
+                // decoder, which usually has a baseline preview embedded.
+                oriented = try standardDecode(data: data, exifOrientation: exifOrientation)
+            }
+        } else {
+            oriented = try standardDecode(data: data, exifOrientation: exifOrientation)
         }
 
-        // Step 2: Read the EXIF orientation tag from the image properties.
-        let exifOrientation = (raw.properties[kCGImagePropertyOrientation as String] as? Int32) ?? 1
-
-        // Step 3: Bake orientation geometrically. After this call, the image's
-        // pixel data is in the visually-correct orientation and downstream
-        // code can treat orientation as 1 (default).
-        let oriented = raw.oriented(forExifOrientation: exifOrientation)
-
-        // Step 4: Downsample for preview (≤1080px long edge).
+        // Downsample for preview (≤1080px long edge).
         let preview = downsample(oriented, maxLongEdge: previewMaxLongEdge)
 
         return ImportedImage(
@@ -63,6 +96,16 @@ enum ImageImporter {
             pixelSize: oriented.extent.size,
             sourceAssetID: nil
         )
+    }
+
+    /// Standard (non-RAW) decode path. Kept separate so the RAW branch can
+    /// fall back to it without duplicating the decode + orient logic.
+    private static func standardDecode(data: Data, exifOrientation: Int32) throws -> CIImage {
+        let options: [CIImageOption: Any] = [.applyOrientationProperty: true]
+        guard let raw = CIImage(data: data, options: options) else {
+            throw ImageImportError.invalidImageData
+        }
+        return raw.oriented(forExifOrientation: exifOrientation)
     }
 
     /// Loads an ImportedImage from a PHAsset localIdentifier. Used by the library

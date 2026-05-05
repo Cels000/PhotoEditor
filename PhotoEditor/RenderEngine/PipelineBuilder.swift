@@ -600,10 +600,19 @@ enum PipelineBuilder {
         comp.backgroundImage = image
         return comp.outputImage ?? image
     }
-    /// Film grain via per-pixel kernel. Replaces uniform-noise compositing with
-    /// luma-weighted noise (peaks in midtones, fades in shadows/highlights —
-    /// real film characteristic) over a slightly-blurred random source so the
-    /// grain clumps instead of looking like uniform pixel hash.
+    /// Film grain via per-pixel kernel. Character is tied to `grain.size` so
+    /// each preset's existing size value drives different perceptual textures
+    /// without needing a schema change:
+    ///   - small size (≤0.25): fine T-grain — tight luma noise, midtone-peaked
+    ///     bell weighting (Portra, Acros, Provia, fine modern emulsions).
+    ///   - medium (0.25..0.55): mixed character — slight chroma noise begins
+    ///     to leak in (Portra 800, Superia, mid-ISO color negs).
+    ///   - large (≥0.55): dye-cloud color speckle + flatter luma weighting so
+    ///     grain stays visible into shadows and highlights — the cubic /
+    ///     pushed-stock signature (Tri-X, HP5, Delta 3200, Cinestill, Elite
+    ///     Color 400). Physically motivated: bigger silver-halide / dye
+    ///     crystals correlate with both coarser grain AND less inter-layer
+    ///     correlation, hence chromatic blobs rather than mono fluctuation.
     static func applyGrain(_ grain: GrainSettings, to image: CIImage) -> CIImage {
         guard grain.intensity > 0 else { return image }
         guard let kernel = grainKernel else { return image }
@@ -615,30 +624,52 @@ enum PipelineBuilder {
         let scale = 1.0 + grain.size * 3.0
         let scaled = raw.transformed(by: CGAffineTransform(scaleX: scale, y: scale))
 
-        // Slight Gaussian to clump grain — silver halide aggregates spatially,
-        // it doesn't look like uniform pixel noise.
+        // Clumping radius: larger grain clumps more, but not linearly —
+        // coarse cubic grain has harder edges than fine T-grain, so the
+        // radius growth tapers (sqrt-ish) above size=0.5 to keep edges crisp.
+        let blurR = 0.4 + grain.size * 0.6 - max(0, grain.size - 0.5) * 0.4
         let blur = CIFilter.gaussianBlur()
         blur.inputImage = scaled
-        blur.radius = Float(0.4 + grain.size * 0.6)
+        blur.radius = Float(blurR)
         let clumped = blur.outputImage?.cropped(to: image.extent)
                       ?? scaled.cropped(to: image.extent)
 
+        // chromaMix: 0 below size 0.3, ramps to ~0.55 at size 1.0 — color
+        // speckle emerges with coarser grain.
+        let chromaMix = max(0, min(0.55, (grain.size - 0.3) * 0.8))
+        // bellFlatness: 0 below size 0.5, ramps to ~0.6 at size 1.0 — at the
+        // cubic end, weighting flattens so grain reaches into shadows/highlights.
+        let bellFlatness = max(0, min(0.6, (grain.size - 0.5) * 1.2))
+
         let amount = Float(max(0, min(1, grain.intensity)) * 0.5)
         return kernel.apply(extent: image.extent,
-                            arguments: [image, clumped, amount]) ?? image
+                            arguments: [image, clumped, amount,
+                                        Float(chromaMix), Float(bellFlatness)]) ?? image
     }
 
     private static let grainKernel: CIColorKernel? = {
+        // chromaMix: 0 = mono luma shift, 1 = per-channel uncorrelated noise.
+        // bellFlatness: 0 = pure midtone bell, 1 = uniform across exposure.
         let source = """
-        kernel vec4 filmGrain(__sample src, __sample noise, float amount) {
+        kernel vec4 filmGrain(__sample src, __sample noise, float amount,
+                              float chromaMix, float bellFlatness) {
             float Y = dot(src.rgb, vec3(0.2126, 0.7152, 0.0722));
-            // Luma-weighted: bell curve peaking at midtones (Y=0.5), with a
-            // 0.15 floor so shadows/highlights still get *some* grain.
-            float w = 1.0 - 2.0 * abs(Y - 0.5);
-            w = clamp(w, 0.15, 1.0);
-            float n = noise.r - 0.5;
-            vec3 r = src.rgb + vec3(n * amount * w);
-            return vec4(clamp(r, 0.0, 1.0), src.a);
+            float bell = 1.0 - 2.0 * abs(Y - 0.5);
+            bell = clamp(bell, 0.15, 1.0);
+            // Flatten the bell for coarse-grain stocks so grain stays visible
+            // into shadows/highlights (Tri-X / HP5 reportage signature).
+            float w = mix(bell, mix(0.5, 1.0, bell), bellFlatness);
+            float nL = (noise.r - 0.5) * amount * w;
+            // CIRandomGenerator emits uncorrelated R/G/B per pixel, so reading
+            // each channel separately gives chromatic noise — the dye-cloud
+            // behavior of pushed color negative stocks.
+            float nR = (noise.r - 0.5) * amount * w;
+            float nG = (noise.g - 0.5) * amount * w;
+            float nB = (noise.b - 0.5) * amount * w;
+            vec3 mono   = vec3(nL);
+            vec3 chroma = vec3(nR, nG, nB);
+            vec3 g = mix(mono, chroma, chromaMix);
+            return vec4(clamp(src.rgb + g, 0.0, 1.0), src.a);
         }
         """
         return CIColorKernel(source: source)
