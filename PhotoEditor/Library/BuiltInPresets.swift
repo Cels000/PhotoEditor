@@ -32,7 +32,7 @@ import Foundation
 
 enum BuiltInPresets {
 
-    private static let seedKey = "builtInPresetsSeeded.v13"
+    private static let seedKey = "builtInPresetsSeeded.v14"
 
     /// Old preset name → new preset name. v9 swap renames so each preset's
     /// title matches the underlying bundled LUT (Polaroid 600 was using a
@@ -117,7 +117,7 @@ enum BuiltInPresets {
                 inserted += 1
             }
         }
-        NSLog("PhotoEditor: BuiltInPresets seed v13 — renamed \(renamed), removed \(removed), inserted \(inserted), updated \(updated) of \(all.count)")
+        NSLog("PhotoEditor: BuiltInPresets seed v14 — renamed \(renamed), removed \(removed), inserted \(inserted), updated \(updated) of \(all.count)")
         defaults.set(true, forKey: seedKey)
     }
 
@@ -984,6 +984,51 @@ enum BuiltInPresets {
                 CurvePoint(x: 0.5, y: 0.50),
                 CurvePoint(x: 0.75, y: 0.88),
                 CurvePoint(x: 1.0, y: 1.00)
+            ]
+            return s
+        }()),
+
+        // Cross Process — slide film (E-6) developed in C-41 chemistry. Cyan-shifted
+        // shadows, yellow-green highlights, punched saturation, magenta midtones.
+        // The lomo / 90s-skater / xpro signature. No LUT — pure color math.
+        Preset(name: "Cross Process", category: .modern, stack: {
+            var s = AdjustmentStack()
+            s.color.saturation = 0.30
+            s.color.vibrance = 0.15
+            s.color.temperature = -0.08
+            s.color.tint = 0.05
+            s.light.contrast = 0.20
+            s.light.shadows = -0.10
+            s.light.highlights = -0.05
+            s.hsl.red.hue = 0.06
+            s.hsl.red.saturation = 0.20
+            s.hsl.orange.hue = 0.08
+            s.hsl.orange.saturation = 0.15
+            s.hsl.yellow.hue = -0.10
+            s.hsl.yellow.saturation = 0.30
+            s.hsl.yellow.luminance = 0.15
+            s.hsl.green.hue = -0.15
+            s.hsl.green.saturation = 0.20
+            s.hsl.green.luminance = 0.10
+            s.hsl.aqua.hue = -0.10
+            s.hsl.aqua.saturation = 0.25
+            s.hsl.blue.hue = -0.12
+            s.hsl.blue.saturation = 0.30
+            s.hsl.blue.luminance = -0.10
+            s.hsl.purple.saturation = 0.20
+            s.hsl.magenta.saturation = 0.25
+            s.splitToning.shadowHue = 195       // cyan shadows
+            s.splitToning.shadowSaturation = 0.50
+            s.splitToning.highlightHue = 60     // yellow-green highlights
+            s.splitToning.highlightSaturation = 0.40
+            s.grain.size = 0.25
+            s.grain.intensity = 0.15
+            s.curves.rgb.points = [
+                CurvePoint(x: 0.0, y: 0.05),
+                CurvePoint(x: 0.25, y: 0.18),
+                CurvePoint(x: 0.5, y: 0.50),
+                CurvePoint(x: 0.75, y: 0.84),
+                CurvePoint(x: 1.0, y: 0.97)
             ]
             return s
         }()),

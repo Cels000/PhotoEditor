@@ -318,12 +318,13 @@ struct CameraView: View {
     private var presetStrip: some View {
         let cellWidth: CGFloat = 80
         let edge: CGFloat = 72
-        let selectedIdx = viewModel.slots.firstIndex(where: { $0.id == viewModel.selectedSlotID })
+        let displayed = viewModel.displayedSlots
+        let selectedIdx = displayed.firstIndex(where: { $0.id == viewModel.selectedSlotID })
         return ScrollViewReader { proxy in
             ScrollView(.horizontal, showsIndicators: false) {
                 VStack(spacing: Theme.Spacing.xs) {
                     HStack(spacing: 0) {
-                        ForEach(Array(viewModel.slots.enumerated()), id: \.element.id) { idx, slot in
+                        ForEach(Array(displayed.enumerated()), id: \.element.id) { idx, slot in
                             let distance: Int = {
                                 guard let selectedIdx else { return 0 }
                                 return abs(idx - selectedIdx)
@@ -348,8 +349,8 @@ struct CameraView: View {
                         }
                     }
                     HStack(spacing: 0) {
-                        ForEach(Array(viewModel.slots.enumerated()), id: \.element.id) { idx, slot in
-                            thumbnailCell(for: slot, edge: edge, index: idx)
+                        ForEach(Array(displayed.enumerated()), id: \.element.id) { idx, slot in
+                            thumbnailCell(for: slot, edge: edge, index: idx, displayed: displayed)
                                 .frame(width: cellWidth)
                                 .id(slot.id)
                                 .onAppear { addVisible(slot.id) }
@@ -368,7 +369,7 @@ struct CameraView: View {
             }
             .onChange(of: scrolledID) { _, newID in
                 guard let newID, newID != viewModel.selectedSlotID,
-                      let slot = viewModel.slots.first(where: { $0.id == newID })
+                      let slot = viewModel.displayedSlots.first(where: { $0.id == newID })
                 else { return }
                 viewModel.selectSlot(slot)
             }
@@ -384,12 +385,13 @@ struct CameraView: View {
         }
     }
 
-    private func thumbnailCell(for slot: CameraSlot, edge: CGFloat, index: Int) -> some View {
+    private func thumbnailCell(for slot: CameraSlot, edge: CGFloat, index: Int, displayed: [CameraSlot]) -> some View {
         let isSelected = slot.id == viewModel.selectedSlotID
         let cg = viewModel.thumbnailer?.thumbnails[slot.id]
+        let recentsIDs = viewModel.recentsSectionIDs
         let showsCategoryBoundary: Bool = {
             guard index > 0 else { return false }
-            return categoryKey(for: slot) != categoryKey(for: viewModel.slots[index - 1])
+            return categoryKey(for: slot, recentsIDs: recentsIDs) != categoryKey(for: displayed[index - 1], recentsIDs: recentsIDs)
         }()
         return Button {
             viewModel.selectSlot(slot)
@@ -421,11 +423,26 @@ struct CameraView: View {
                 }
             }
             .scaleEffect(isSelected ? 1.05 : 1.0)
+            .overlay(alignment: .bottomTrailing) {
+                let pct = viewModel.intensity(for: slot.id)
+                if isSelected, !slot.isOriginal, pct < 0.999 {
+                    Text("\(Int(pct * 100))%")
+                        .font(.system(size: 9, weight: .semibold))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 5)
+                        .padding(.vertical, 2)
+                        .background(.black.opacity(0.65))
+                        .clipShape(Capsule())
+                        .padding(4)
+                        .monospacedDigit()
+                }
+            }
         }
         .buttonStyle(.plain)
     }
 
-    private func categoryKey(for slot: CameraSlot) -> String {
+    private func categoryKey(for slot: CameraSlot, recentsIDs: Set<String> = []) -> String {
+        if recentsIDs.contains(slot.id) { return "__recents__" }
         switch slot {
         case .original:        return "__original__"
         case .recipe:          return slot.categoryDisplayName ?? "__uncategorized__"
@@ -433,11 +450,12 @@ struct CameraView: View {
     }
 
     private func firstSlotIDOfNextCategory(after slotID: String) -> String? {
-        let slots = viewModel.slots
+        let slots = viewModel.displayedSlots
+        let recentsIDs = viewModel.recentsSectionIDs
         guard let idx = slots.firstIndex(where: { $0.id == slotID }) else { return nil }
-        let currentKey = categoryKey(for: slots[idx])
+        let currentKey = categoryKey(for: slots[idx], recentsIDs: recentsIDs)
         for i in (idx + 1)..<slots.count {
-            if categoryKey(for: slots[i]) != currentKey {
+            if categoryKey(for: slots[i], recentsIDs: recentsIDs) != currentKey {
                 return slots[i].id
             }
         }
@@ -446,7 +464,7 @@ struct CameraView: View {
 
     private func jumpToNextCategory() {
         guard let nextID = firstSlotIDOfNextCategory(after: viewModel.selectedSlotID),
-              let nextSlot = viewModel.slots.first(where: { $0.id == nextID })
+              let nextSlot = viewModel.displayedSlots.first(where: { $0.id == nextID })
         else { return }
         UIImpactFeedbackGenerator(style: .light).impactOccurred()
         viewModel.selectSlot(nextSlot)

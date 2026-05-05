@@ -45,6 +45,7 @@ final class CameraViewModel {
     static let flashKey    = "camera.flashMode"
     static let gridKey     = "camera.gridEnabled"
     static let intensitiesKey = "camera.slotIntensities"
+    static let recentSlotIDsKey = "camera.recentSlotIDs"
 
     // MARK: - Dependencies
     let libraryStore: LibraryStore
@@ -69,6 +70,7 @@ final class CameraViewModel {
     var errorMessage: String?
     var captureInFlight: Bool = false
     private(set) var slotIntensities: [String: Double] = [:]
+    private(set) var recentSlotIDs: [String] = []
 
     // MARK: - Override hooks (wired in Task 9)
     private var heicProviderOverride: (() async throws -> Data)?
@@ -108,6 +110,43 @@ final class CameraViewModel {
            let decoded = try? JSONDecoder().decode([String: Double].self, from: data) {
             slotIntensities = decoded
         }
+
+        if let data = userDefaults.data(forKey: Self.recentSlotIDsKey),
+           let decoded = try? JSONDecoder().decode([String].self, from: data) {
+            recentSlotIDs = decoded
+        }
+    }
+
+    var liveRecentSlots: [CameraSlot] {
+        recentSlotIDs.compactMap { id in slots.first(where: { $0.id == id }) }
+    }
+
+    var displayedSlots: [CameraSlot] {
+        var seenIDs: Set<String> = []
+        var out: [CameraSlot] = []
+        if let original = slots.first(where: {
+            if case .original = $0 { return true } else { return false }
+        }) {
+            out.append(original)
+            seenIDs.insert(CameraSlot.originalID)
+        }
+        for slot in liveRecentSlots where !seenIDs.contains(slot.id) {
+            out.append(slot)
+            seenIDs.insert(slot.id)
+        }
+        for slot in slots where !seenIDs.contains(slot.id) {
+            out.append(slot)
+            seenIDs.insert(slot.id)
+        }
+        return out
+    }
+
+    var recentsSectionIDs: Set<String> {
+        var ids: Set<String> = []
+        for slot in liveRecentSlots where slot.id != CameraSlot.originalID {
+            ids.insert(slot.id)
+        }
+        return ids
     }
 
     func intensity(for slotID: String) -> Double {
@@ -134,6 +173,15 @@ final class CameraViewModel {
     func selectSlot(_ slot: CameraSlot) {
         selectedSlotID = slot.id
         userDefaults.set(slot.id, forKey: Self.lastSlotKey)
+        if slot.id != CameraSlot.originalID {
+            var updated = recentSlotIDs.filter { $0 != slot.id }
+            updated.insert(slot.id, at: 0)
+            if updated.count > 4 { updated = Array(updated.prefix(4)) }
+            recentSlotIDs = updated
+            if let encoded = try? JSONEncoder().encode(updated) {
+                userDefaults.set(encoded, forKey: Self.recentSlotIDsKey)
+            }
+        }
     }
 
     func bindHEIC(provider: @escaping () async throws -> Data) {

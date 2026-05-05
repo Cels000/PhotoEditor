@@ -45,6 +45,11 @@ enum CameraSlot: Identifiable, Hashable {
         [.original] + recipes.map { .recipe($0) }
     }
 
+    var isOriginal: Bool {
+        if case .original = self { return true }
+        return false
+    }
+
     var category: RecipeCategory? {
         switch self {
         case .original:        return nil
