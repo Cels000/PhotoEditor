@@ -215,8 +215,8 @@ struct CameraView: View {
                 .contentShape(Circle())
             }
             .buttonStyle(.plain)
-            .disabled(viewModel.captureInFlight)
-            .opacity(viewModel.captureInFlight ? 0.85 : 1.0)
+            .disabled(viewModel.captureInFlight || countingDown)
+            .opacity((viewModel.captureInFlight || countingDown) ? 0.85 : 1.0)
             Spacer()
             if session.hasFrontCamera {
                 Button {
@@ -265,7 +265,26 @@ struct CameraView: View {
         }
     }
 
+    private func cycleTimer() {
+        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        switch viewModel.timerSeconds {
+        case 0:  viewModel.timerSeconds = 3
+        case 3:  viewModel.timerSeconds = 10
+        default: viewModel.timerSeconds = 0
+        }
+    }
+
     private func runCapture() async {
+        if viewModel.timerSeconds > 0 {
+            countingDown = true
+            countdown = viewModel.timerSeconds
+            for _ in 0..<viewModel.timerSeconds {
+                UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                try? await Task.sleep(nanoseconds: 1_000_000_000)
+                countdown -= 1
+            }
+            countingDown = false
+        }
         // System shutter sound (1108) — same id Apple's Camera plays.
         AudioServicesPlaySystemSound(1108)
         UIImpactFeedbackGenerator(style: .medium).impactOccurred()
@@ -551,6 +570,35 @@ struct CameraView: View {
                             .padding(.trailing, Theme.Spacing.md)
                     }
                 }
+                if viewModel.levelEnabled {
+                    levelLine(in: geo.size)
+                }
+                if countdown > 0 {
+                    Text("\(countdown)")
+                        .font(.system(size: 96, weight: .semibold))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 28)
+                        .padding(.vertical, 12)
+                        .background(.black.opacity(0.5))
+                        .clipShape(Capsule())
+                        .transition(.opacity)
+                        .id(countdown)
+                }
+                VStack {
+                    if zoomPillVisible && liveZoom > 1.05 {
+                        Text(String(format: "%.1f×", liveZoom))
+                            .font(Theme.Typography.label)
+                            .tracking(1)
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 4)
+                            .background(.black.opacity(0.5))
+                            .clipShape(Capsule())
+                            .padding(.top, Theme.Spacing.md)
+                            .transition(.opacity)
+                    }
+                    Spacer()
+                }
                 VStack {
                     Text("ORIGINAL")
                         .font(Theme.Typography.label)
@@ -570,6 +618,28 @@ struct CameraView: View {
             .onTapGesture { location in
                 handleTap(at: location, in: geo.size)
             }
+            .simultaneousGesture(
+                MagnificationGesture()
+                    .onChanged { scale in
+                        let target = pinchBaseZoom * scale
+                        let clamped = min(5.0, max(1.0, target))
+                        liveZoom = clamped
+                        session.setZoomFactor(target)
+                        zoomPillVisible = true
+                        zoomPillHideTask?.cancel()
+                    }
+                    .onEnded { _ in
+                        pinchBaseZoom = session.zoomFactor
+                        liveZoom = session.zoomFactor
+                        zoomPillHideTask?.cancel()
+                        zoomPillHideTask = Task { @MainActor in
+                            try? await Task.sleep(nanoseconds: 1_500_000_000)
+                            if !Task.isCancelled {
+                                withAnimation(.easeOut(duration: 0.25)) { zoomPillVisible = false }
+                            }
+                        }
+                    }
+            )
             .gesture(
                 LongPressGesture(minimumDuration: 0.4)
                     .sequenced(before: DragGesture(minimumDistance: 0))
@@ -632,6 +702,38 @@ struct CameraView: View {
         Task { @MainActor in
             try? await Task.sleep(nanoseconds: 800_000_000)
             withAnimation { focusPoint = nil }
+        }
+    }
+
+    @ViewBuilder
+    private func levelLine(in size: CGSize) -> some View {
+        // Add π/2: portrait device frame's roll axis is rotated 90° relative
+        // to the screen's horizontal.
+        let adjusted = roll + .pi / 2
+        let isLevel = abs(adjusted.truncatingRemainder(dividingBy: .pi)) < 0.03
+            || abs(abs(adjusted.truncatingRemainder(dividingBy: .pi)) - .pi) < 0.03
+        Rectangle()
+            .fill(isLevel ? Color.yellow : Color.white.opacity(0.4))
+            .frame(width: size.width * 0.7, height: 1)
+            .position(x: size.width / 2, y: size.height / 2)
+            .rotationEffect(.radians(adjusted))
+            .allowsHitTesting(false)
+    }
+
+    private func startMotionIfNeeded() {
+        guard viewModel.levelEnabled,
+              motionManager.isDeviceMotionAvailable,
+              !motionManager.isDeviceMotionActive else { return }
+        motionManager.deviceMotionUpdateInterval = 1.0 / 30.0
+        motionManager.startDeviceMotionUpdates(to: .main) { motion, _ in
+            guard let m = motion else { return }
+            roll = m.attitude.roll
+        }
+    }
+
+    private func stopMotion() {
+        if motionManager.isDeviceMotionActive {
+            motionManager.stopDeviceMotionUpdates()
         }
     }
 
