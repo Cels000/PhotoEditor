@@ -177,6 +177,24 @@ enum ImageImporter {
         return raw.oriented(forExifOrientation: exifOrientation)
     }
 
+    /// TEMP DIAG: dumps the values we use to choose orientation so we can see
+    /// what's actually happening on-device for the camera-roll rotation bug.
+    /// Remove once resolved.
+    struct OrientationDiag {
+        let callbackEXIF: Int32?
+        let bytesEXIF: Int32
+        let rawExtent: CGSize
+    }
+    static func diagnoseOrientation(data: Data, explicitEXIFOrientation: Int32?) -> OrientationDiag {
+        let bytesEXIF = readEXIFOrientation(from: data)
+        let raw = CIImage(data: data, options: [.applyOrientationProperty: false])
+        return OrientationDiag(
+            callbackEXIF: explicitEXIFOrientation,
+            bytesEXIF: bytesEXIF,
+            rawExtent: raw?.extent.size ?? .zero
+        )
+    }
+
     /// Reads EXIF orientation from a container's metadata via CGImageSource.
     /// Used by the RAW branch where CIRAWFilter's output doesn't expose the
     /// source's properties dict. Returns 1 (Up) when missing or unreadable.
