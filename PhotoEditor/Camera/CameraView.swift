@@ -32,6 +32,8 @@ struct CameraView: View {
     @State private var countingDown: Bool = false
     @State private var motionManager = CMMotionManager()
     @State private var roll: Double = 0
+    @State private var aeAfLocked: Bool = false
+    @State private var showLastShot: Bool = false
 
     var body: some View {
         ZStack {
@@ -101,6 +103,13 @@ struct CameraView: View {
             CameraPresetGridView(viewModel: viewModel)
                 .presentationDetents([.large])
                 .presentationDragIndicator(.visible)
+        }
+        .fullScreenCover(isPresented: $showLastShot) {
+            if let item = viewModel.libraryStore.items.first {
+                LastShotOverlay(item: item, onDismiss: { showLastShot = false })
+            } else {
+                Color.clear.onAppear { showLastShot = false }
+            }
         }
         .sheet(isPresented: $showSaveRecipe) {
             RecipeNamePromptView(
@@ -247,7 +256,7 @@ struct CameraView: View {
            let ui = UIImage(data: data) {
             Button {
                 UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                dismiss()
+                showLastShot = true
             } label: {
                 Image(uiImage: ui)
                     .resizable()
@@ -600,6 +609,20 @@ struct CameraView: View {
                     Spacer()
                 }
                 VStack {
+                    Text("AE/AF LOCK")
+                        .font(Theme.Typography.label)
+                        .tracking(2)
+                        .foregroundStyle(.yellow)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                        .background(.black.opacity(0.55))
+                        .clipShape(Capsule())
+                        .padding(.top, Theme.Spacing.md)
+                        .opacity(aeAfLocked ? 1 : 0)
+                        .animation(.easeInOut(duration: 0.15), value: aeAfLocked)
+                    Spacer()
+                }
+                VStack {
                     Text("ORIGINAL")
                         .font(Theme.Typography.label)
                         .tracking(2)
@@ -615,7 +638,14 @@ struct CameraView: View {
                 }
             }
             .contentShape(Rectangle())
+            .onTapGesture(count: 2) { location in
+                handleDoubleTap(at: location, in: geo.size)
+            }
             .onTapGesture { location in
+                if aeAfLocked {
+                    aeAfLocked = false
+                    session.releaseAEAFLock()
+                }
                 handleTap(at: location, in: geo.size)
             }
             .simultaneousGesture(
@@ -701,8 +731,22 @@ struct CameraView: View {
         rescheduleSliderHide()
         Task { @MainActor in
             try? await Task.sleep(nanoseconds: 800_000_000)
-            withAnimation { focusPoint = nil }
+            // Keep the focus ring visible while AE/AF is locked.
+            if !aeAfLocked {
+                withAnimation { focusPoint = nil }
+            }
         }
+    }
+
+    private func handleDoubleTap(at location: CGPoint, in size: CGSize) {
+        let nx = location.x / size.width
+        let ny = location.y / size.height
+        session.setFocusPointLocked(CGPoint(x: nx, y: ny))
+        aeAfLocked = true
+        focusPoint = location
+        showExposureSlider = true
+        rescheduleSliderHide()
+        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
     }
 
     @ViewBuilder
@@ -742,6 +786,58 @@ struct CameraView: View {
         hideSliderTask = Task { @MainActor in
             try? await Task.sleep(nanoseconds: 3_000_000_000)
             if !Task.isCancelled { withAnimation { showExposureSlider = false } }
+        }
+    }
+}
+
+private struct LastShotOverlay: View {
+    let item: LibraryItem
+    let onDismiss: () -> Void
+    @State private var dragOffset: CGFloat = 0
+
+    var body: some View {
+        GeometryReader { _ in
+            ZStack {
+                Color.black.ignoresSafeArea()
+                if let data = item.thumbnailData, let ui = UIImage(data: data) {
+                    Image(uiImage: ui)
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                }
+                VStack {
+                    HStack {
+                        Spacer()
+                        Button {
+                            onDismiss()
+                        } label: {
+                            Image(systemName: "xmark")
+                                .font(.system(size: 18, weight: .medium))
+                                .foregroundStyle(.white)
+                                .frame(width: 44, height: 44)
+                                .background(.black.opacity(0.5))
+                                .clipShape(Circle())
+                        }
+                        .buttonStyle(.plain)
+                        .padding(Theme.Spacing.lg)
+                    }
+                    Spacer()
+                }
+            }
+            .offset(y: dragOffset)
+            .gesture(
+                DragGesture()
+                    .onChanged { v in
+                        if v.translation.height > 0 { dragOffset = v.translation.height }
+                    }
+                    .onEnded { v in
+                        if v.translation.height > 100 {
+                            onDismiss()
+                        } else {
+                            withAnimation(.easeOut(duration: 0.2)) { dragOffset = 0 }
+                        }
+                    }
+            )
         }
     }
 }

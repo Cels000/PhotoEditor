@@ -207,6 +207,51 @@ final class CameraSession: NSObject {
         }
     }
 
+    /// Lock focus and exposure at `point` (normalized device coords). Used by
+    /// double-tap AE/AF lock — the point becomes sticky until `releaseAEAFLock()`.
+    func setFocusPointLocked(_ point: CGPoint) {
+        sessionQueue.async { [weak self] in
+            guard let device = self?.videoInput?.device else { return }
+            do {
+                try device.lockForConfiguration()
+                if device.isFocusPointOfInterestSupported {
+                    device.focusPointOfInterest = point
+                    if device.isFocusModeSupported(.locked) {
+                        device.focusMode = .locked
+                    } else if device.isFocusModeSupported(.autoFocus) {
+                        device.focusMode = .autoFocus
+                    }
+                }
+                if device.isExposurePointOfInterestSupported {
+                    device.exposurePointOfInterest = point
+                    if device.isExposureModeSupported(.locked) {
+                        device.exposureMode = .locked
+                    } else if device.isExposureModeSupported(.autoExpose) {
+                        device.exposureMode = .autoExpose
+                    }
+                }
+                device.unlockForConfiguration()
+            } catch {}
+        }
+    }
+
+    /// Restore continuous AF / AE — called when a single tap arrives while locked.
+    func releaseAEAFLock() {
+        sessionQueue.async { [weak self] in
+            guard let device = self?.videoInput?.device else { return }
+            do {
+                try device.lockForConfiguration()
+                if device.isFocusModeSupported(.continuousAutoFocus) {
+                    device.focusMode = .continuousAutoFocus
+                }
+                if device.isExposureModeSupported(.continuousAutoExposure) {
+                    device.exposureMode = .continuousAutoExposure
+                }
+                device.unlockForConfiguration()
+            } catch {}
+        }
+    }
+
     /// EV in the device's supported range (typically -2…+2).
     func setExposureCompensation(_ ev: Float) {
         sessionQueue.async { [weak self] in
