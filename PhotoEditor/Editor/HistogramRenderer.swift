@@ -35,12 +35,19 @@ enum HistogramRenderer {
         guard let bins = area.outputImage else { return nil }
 
         // Read the 256x1 area-histogram output as raw float RGBA. CRITICAL:
-        // pass colorSpace=nil so CIContext does NOT apply a color transform —
-        // the bytes here are *counts*, not colors, and any sRGB/P3 gamma
-        // mapping silently mangles G and B (the known symptom: only the red
-        // channel shows up). RGBAf preserves precision for low-count bins.
+        // pass DeviceRGB (NOT nil) so CIContext applies no color transform.
+        // Apple docs: `colorSpace: nil` means "use the context's output
+        // colorspace" — which for our histogramContext defaults to a P3/sRGB
+        // pipeline that treats the histogram bins as *colors* and mixes them
+        // through a 3x3 matrix + gamma, zeroing G and B for typical photos
+        // (the symptom: only the red channel shows up). DeviceRGB has no ICC
+        // profile, so CI writes the IEEE 754 floats through unchanged.
+        //
+        // Use bins.extent rather than a hardcoded origin — defensive against
+        // any future input whose CIImage extent doesn't start at (0, 0).
         var pixels = [Float](repeating: 0, count: 256 * 4)
-        let bounds = CGRect(x: 0, y: 0, width: 256, height: 1)
+        let bounds = bins.extent
+        let passthrough = CGColorSpaceCreateDeviceRGB()
         pixels.withUnsafeMutableBytes { buf in
             context.render(
                 bins,
@@ -48,7 +55,7 @@ enum HistogramRenderer {
                 rowBytes: 256 * 4 * MemoryLayout<Float>.size,
                 bounds: bounds,
                 format: CIFormat.RGBAf,
-                colorSpace: nil
+                colorSpace: passthrough
             )
         }
 
